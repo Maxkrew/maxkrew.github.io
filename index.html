@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>ФФ</title>
+<!-- тёмный, как заставка: системный экран запуска рисуется этим цветом,
+     и светлый фон бросался в глаза перед появлением заставки -->
+<meta name="theme-color" content="#05070F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ФФ">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="css/app.css?v=2">
+</head>
+<body>
+
+<div id="splashScreen">
+  <div class="splash-loader">
+    <div class="spinner"></div>
+    <div class="splash-loading-text">Загрузка…</div>
+  </div>
+</div>
+
+<svg style="display:none">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Z"/><path d="M3 8.5v7L12 20l9-4.5v-7"/><path d="M12 13v7"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.3-4.3"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3" rx="1"/><path d="M9 11h6M9 15h6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M11 20V4M18 20v-7"/><path d="M2.5 20h19"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h2.5l1.3-2h8.4l1.3 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h12"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 8"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24"><path d="M7 8.5V4h10v4.5"/><rect x="4" y="8.5" width="16" height="8" rx="1.5"/><rect x="7" y="14" width="10" height="6.5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 15.5Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 .8 12.2a1 1 0 0 0 1 .8h6.4a1 1 0 0 0 1-.8L17 7"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M8 11l4 4 4-4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 2 20h20L12 4Z"/><path d="M12 10v4M12 17h.01"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.7 2.7L16 9"/></symbol>
+  <symbol id="i-lantern" viewBox="0 0 24 24"><path d="M9 4h6M10 4v3h4V4"/><path d="M7 7h10l-1.3 12.5a1 1 0 0 1-1 .9H9.3a1 1 0 0 1-1-.9L7 7Z"/><path d="M9.5 11h5M9.8 14.5h4.4"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M5 20h14"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 12h4l2 3h6l2-3h4"/><path d="M5.5 5h13l2.5 7v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7l2.5-7Z"/></symbol>
+  <symbol id="i-hammer" viewBox="0 0 24 24"><g transform="rotate(-45 12 12)"><rect x="7" y="3.5" width="10" height="5" rx="1.4"/><rect x="10.6" y="7" width="2.8" height="14" rx="1.2"/></g></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2H17a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v-9Z"/><path d="M15.5 12.2h3.2a1.3 1.3 0 0 1 0 2.6h-3.2a1.3 1.3 0 0 1 0-2.6Z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.2"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16"/><path d="M9.9 5.9A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3.4 4.1M6.6 7.9A17 17 0 0 0 2.5 12S6 18.5 12 18.5c.9 0 1.7-.1 2.5-.4"/><path d="M9.8 9.9a3.2 3.2 0 0 0 4.4 4.4"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></symbol>
+  <symbol id="i-qrcode" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M18 14h3v3h-3z"/><path d="M14 18h3v3h-3z"/><path d="M18 18h3v3h-3z"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></symbol>
+  <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="8.5" cy="6.5" rx="5.5" ry="3"/><path d="M3 6.5v4c0 1.66 2.46 3 5.5 3s5.5-1.34 5.5-3v-4"/><path d="M14 10.2c2.9-.2 6-1.4 6-3.2M9 13.5v3.5c0 1.66 2.46 3 5.5 3s5.5-1.34 5.5-3V13"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.9-5 5.5-5s4.9 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.4-.3 4.4 1.4 5 4.2"/></symbol>
+</svg>
+
+<aside class="side" aria-label="Меню"></aside>
+
+<div id="app">
+
+  <div class="sticky-chrome">
+    <header class="top">
+      <div class="brand">
+        <div class="mark"><img id="headerLogoImg" src="icon-192.png" alt="Логотип" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+        <div class="name">
+          <h1 id="companyTitle">ФФ</h1>
+          <div class="sub" id="syncLine">Данные на этом устройстве</div>
+        </div>
+      </div>
+      <div class="status-pill"><span class="dot"></span><span id="productCountPill">0 товаров</span></div>
+      <button class="icon-btn-lg" onclick="openSettings()" aria-label="Настройки"><svg class="icon"><use href="#i-gear"/></svg></button>
+    </header>
+  </div>
+
+  <main>
+
+    <section id="sec-panel">
+      <div class="page-head"><h2>Панель сканирования</h2><p>Выберите операцию и сканируйте товары один за другим</p></div>
+
+      <div class="seg">
+        <button class="on prihod" id="btnModePrihod" onclick="setMode('Приход')"><svg class="icon"><use href="#i-in"/></svg>Приход</button>
+        <button class="rashod" id="btnModeRashod" onclick="setMode('Расход')"><svg class="icon"><use href="#i-out"/></svg>Расход</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Ввод штрихкода</span></div>
+
+        <div class="tabs">
+          <button class="active" id="tabScannerBtn" onclick="switchInputTab('scanner')"><svg class="icon"><use href="#i-keyboard"/></svg>Сканер</button>
+          <button id="tabCameraBtn" onclick="switchInputTab('camera')"><svg class="icon"><use href="#i-camera"/></svg>Камера</button>
+        </div>
+
+        <div id="scannerStage">
+          <div class="scanbox">
+            <div class="beamline"></div>
+            <input type="text" id="scanInput" placeholder="Штрихкод или SKU…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+            <div class="hint">Наведите сканер или наберите штрихкод либо SKU и нажмите «Готово»</div>
+          </div>
+
+          <!-- В приходе количество спрашивается после скана: партию в сто
+               штук незачем сканировать сто раз. -->
+          <div class="cam-confirm" id="prihodConfirm" style="display:none;">
+            <div class="ccname" id="prihodConfirmName"></div>
+            <div class="ccstock" id="prihodConfirmStock"></div>
+            <div class="qty-stepper">
+              <button onclick="adjustPrihodQty(-1)" aria-label="Меньше">−</button>
+              <input type="number" id="prihodQtyInput" value="1" min="1" inputmode="numeric" enterkeyhint="done">
+              <button onclick="adjustPrihodQty(1)" aria-label="Больше">+</button>
+            </div>
+            <div class="qty-pad" id="prihodQtyPad">
+              <button onclick="padKey('prihodQtyInput','1')">1</button>
+              <button onclick="padKey('prihodQtyInput','2')">2</button>
+              <button onclick="padKey('prihodQtyInput','3')">3</button>
+              <button onclick="padKey('prihodQtyInput','4')">4</button>
+              <button onclick="padKey('prihodQtyInput','5')">5</button>
+              <button onclick="padKey('prihodQtyInput','6')">6</button>
+              <button onclick="padKey('prihodQtyInput','7')">7</button>
+              <button onclick="padKey('prihodQtyInput','8')">8</button>
+              <button onclick="padKey('prihodQtyInput','9')">9</button>
+              <button class="aux" onclick="padKey('prihodQtyInput','clear')" aria-label="Сбросить">C</button>
+              <button onclick="padKey('prihodQtyInput','0')">0</button>
+              <button class="aux" onclick="padKey('prihodQtyInput','back')" aria-label="Стереть">⌫</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn ghost sm" onclick="cancelPrihodConfirm()">Отмена</button>
+              <button class="btn primary sm" onclick="confirmPrihodScan()"><svg class="icon"><use href="#i-check"/></svg>Добавить</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="cameraStage" style="display:none;">
+          <div class="cam-stage">
+            <video id="camVideo" playsinline muted></video>
+            <div class="reticle"></div>
+          </div>
+          <div class="cam-caption"><svg class="icon icon-sm"><use href="#i-keyboard"/></svg>Физический сканер продолжает работать в этом режиме</div>
+
+          <div class="cam-confirm" id="camConfirm" style="display:none;">
+            <div class="ccname" id="camConfirmName"></div>
+            <div class="ccstock" id="camConfirmStock"></div>
+            <div class="qty-stepper">
+              <button onclick="adjustCamQty(-1)" aria-label="Меньше">−</button>
+              <input type="number" id="camQtyInput" value="1" min="1" inputmode="numeric" enterkeyhint="done">
+              <button onclick="adjustCamQty(1)" aria-label="Больше">+</button>
+            </div>
+            <div class="qty-pad" id="camQtyPad">
+              <button onclick="padKey('camQtyInput','1')">1</button>
+              <button onclick="padKey('camQtyInput','2')">2</button>
+              <button onclick="padKey('camQtyInput','3')">3</button>
+              <button onclick="padKey('camQtyInput','4')">4</button>
+              <button onclick="padKey('camQtyInput','5')">5</button>
+              <button onclick="padKey('camQtyInput','6')">6</button>
+              <button onclick="padKey('camQtyInput','7')">7</button>
+              <button onclick="padKey('camQtyInput','8')">8</button>
+              <button onclick="padKey('camQtyInput','9')">9</button>
+              <button class="aux" onclick="padKey('camQtyInput','clear')" aria-label="Сбросить">C</button>
+              <button onclick="padKey('camQtyInput','0')">0</button>
+              <button class="aux" onclick="padKey('camQtyInput','back')" aria-label="Стереть">⌫</button>
+            </div>
+            <label class="single-order" id="camSingleOrderRow">
+              <input type="checkbox" id="camSingleOrder">
+              <span><b>Единый заказ</b><small>один покупатель — % партнёрам по общей сумме</small></span>
+            </label>
+            <div class="btn-row">
+              <button class="btn ghost sm" onclick="cancelCamConfirm()">Отмена</button>
+              <button class="btn primary sm" onclick="confirmCamScan()">Подтвердить</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert" id="statusMsgWrap" style="display:none;">
+          <svg class="icon" id="statusMsgIcon"><use href="#i-alert"/></svg>
+          <span id="statusMsg"></span>
+        </div>
+
+        <div class="last-product" id="lastProduct" style="display:none;">
+          <span class="name" id="lastName"></span>
+          <span class="stock num" id="lastStock"></span>
+        </div>
+      </div>
+
+      <div class="card" id="reorderCard" hidden>
+        <div class="card-head">
+          <span class="t-eyebrow">Пора заказать · <span id="reorderCount">0</span></span>
+          <button class="btn ghost sm" style="width:auto;" onclick="openForecast()">Прогноз</button>
+        </div>
+        <div id="reorderList"></div>
+      </div>
+    </section>
+
+    <section id="sec-stock" class="active">
+      <div class="page-head head-row"><div><h2>Склад</h2><p id="ffStockSub">Модели, размеры и остатки</p></div>
+        <button class="btn primary sm" id="ffAddModelBtn" style="width:auto;" onclick="openModelModal()"><svg class="icon"><use href="#i-plus"/></svg>Модель</button></div>
+      <div class="card">
+        <div class="field-row">
+          <input type="search" id="ffStockSearch" placeholder="Поиск: бренд, модель, цвет, SKU, штрихкод" oninput="renderStockFF()">
+          <select id="ffSupplierFilter" onchange="renderStockFF()" style="width:auto;"><option value="">Все поставщики</option></select>
+        </div>
+        <div class="abc" id="ffAbc"></div>
+      </div>
+      <div id="ffStockList"></div>
+    </section>
+
+    <!-- ВОЗВРАТЫ: товар, который покупатель вернул — снова числится на
+         складе, но повторная отправка не должна ещё раз посчитаться в
+         выручку и комиссию партнёрам (они уже учтены в первой продаже). -->
+    <section id="sec-returns">
+      <div class="page-head">
+        <div class="page-head-row">
+          <h2>Возвраты</h2>
+          <div class="head-actions" id="returnsActions">
+            <button class="icon-btn-lg" onclick="openReturnPick()" aria-label="Добавить возврат"><svg class="icon"><use href="#i-plus"/></svg></button>
+          </div>
+        </div>
+        <p id="returnsSub">Товары, которые вернул покупатель — до повторной отправки</p>
+      </div>
+
+      <div class="period-seg" id="returnsSubSeg">
+        <button class="active" id="retSubBtnOpen" onclick="switchReturnsSubTab('open')">Возвраты</button>
+        <button id="retSubBtnDamaged" onclick="switchReturnsSubTab('damaged')">Повреждённые</button>
+      </div>
+
+      <div class="card" id="retSubOpen">
+        <div id="returnsList"></div>
+      </div>
+
+      <div class="card" id="retSubDamaged" hidden>
+        <div id="damagedList"></div>
+      </div>
+    </section>
+
+    <section id="sec-card">
+      <div class="page-head"><h2>Поиск товара</h2><p>По штрихкоду, SKU или части названия</p></div>
+      <div class="card">
+        <div class="field-row">
+          <input type="text" id="cardSearch" placeholder="Штрихкод, SKU или название" oninput="renderCard()">
+          <button class="icon-btn-lg" onclick="openScannerCapture(function(code){document.getElementById('cardSearch').value=code; renderCard();})" aria-label="Сканировать штрихкод"><svg class="icon"><use href="#i-keyboard"/></svg></button>
+        </div>
+        <div id="cardResult"></div>
+      </div>
+    </section>
+
+    <section id="sec-inv">
+      <div class="page-head"><h2>Инвентаризация</h2><p>Пересчёт фактических остатков сканером или камерой телефона</p></div>
+      <div class="card">
+        <div id="invStatusBlock"></div>
+        <div class="btn-row" style="margin-top:var(--sp-3);" id="invActionsIdle">
+          <button class="btn primary" onclick="startInventory()"><svg class="icon"><use href="#i-check"/></svg>Начать</button>
+        </div>
+        <div class="btn-row" style="margin-top:var(--sp-3);display:none;" id="invActionsActive">
+          <button class="btn primary" onclick="finishInventory()"><svg class="icon"><use href="#i-check"/></svg>Завершить</button>
+          <button class="btn danger" onclick="cancelInventory()"><svg class="icon"><use href="#i-x"/></svg>Отменить</button>
+        </div>
+      </div>
+
+      <div class="card" id="invScanCard" style="display:none;">
+        <div class="card-head"><span class="t-eyebrow">Ввод штрихкода</span></div>
+
+        <div class="tabs">
+          <button class="active" id="invTabScannerBtn" onclick="switchInvInputTab('scanner')"><svg class="icon"><use href="#i-keyboard"/></svg>Сканер</button>
+          <button id="invTabCameraBtn" onclick="switchInvInputTab('camera')"><svg class="icon"><use href="#i-camera"/></svg>Камера</button>
+        </div>
+
+        <div id="invScannerStage">
+          <div class="scanbox">
+            <div class="beamline"></div>
+            <input type="text" id="invScanInput" placeholder="Штрихкод или SKU…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+            <div class="hint">Наведите сканер или наберите штрихкод либо SKU и нажмите «Готово»</div>
+          </div>
+        </div>
+
+        <div id="invCameraStage" style="display:none;">
+          <div class="cam-stage">
+            <video id="invCamVideo" playsinline muted></video>
+            <div class="reticle"></div>
+          </div>
+          <div class="cam-caption"><svg class="icon icon-sm"><use href="#i-keyboard"/></svg>Физический сканер продолжает работать в этом режиме</div>
+        </div>
+
+        <div class="alert" id="invStatusMsgWrap" style="display:none;">
+          <svg class="icon" id="invStatusMsgIcon"><use href="#i-alert"/></svg>
+          <span id="invStatusMsg"></span>
+        </div>
+      </div>
+
+      <div class="card"><div class="card-head"><span class="t-eyebrow">Список пересчёта</span></div><div id="invList"></div></div>
+    </section>
+
+    <section id="sec-history">
+      <div class="page-head"><h2>История</h2><p>Все операции, новые сверху — кто и что сделал</p></div>
+      <div class="card"><div class="field-row">
+        <input type="search" id="ffHistSearch" placeholder="Поиск: модель или размер" oninput="renderHistoryFF()">
+        <select id="ffHistSupplier" onchange="renderHistoryFF()"><option value="">Все поставщики</option></select>
+        <select id="ffHistType" onchange="renderHistoryFF()"><option value="">Все операции</option><option>Приход</option><option>Отправка</option><option>Возврат</option><option>Корректировка</option><option>Перекладка</option></select>
+      </div></div>
+      <div class="card" id="ffHistoryList"></div>
+    </section>
+
+    <section id="sec-stats">
+      <div class="page-head"><h2>Статистика</h2><p>Выручка по месяцам и ключевые показатели</p></div>
+
+      <div class="card hero-card">
+        <div class="hero-top">
+          <span class="t-eyebrow" id="heroPeriodLabel">Выручка</span>
+        </div>
+        <div class="hero-amount" id="heroAmount">0 ₽</div>
+        <div class="hero-growth" id="heroGrowth" style="display:none;"></div>
+        <div class="hero-bars" id="heroBars"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Быстрые показатели</span></div>
+        <div class="stat-grid" id="statGrid"></div>
+        <div class="t-caption" style="margin-top:var(--sp-3);color:var(--text-tertiary);font-size:11.5px;">СТС — себестоимость товаров на складе. ПЧП — потенциальная чистая прибыль (если весь остаток склада продать по текущим ценам).</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Отчёты</span></div>
+        <div class="btn-row">
+          <button class="btn ghost sm" onclick="generateReport('День',1)">День</button>
+          <button class="btn ghost sm" onclick="generateReport('Неделя',7)">Неделя</button>
+          <button class="btn ghost sm" onclick="generateReport('Месяц',30)">Месяц</button>
+        </div>
+        <div id="reportsList" style="margin-top:var(--sp-2);"></div>
+      </div>
+    </section>
+
+    <section id="sec-settings">
+      <div class="page-head"><h2>Настройки</h2><p>Параметры системы и резервные копии</p></div>
+      <div class="card" id="demoCard" data-self hidden><div class="head-row"><div><div class="rname">Демо-поставщик «Пример»</div><div class="rmeta">Показывает, как работают ячейки и раскладка. Когда придут настоящие поставщики — удалите.</div></div>
+        <button class="btn ghost sm" style="width:auto;" onclick="removeDemoUI()"><svg class="icon"><use href="#i-trash"/></svg>Удалить пример</button></div></div>
+
+      <div class="card" data-emp="1">
+        <div class="card-head"><span class="t-eyebrow">Аккаунт и синхронизация</span></div>
+        <div class="alert" id="syncStatusBox" style="margin-top:0;"></div>
+        <div class="btn-row" style="margin-top:var(--sp-3);">
+          <button class="btn ghost" onclick="syncNowFromSettings()"><svg class="icon"><use href="#i-download"/></svg>Обновить</button>
+          <button class="btn ghost" onclick="openPinModal('change')"><svg class="icon"><use href="#i-gear"/></svg>Сменить пароль</button>
+        </div>
+        <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="fullResyncFromSettings()"><svg class="icon"><use href="#i-inbox"/></svg>Полная пересинхронизация</button>
+        <div class="t-caption" style="margin:6px 0 0;color:var(--text-tertiary);">Если остатки на этом телефоне не совпадают с другим устройством — нажмите сюда: программа заново скачает всю историю операций и пересчитает остатки. Обычная «Обновить» подтягивает только новое, эта — перепроверяет всё.</div>
+        <button class="btn danger" style="width:100%;margin-top:8px;" onclick="syncSignOut()"><svg class="icon"><use href="#i-x"/></svg>Выйти из аккаунта</button>
+        <div class="t-caption" style="margin-top:var(--sp-3);color:var(--text-tertiary);">Данные хранятся и на устройстве, и на сервере. Без сети приложение работает как обычно, а накопленное уходит при первой связи.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Логотип в шапке</span></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:var(--sp-3);">
+          <div class="mark" style="width:52px;height:52px;"><img id="logoPreviewImg" src="icon-192.png" alt="Логотип" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+          <div class="t-caption">Своя картинка вместо стандартного логотипа. Квадратная, до 900 КБ.</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" onclick="document.getElementById('logoFileInput').click()"><svg class="icon"><use href="#i-upload"/></svg>Загрузить</button>
+          <button class="btn ghost" onclick="resetLogo()"><svg class="icon"><use href="#i-x"/></svg>Сбросить</button>
+        </div>
+        <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Параметры</span></div>
+        <div class="field"><label>Название компании</label><input type="text" id="setCompany"></div>
+        <div class="field"><label>Порог низкого остатка, шт</label><input type="number" id="setLowStock"></div>
+        <div class="field"><label>Звук при сканировании</label><select id="setSound"><option value="1">Да</option><option value="0">Нет</option></select></div>
+        <div class="field"><label>Запрет ухода в минус</label><select id="setBlockNeg"><option value="1">Да</option><option value="0">Нет</option></select></div>
+        <div class="field">
+          <label>Клавиатура для ввода</label>
+          <select id="setKbMode">
+            <option value="off">Только клавиатура телефона</option>
+            <option value="auto">Встроенная — если телефон свою не показал</option>
+            <option value="always">Встроенная клавиатура — всегда</option>
+          </select>
+          <div class="t-caption" style="margin-top:6px;color:var(--text-tertiary);">Встроенная клавиатура нужна, только если к телефону подключён Bluetooth/USB-сканер: iPhone тогда считает его клавиатурой и свою не показывает. Если сканера нет — оставьте «Только клавиатура телефона». Настройка на каждом устройстве своя.</div>
+        </div>
+        <button class="btn primary" onclick="saveSettings()"><svg class="icon"><use href="#i-check"/></svg>Сохранить</button>
+        <div class="t-caption" style="margin-top:var(--sp-3);color:var(--text-tertiary);">Версия приложения: <span id="appVersion">—</span></div>
+      </div>
+
+      <div class="card" data-legacy hidden>
+        <div class="card-head"><span class="t-eyebrow">Ставки комиссии партнёров</span></div>
+        <div class="t-caption" style="margin-bottom:var(--sp-3);color:var(--text-tertiary);">Процент считается от суммы каждой продажи (кол-во × цена) в «Расходе». Продажа ровно на пороговую сумму попадает в нижнюю ставку (до 2500 включительно — 10%).</div>
+        <div class="order-row">
+          <span class="osku" style="flex:0 0 auto;">до&nbsp;</span>
+          <input type="number" id="tierMax1" inputmode="numeric" style="flex:0 0 96px;"> <span class="oprice">₽ →</span>
+          <input type="number" id="tierPct1" inputmode="numeric" style="flex:0 0 64px;"> <span class="oprice">%</span>
+        </div>
+        <div class="order-row">
+          <span class="osku" style="flex:0 0 auto;">до&nbsp;</span>
+          <input type="number" id="tierMax2" inputmode="numeric" style="flex:0 0 96px;"> <span class="oprice">₽ →</span>
+          <input type="number" id="tierPct2" inputmode="numeric" style="flex:0 0 64px;"> <span class="oprice">%</span>
+        </div>
+        <div class="order-row">
+          <span class="osku" style="flex:1;">свыше верхнего порога →</span>
+          <input type="number" id="tierPct3" inputmode="numeric" style="flex:0 0 64px;"> <span class="oprice">%</span>
+        </div>
+        <button class="btn primary" style="margin-top:var(--sp-3);" onclick="saveCommTiers()"><svg class="icon"><use href="#i-check"/></svg>Сохранить ставки</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Звуки сканирования</span></div>
+        <div id="soundRows"></div>
+        <input type="file" id="soundFileInput" accept="audio/*" style="display:none" onchange="handleSoundUpload(event)">
+        <div class="t-caption" style="margin-top:var(--sp-3);color:var(--text-tertiary);">Короткий файл до 400 КБ: mp3, wav или ogg. Пока свой звук не загружен, звучит стандартный сигнал. Загруженные звуки уезжают на другие ваши устройства вместе с данными.</div>
+      </div>
+
+      <div class="card" id="membersCard" data-legacy hidden>
+        <div class="card-head"><span class="t-eyebrow">Партнёры</span></div>
+        <div class="t-caption" style="margin-bottom:8px;color:var(--text-tertiary);">Дайте партнёру этот код. Он ставит приложение → на входе жмёт «Войти как партнёр» → вводит код и придумывает свой логин с паролем. Партнёр видит склад, историю и баланс (сколько вы ему должны), но ничего не редактирует.</div>
+        <div class="field-row">
+          <div id="inviteCodeView" onclick="copyInviteCode()" role="button" tabindex="-1"
+               style="flex:1;min-width:0;padding:11px 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:rgba(255,255,255,.6);font-family:var(--font-mono);font-size:20px;font-weight:700;letter-spacing:.18em;text-align:center;text-transform:uppercase;cursor:pointer;-webkit-user-select:all;user-select:all;">—</div>
+          <button class="btn ghost sm" style="width:auto;white-space:nowrap;" onclick="copyInviteCode()">Копировать</button>
+        </div>
+        <button class="btn ghost" style="margin-top:8px;" onclick="rotateInvite()"><svg class="icon"><use href="#i-x"/></svg>Сменить код</button>
+        <div class="t-caption" style="margin:6px 0 var(--sp-3);color:var(--text-tertiary);">Сменить код — старые приглашения перестанут работать. Уже вошедшие партнёры останутся.</div>
+        <div id="membersList"></div>
+      </div>
+
+      <div class="card" data-legacy hidden>
+        <div class="card-head"><span class="t-eyebrow">Резервная копия</span></div>
+        <div class="btn-row">
+          <button class="btn ghost" onclick="exportBackup()"><svg class="icon"><use href="#i-download"/></svg>Экспорт</button>
+          <button class="btn ghost" id="importBtn" onclick="requestImport()"><svg class="icon"><use href="#i-upload"/></svg>Импорт</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importBackup(event)">
+        <label style="display:flex;align-items:center;gap:10px;margin-top:var(--sp-3);cursor:pointer;">
+          <input type="checkbox" id="masterDeviceChk" style="width:20px;height:20px;flex:none;" onchange="setMasterDevice(this.checked)">
+          <span style="font-weight:600;">Главное устройство</span>
+        </label>
+        <div class="t-caption" style="margin:6px 0 0;color:var(--text-tertiary);">Импорт файла работает только на главном устройстве: загруженные данные заменят всё на сервере и разойдутся по остальным телефонам. Отметьте галочку только на одном телефоне. Обычная работа (приход, расход, продажи) синхронизируется со всех устройств как раньше.</div>
+        <button class="btn primary" id="masterPublishBtn" style="width:100%;margin-top:8px;display:none;" onclick="masterPublishFromSettings()"><svg class="icon"><use href="#i-upload"/></svg>Раздать данные этого телефона на все</button>
+        <div class="t-caption" id="masterPublishCap" style="margin:6px 0 0;color:var(--text-tertiary);display:none;">Сервер станет точной копией этого телефона (лишнее на сервере удалится), а остальные телефоны при следующей связи сотрут свои данные и скачают эти. Вызывается сама после импорта файла.</div>
+      </div>
+
+      <div class="card" id="snapshotsCard">
+        <div class="card-head">
+          <span class="t-eyebrow">Копии на сервере</span>
+          <button class="btn ghost sm" style="width:auto;" onclick="snapshotNow()"><svg class="icon"><use href="#i-plus"/></svg>Сделать сейчас</button>
+        </div>
+        <div class="t-caption" style="margin:-4px 0 var(--sp-2);color:var(--text-tertiary);">Сервер сам сохраняет все данные склада каждую ночь и хранит 30 дней. «Откатить» вернёт товары, историю и начисления на всех телефонах к моменту копии — работает на главном устройстве. Перед откатом нынешнее состояние тоже сохраняется, так что откат можно отменить.</div>
+        <div id="snapshotsList"></div>
+        <div class="alert" id="storageStatus"></div>
+      </div>
+      <div class="card" data-legacy hidden>
+        <div class="card-head"><span class="t-eyebrow" style="color:var(--danger);">Опасная зона</span></div>
+        <button class="btn danger" style="width:100%" onclick="wipeAll()"><svg class="icon"><use href="#i-trash"/></svg>Очистить все данные</button>
+      </div>
+    </section>
+
+    <!-- РАСХОДЫ / ПРИБЫЛЬ -->
+    <section id="sec-finance">
+      <div class="page-head"><h2>Расходы и прибыль</h2><p>Валовая и чистая прибыль за период, за вычетом налога, комиссии, упаковки и рекламы</p></div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Реклама каждый день</span></div>
+        <!-- Ставка вместо ежедневного ввода: сумма сама учитывается за
+             каждый день, пока её не поменяли. -->
+        <div class="filter-row">
+          <input type="number" id="adRateInput" inputmode="numeric" placeholder="Сумма в день, ₽">
+          <button class="btn primary sm" style="width:auto;white-space:nowrap;" onclick="saveAdRate()"><svg class="icon"><use href="#i-check"/></svg>Применить</button>
+        </div>
+        <div class="t-caption" id="adRateNow" style="margin-top:8px;color:var(--text-tertiary);"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="t-eyebrow">Поправка за день</span>
+          <span class="t-caption" id="adSpendSavedMark" style="display:none;color:var(--success);">записано</span>
+        </div>
+        <div class="filter-row">
+          <input type="date" id="adSpendDate" onchange="loadAdSpendForDate()" aria-label="День">
+          <input type="number" id="adSpendInput" inputmode="numeric" placeholder="Сумма, ₽" oninput="markAdSpendDirty()">
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn ghost" onclick="clearAdSpendDay()"><svg class="icon"><use href="#i-x"/></svg>Убрать</button>
+          <button class="btn primary" onclick="saveAdSpend()"><svg class="icon"><use href="#i-check"/></svg>Записать</button>
+        </div>
+        <div class="t-caption" style="margin-top:8px;color:var(--text-tertiary);">Нужна, когда в конкретный день потратили не как обычно. Без поправки за день берётся сумма выше.</div>
+      </div>
+
+      <div class="period-seg" id="finPeriodSeg">
+        <button class="active" id="finPeriodBtn1" onclick="renderFinance(1,this)">Сегодня</button>
+        <button id="finPeriodBtnYesterday" onclick="renderFinance('yesterday',this)">Вчера</button>
+        <button id="finPeriodBtn7" onclick="renderFinance(7,this)">Неделя</button>
+        <button id="finPeriodBtn30" onclick="renderFinance(30,this)">Месяц</button>
+        <!-- свой период — один календарь вместо двух полей и кнопки рядом -->
+        <button id="finPeriodBtnRange" class="period-cal" onclick="openRangeModal()" aria-label="Выбрать свой период"><svg class="icon"><use href="#i-calendar"/></svg></button>
+      </div>
+      <div class="t-caption" id="finCustomRangeLabel" style="display:none;margin:-4px 0 var(--sp-3);color:var(--accent-strong);"></div>
+
+      <div class="card ring-card">
+        <div class="card-head"><span class="t-eyebrow">Куда уходит прибыль</span></div>
+        <div class="ring-wrap">
+          <svg viewBox="0 0 220 220" class="ring-svg" id="finRingSvg"></svg>
+          <div class="ring-center" id="finRingCenter" onclick="showFinRingTotal()">
+            <div class="ring-amount" id="finRingAmount">0 ₽</div>
+            <div class="ring-label" id="finRingLabel">Чистая прибыль</div>
+          </div>
+        </div>
+        <div class="cat-grid" id="finRingGrid"></div>
+        <div class="t-caption" id="finRingHint" style="margin-top:var(--sp-3);color:var(--text-tertiary);">Нажмите на деление кольца или карточку — в центре появится сумма именно по ней. Нажмите ещё раз (или в центр), чтобы вернуться к выручке.</div>
+      </div>
+
+      <div class="period-seg">
+        <button class="active" id="finSubBtnPtp" onclick="switchFinSubTab('ptp')">ПТП</button>
+        <button id="finSubBtnAbc" onclick="switchFinSubTab('abc')">ABC</button>
+        <button id="finSubBtnRnr" onclick="switchFinSubTab('rnr')">РНР</button>
+        <button id="finSubBtnSales" onclick="switchFinSubTab('sales')">Продажи</button>
+        <button id="finSubBtnFc" onclick="switchFinSubTab('fc')">Прогноз</button>
+      </div>
+
+      <div id="finSubSales" hidden>
+        <div class="card">
+          <div class="card-head"><span class="t-eyebrow">Продажи</span></div>
+          <div class="ch-controls">
+            <div class="period-seg ch-seg" id="salesModeSeg">
+              <button data-v="day" class="active" onclick="setSalesMode('day')">Дни</button>
+              <button data-v="week" onclick="setSalesMode('week')">Недели</button>
+            </div>
+            <div class="period-seg ch-seg" id="salesMetricSeg">
+              <button data-v="qty" class="active" onclick="setSalesMetric('qty')">Штуки</button>
+              <button data-v="revenue" onclick="setSalesMetric('revenue')">Рубли</button>
+            </div>
+          </div>
+          <div id="salesHeadline"></div>
+          <div class="ch-wrap" id="salesChart"></div>
+          <details class="ch-table"><summary>Показать цифрами</summary><div id="salesTable"></div></details>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t-eyebrow">Что растёт, что падает</span></div>
+          <div class="t-caption" style="margin:-4px 0 var(--sp-2);color:var(--text-tertiary);">Продажи в штуках: последние 14 дней против 14 дней до них.</div>
+          <div id="salesTrends"></div>
+        </div>
+      </div>
+
+      <div class="card" id="finSubFc" hidden>
+        <div class="card-head"><span class="t-eyebrow">На сколько дней хватит</span></div>
+        <div class="filter-row" style="align-items:center;">
+          <label for="reorderLeadInput" class="t-small" style="flex:1;">Заказ идёт, дней</label>
+          <input type="number" id="reorderLeadInput" inputmode="numeric" min="1" max="180" style="max-width:90px;">
+          <button class="btn primary sm" style="width:auto;" onclick="saveReorderLead()"><svg class="icon"><use href="#i-check"/></svg>OK</button>
+        </div>
+        <div class="t-caption" style="margin:8px 0 var(--sp-2);color:var(--text-tertiary);">Скорость — средние продажи за последние 30 дней. «Пора заказать» — если товара хватит меньше, чем идёт заказ. Сколько заказать — чтобы хватило на время доставки и ещё на 30 дней.</div>
+        <div id="forecastList"></div>
+      </div>
+
+      <div class="card" id="finSubPtp">
+        <div class="card-head"><span class="t-eyebrow">Прибыль по товарам</span></div>
+        <div id="financeByProduct"></div>
+      </div>
+
+      <div class="card" id="finSubAbc" hidden>
+        <div class="card-head"><span class="t-eyebrow">ABC-анализ</span></div>
+        <div class="btn-row">
+          <button class="btn ghost sm" onclick="generateABC()">Сформировать</button>
+          <button class="icon-btn-lg" id="abcDateBtn" onclick="openRangeModal('abc')" aria-label="Выбрать период"><svg class="icon"><use href="#i-calendar"/></svg></button>
+        </div>
+        <div class="t-caption" id="abcRangeLabel" style="display:none;margin-top:8px;color:var(--accent-strong);"></div>
+        <div id="abcList" style="margin-top:var(--sp-2);"></div>
+      </div>
+
+      <div class="card" id="finSubRnr" hidden>
+        <div class="card-head"><span class="t-eyebrow">История расходов на рекламу</span></div>
+        <div id="adSpendLog"></div>
+      </div>
+    </section>
+
+    <!-- БАЛАНС / ВЫПЛАТЫ ПАРТНЁРАМ -->
+    <section id="sec-balance">
+      <div class="page-head"><h2 id="balHead">Баланс партнёров</h2><p id="balSub">Начисляется автоматически с каждого «Расхода» на Панели</p></div>
+
+      <!-- только владелец -->
+      <div id="balOwnerTools">
+        <div class="card">
+          <div class="card-head"><span class="t-eyebrow">Ставки комиссии</span></div>
+          <div id="commTiersSummary" class="t-small"></div>
+          <div class="t-caption" style="margin-top:8px;color:var(--text-tertiary);">С каждой продажи в «Расходе» партнёрам начисляется процент по сумме продажи (кол-во × цена). Пороги и проценты — в Настройках.</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="t-eyebrow">Что видит партнёр</span></div>
+          <div class="field"><label>Показывать операции и начисления с даты</label><input type="date" id="partnerFromInput" onchange="savePartnerFrom()"></div>
+          <div class="t-caption" style="color:var(--text-tertiary);">Всё, что было до этой даты, партнёру не показывается.</div>
+        </div>
+      </div>
+
+      <div class="period-seg">
+        <button class="active" id="balPeriodBtn1" onclick="renderBalance(1,this)">Сегодня</button>
+        <button id="balPeriodBtnYesterday" onclick="renderBalance('yesterday',this)">Вчера</button>
+        <button id="balPeriodBtn7" onclick="renderBalance(7,this)">Неделя</button>
+        <button id="balPeriodBtn30" onclick="renderBalance(30,this)">Месяц</button>
+        <button id="balPeriodBtnRange" class="period-cal" onclick="openRangeModal('balance')" aria-label="Выбрать свой период"><svg class="icon"><use href="#i-calendar"/></svg></button>
+      </div>
+      <div class="t-caption" id="balCustomRangeLabel" style="display:none;margin:-4px 0 var(--sp-3);color:var(--accent-strong);"></div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">Итог за период</span></div>
+        <div id="balSummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow">По дням</span></div>
+        <div id="balByDay"></div>
+      </div>
+
+      <div class="card" id="balByTierCard">
+        <div class="card-head"><span class="t-eyebrow">Продажи по ставкам</span></div>
+        <div id="balByTier"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="t-eyebrow" id="balUnpaidHead">Не выплачено</span>
+          <button class="btn ghost sm" style="width:auto;" onclick="exportBalanceCSV()"><svg class="icon"><use href="#i-download"/></svg>CSV</button>
+        </div>
+        <div class="t-caption" id="balUnpaidHint" style="margin-bottom:6px;color:var(--text-tertiary);">Отметьте галочкой то, что уже отдали партнёру.</div>
+        <button class="btn primary sm" id="balMarkAllBtn" style="margin-bottom:var(--sp-2);" onclick="markAllUnpaidVisible()" hidden><svg class="icon"><use href="#i-check"/></svg>Отметить все выплаченными</button>
+        <div id="balOrdersList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="t-eyebrow" id="balPaidHead">Выплачено</span></div>
+        <div id="balPaidList"></div>
+      </div>
+    </section>
+
+    <!-- ===== «ФФ»: разделы этапа 1 ===== -->
+    <section id="sec-receipts">
+      <div class="page-head"><h2>Приёмка</h2><p>Список пришедшего → что в какую ячейку положить</p></div>
+      <div id="receiptsBox"></div>
+    </section>
+
+    <section id="sec-shipments">
+      <div class="page-head"><h2>Отправки</h2><p>Откуда взять и галочка «Собрано»</p></div>
+      <div id="shipmentsBox"></div>
+    </section>
+
+    <section id="sec-cells">
+      <div class="page-head"><h2>Ячейки</h2><p>Какая модель и какие размеры лежат в каждой коробке</p></div>
+      <div id="cellsBox"></div>
+    </section>
+
+    <section id="sec-suppliers">
+      <div class="page-head"><h2>Поставщики</h2><p>Код приглашения, ячейки, архив, сброс пароля</p></div>
+      <div class="card">
+        <div class="field-row">
+          <input type="text" id="supNewName" placeholder="Имя поставщика, например «Иванов»">
+          <button class="btn primary" id="supAddBtn" style="width:auto;white-space:nowrap;" onclick="addSupplier()"><svg class="icon"><use href="#i-plus"/></svg>Добавить</button>
+        </div>
+      </div>
+      <div id="supList"></div>
+    </section>
+
+  </main>
+
+  <nav class="bottom"></nav>
+</div>
+
+<div class="modal-bg" id="productModalBg" data-close="closeProductModal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3 id="productModalTitle">Новый товар</h3>
+    <input type="hidden" id="pmSkuOriginal">
+    <div class="field"><label>SKU (уникальный код)</label><input type="text" id="pmSku"><div class="field-error" id="errSku">Укажите SKU</div></div>
+    <div class="field"><label>Название</label><input type="text" id="pmName"><div class="field-error" id="errName">Укажите название</div></div>
+    <div class="field"><label>Категория</label><input type="text" id="pmCategory"></div>
+    <div class="field"><label>Все поставщики</label><input type="text" id="pmSupplier" placeholder="Например: ООО Свет-Трейд"></div>
+    <div class="field">
+      <label>Штрихкод</label>
+      <div class="field-row">
+        <input type="text" id="pmBarcode">
+        <button class="btn ghost sm" style="width:auto;white-space:nowrap;" onclick="openScannerCapture(function(code){document.getElementById('pmBarcode').value=code;})"><svg class="icon"><use href="#i-keyboard"/></svg>Сканером</button>
+        <button class="btn ghost sm" style="width:auto;white-space:nowrap;" onclick="generateBarcodeForModal()">Сгенерировать</button>
+      </div>
+    </div>
+    <div class="field"><label>Себестоимость, ₽</label><input type="number" id="pmCost"></div>
+    <div class="field"><label>Цена продажи, ₽</label><input type="number" id="pmPrice"></div>
+    <div class="field"><label>Комиссия маркетплейса, %</label><input type="number" id="pmCommission" placeholder="0"></div>
+    <div class="field"><label>Налог, %</label><input type="number" id="pmTax" placeholder="0"></div>
+    <div class="field"><label>Упаковка, ₽ за шт</label><input type="number" id="pmPackaging" placeholder="0"></div>
+    <div class="field"><label>Скидка на доставку, ₽ за шт</label><input type="number" id="pmDeliveryDiscount" placeholder="0"></div>
+    <div class="field"><label>Остаток, шт</label><input type="number" id="pmStock"></div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="closeProductModal()">Отмена</button>
+      <button class="btn primary" id="pmSaveBtn" onclick="saveProduct()"><svg class="icon"><use href="#i-check"/></svg>Сохранить</button>
+    </div>
+    <button class="btn ghost" style="margin-top:8px;" onclick="printQRForModal()"><svg class="icon"><use href="#i-qrcode"/></svg>Создать QR-код</button>
+  </div>
+</div>
+
+<!-- ===== «ФФ»: карточка модели ===== -->
+<div class="modal-bg" id="modelModalBg" data-close="closeModelModal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3 id="mmTitleHead">Новая модель</h3>
+    <input type="hidden" id="mmId">
+    <div class="field" id="mmSupplierRow"><label>Поставщик</label><select id="mmSupplier"></select></div>
+    <div class="field"><label>Бренд</label><input type="text" id="mmBrand" placeholder="Монклер"></div>
+    <div class="field-row">
+      <div class="field"><label>Название</label><input type="text" id="mmTitle" placeholder="пуховик"></div>
+      <div class="field"><label>Цвет</label><input type="text" id="mmColor" placeholder="чёрный"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Категория</label><select id="mmCategory"></select></div>
+      <div class="field"><label>Влезает в ячейку, шт</label><input type="number" id="mmCapacity" min="1" value="7"></div>
+    </div>
+    <div class="field"><label>Размеры</label>
+      <div class="size-pick" id="mmSizePick"></div>
+      <div class="field-row" style="margin-top:6px;"><input type="text" id="mmSizeCustom" placeholder="Свой размер, например 42"><button class="btn ghost sm" style="width:auto;" onclick="mmAddCustomSize()">Добавить</button></div>
+      <div id="mmSizeBarcodes"></div>
+    </div>
+    <div class="field"><label>Размер упаковки Д × Ш × В, см <span class="hint">— для тарифа «по коробке» и хранения в кубах</span></label>
+      <div class="field-row"><input type="text" id="mmLen" inputmode="decimal" placeholder="Д"><input type="text" id="mmWid" inputmode="decimal" placeholder="Ш"><input type="text" id="mmHei" inputmode="decimal" placeholder="В"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>SKU</label><input type="text" id="mmSku"></div>
+      <div class="field"><label>Цена продажи, ₽</label><input type="number" id="mmPrice"></div>
+    </div>
+    <div class="field" id="mmCalcPriceRow"><label>Цена для расчёта процента, ₽ <span class="hint">— задаёт только склад</span></label><input type="number" id="mmCalcPrice"></div>
+    <div id="mmPrivate">
+      <div class="grp-title">Моё (видите только вы)</div>
+      <div class="field"><label>Где закупаю</label><input type="text" id="mmBuyFrom" placeholder="Например: ООО Свет-Трейд"></div>
+      <div class="field-row">
+        <div class="field"><label>Себестоимость, ₽</label><input type="number" id="mmCost"></div>
+        <div class="field"><label>Комиссия маркетплейса, %</label><input type="number" id="mmCommission" placeholder="0"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Налог, %</label><input type="number" id="mmTax" placeholder="0"></div>
+        <div class="field"><label>Упаковка, ₽/шт</label><input type="number" id="mmPackaging" placeholder="0"></div>
+        <div class="field"><label>Скидка на доставку, ₽/шт</label><input type="number" id="mmDelivery" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="field-error" id="mmError"></div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="closeModelModal()">Отмена</button>
+      <button class="btn primary" id="mmSaveBtn" onclick="saveModelFromForm()"><svg class="icon"><use href="#i-check"/></svg>Сохранить</button>
+    </div>
+    <button class="btn ghost danger-text" id="mmDeleteBtn" style="margin-top:8px;" onclick="deleteModelUI()" hidden><svg class="icon"><use href="#i-trash"/></svg>Удалить модель</button>
+  </div>
+</div>
+
+<!-- ===== «ФФ»: ячейка (только склад) ===== -->
+<div class="modal-bg" id="cellModalBg" data-close="closeCellModal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3 id="cmHead">Ячейка</h3>
+    <div class="field"><label>Номер</label><input type="text" id="cmNumber" placeholder="например 4 или 4.1"></div>
+    <div class="field"><label>Поставщик</label><select id="cmSupplier" onchange="cmFillModels()"></select></div>
+    <div class="field"><label>Модель</label><select id="cmModel" onchange="cmFillSizes()"></select></div>
+    <div class="field"><label>Какие размеры сюда класть <span class="hint">— ничего не отмечено = вся модель</span></label><div class="size-pick" id="cmSizes"></div></div>
+    <div class="field"><label>Вместимость, шт</label><input type="number" id="cmCapacity" min="1" placeholder="как у модели"></div>
+    <div class="alert" id="cmWarn" hidden></div>
+    <div class="field-error" id="cmError"></div>
+    <div class="btn-row" id="cmEmptyActions" hidden>
+      <button class="btn ghost" onclick="cmAction('reserve')">Оставить бронь за моделью</button>
+      <button class="btn ghost" onclick="cmAction('free')">Освободить ячейку</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="cmSubCell()">Создать под-ячейку</button>
+      <button class="btn primary" onclick="saveCellFromForm()"><svg class="icon"><use href="#i-check"/></svg>Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-bg" id="rangeModalBg" data-close="closeRangeModal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3>Свой период</h3>
+
+    <div class="cal-head">
+      <button type="button" onclick="calShift(-1)" aria-label="Предыдущий месяц">‹</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button type="button" onclick="calShift(1)" aria-label="Следующий месяц">›</button>
+    </div>
+
+    <div class="cal-week"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span class="wknd">Сб</span><span class="wknd">Вс</span></div>
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="cal-summary" id="calSummary">Выберите первый день периода</div>
+
+    <div class="btn-row" style="margin-top:var(--sp-3);">
+      <button class="btn ghost" onclick="closeRangeModal()">Отмена</button>
+      <button class="btn primary" id="calApply" onclick="applyCalRange()" disabled><svg class="icon"><use href="#i-check"/></svg>Показать</button>
+    </div>
+    <!-- сброс живёт здесь же: отдельная кнопка «крестик» рядом с фильтром
+         только занимала место -->
+    <button class="btn ghost" id="calReset" style="margin-top:8px;" onclick="resetCalRange()"><svg class="icon"><use href="#i-x"/></svg>Показать за всё время</button>
+  </div>
+</div>
+
+<!-- Вход — отдельный экран. Режимы (data-mode): login · register · forgot · newpass · noaccess.
+     Работы «без входа» нет: главное хранилище — сервер (ОПИСАНИЕ §10). -->
+<div id="authModalBg" data-mode="login">
+  <div class="auth-card">
+    <div class="auth-logo"><img src="icon-192.png" alt=""></div>
+    <h2 id="authTitle">Вход</h2>
+    <p id="authHint"></p>
+
+    <div class="auth-field" id="authEmailField">
+      <label for="authEmail">Почта</label>
+      <input type="email" id="authEmail" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="email" placeholder="name@mail.ru">
+    </div>
+    <div class="auth-field" id="authPassField">
+      <label for="authPass" id="authPassLabel">Пароль</label>
+      <div class="auth-pass">
+        <input type="password" id="authPass" autocomplete="current-password" placeholder="не короче 6 символов">
+        <button type="button" class="auth-eye" id="authEye" onclick="authTogglePass()" aria-label="Показать пароль"><svg class="icon"><use href="#i-eye"/></svg></button>
+      </div>
+    </div>
+    <div class="auth-field" id="authCodeField" hidden>
+      <label for="authCode">Код приглашения от склада</label>
+      <input type="text" id="authCode" autocomplete="one-time-code" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="6 символов">
+    </div>
+    <div class="field-error" id="authError"></div>
+    <div class="alert success" id="authInfo" hidden></div>
+
+    <button class="btn primary auth-submit" id="authSubmit" onclick="authSubmit()"><svg class="icon"><use href="#i-check"/></svg><span id="authSubmitText">Войти</span></button>
+    <button type="button" class="auth-skip" id="authToRegister" onclick="authMode('register')">Я поставщик — регистрация по коду</button>
+    <button type="button" class="auth-skip" id="authToForgot" onclick="authMode('forgot')">Забыли пароль?</button>
+    <button type="button" class="auth-skip" id="authToLogin" onclick="authMode('login')" hidden>Уже есть учётка — войти</button>
+    <button type="button" class="auth-skip" id="authSignOut" onclick="authSignOut()" hidden>Выйти</button>
+  </div>
+</div>
+
+<!-- Количество проставляется здесь, а не в скачанном файле: введённое в
+     готовый HTML нигде не сохранится, поставщик получит пустые графы -->
+<div class="modal-bg" id="orderQtyModalBg" data-close="closeOrderQty">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3>Сколько заказываем</h3>
+    <p class="t-small" style="margin:0 0 var(--sp-3);">Проставьте количество — оно попадёт в накладную. Позиции с нулём в неё не войдут, а если оставить всё пустым, графа «Заказ» останется под заполнение от руки.</p>
+    <div id="orderQtyRows"></div>
+    <div class="order-total" id="orderQtyTotal"></div>
+    <div class="btn-row" style="margin-top:var(--sp-3);">
+      <button class="btn ghost" onclick="closeOrderQty()">Отмена</button>
+      <button class="btn primary" onclick="buildInvoicesFromOrder()"><svg class="icon"><use href="#i-check"/></svg>Сформировать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Список готовых накладных: браузер сохраняет только один файл за раз,
+     поэтому каждую накладную забирают нажатием -->
+<div class="modal-bg" id="invoiceListModalBg" data-close="closeInvoiceList">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3>Накладные по поставщикам</h3>
+    <p class="t-small" style="margin:0 0 var(--sp-4);">Готово <span id="invoiceListCount"></span>. Браузер сохраняет по одному файлу за раз — забирайте по очереди.</p>
+    <div id="invoiceListRows"></div>
+    <div class="btn-row" style="margin-top:var(--sp-3);">
+      <button class="btn ghost" onclick="closeInvoiceList()">Закрыть</button>
+      <button class="btn primary" id="invoiceAllBtn" onclick="downloadAllInvoices(this)"><svg class="icon"><use href="#i-download"/></svg>Скачать все</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="scanCaptureModalBg" data-close="closeScannerCapture">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3>Сканирование сканером</h3>
+    <div class="scanbox">
+      <div class="beamline"></div>
+      <input type="text" id="scanCaptureInput" placeholder="Наведите сканер на штрихкод…" autocomplete="off" inputmode="numeric" enterkeyhint="done">
+      <div class="hint">Или введите вручную и нажмите Enter</div>
+    </div>
+    <button class="btn ghost" style="margin-top:var(--sp-3);" onclick="closeScannerCapture()">Отмена</button>
+  </div>
+</div>
+
+<!-- Быстрый расход прямо со «Склада»: кнопка рядом с карандашиком —
+     без сканера и без похода в «Панель», по SKU строки товара. -->
+<div class="modal-bg" id="quickRashodModalBg" data-close="closeQuickRashod">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3>Расход товара</h3>
+    <div class="ccname" id="qrName"></div>
+    <div class="ccstock" id="qrStock"></div>
+    <div class="qty-stepper">
+      <button onclick="adjustQuickRashodQty(-1)" aria-label="Меньше">−</button>
+      <input type="number" id="qrQtyInput" value="1" min="1" inputmode="numeric" enterkeyhint="done">
+      <button onclick="adjustQuickRashodQty(1)" aria-label="Больше">+</button>
+    </div>
+    <div class="qty-pad" id="qrQtyPad">
+      <button onclick="padKey('qrQtyInput','1')">1</button>
+      <button onclick="padKey('qrQtyInput','2')">2</button>
+      <button onclick="padKey('qrQtyInput','3')">3</button>
+      <button onclick="padKey('qrQtyInput','4')">4</button>
+      <button onclick="padKey('qrQtyInput','5')">5</button>
+      <button onclick="padKey('qrQtyInput','6')">6</button>
+      <button onclick="padKey('qrQtyInput','7')">7</button>
+      <button onclick="padKey('qrQtyInput','8')">8</button>
+      <button onclick="padKey('qrQtyInput','9')">9</button>
+      <button class="aux" onclick="padKey('qrQtyInput','clear')" aria-label="Сбросить">C</button>
+      <button onclick="padKey('qrQtyInput','0')">0</button>
+      <button class="aux" onclick="padKey('qrQtyInput','back')" aria-label="Стереть">⌫</button>
+    </div>
+    <label class="single-order">
+      <input type="checkbox" id="qrSingleOrder">
+      <span><b>Единый заказ</b><small>один покупатель — % партнёрам по общей сумме</small></span>
+    </label>
+    <div class="btn-row" style="margin-top:var(--sp-3);">
+      <button class="btn ghost sm" onclick="closeQuickRashod()">Отмена</button>
+      <button class="btn primary sm" onclick="confirmQuickRashod()"><svg class="icon"><use href="#i-out"/></svg>В расход</button>
+    </div>
+  </div>
+</div>
+
+<!-- Быстрый приход прямо со «Склада»: та же кнопка-пара, только приёмка. -->
+<div class="modal-bg" id="quickPrihodModalBg" data-close="closeQuickPrihod">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h3>Приход товара</h3>
+    <div class="ccname" id="qpName"></div>
+    <div class="ccstock" id="qpStock"></div>
+    <div class="qty-stepper">
+      <button onclick="adjustQuickPrihodQty(-1)" aria-label="Меньше">−</button>
+      <input type="number" id="qpQtyInput" value="1" min="1" inputmode="numeric" enterkeyhint="done">
+      <button onclick="adjustQuickPrihodQty(1)" aria-label="Больше">+</button>
+    </div>
+    <div class="qty-pad" id="qpQtyPad">
+      <button onclick="padKey('qpQtyInput','1')">1</button>
+      <button onclick="padKey('qpQtyInput','2')">2</button>
+      <button onclick="padKey('qpQtyInput','3')">3</button>
+      <button onclick="padKey('qpQtyInput','4')">4</button>
+      <button onclick="padKey('qpQtyInput','5')">5</button>
+      <button onclick="padKey('qpQtyInput','6')">6</button>
+      <button onclick="padKey('qpQtyInput','7')">7</button>
+      <button onclick="padKey('qpQtyInput','8')">8</button>
+      <button onclick="padKey('qpQtyInput','9')">9</button>
+      <button class="aux" onclick="padKey('qpQtyInput','clear')" aria-label="Сбросить">C</button>
+      <button onclick="padKey('qpQtyInput','0')">0</button>
+      <button class="aux" onclick="padKey('qpQtyInput','back')" aria-label="Стереть">⌫</button>
+    </div>
+    <div class="btn-row" style="margin-top:var(--sp-3);">
+      <button class="btn ghost sm" onclick="closeQuickPrihod()">Отмена</button>
+      <button class="btn primary sm" onclick="confirmQuickPrihod()"><svg class="icon"><use href="#i-in"/></svg>В приход</button>
+    </div>
+  </div>
+</div>
+
+<!-- Возврат: выбрал товар — сразу +1 шт в «Возвраты», без лишнего шага
+     с количеством. Нужно больше одной штуки — тапаем по товару снова. -->
+<!-- Окно открывается СВЕРХУ: на iPhone клавиатура наезжает на экран снизу
+     и закрывала поле поиска у обычной шторки. -->
+<div class="modal-bg top-sheet" id="returnPickModalBg" data-close="closeReturnPick">
+  <div class="modal">
+    <div class="top-sheet-head">
+      <h3>Какой товар вернули</h3>
+      <button class="btn primary sm" style="width:auto;" onclick="closeReturnPick()">Готово</button>
+    </div>
+    <input type="text" id="returnPickSearch" placeholder="Поиск по SKU или названию" oninput="renderReturnPickList()" style="margin-bottom:var(--sp-2);">
+    <div class="t-caption" style="margin:0 0 var(--sp-2);color:var(--text-tertiary);">Нажмите на товар — сразу добавится 1 шт. Вернули больше — нажмите ещё раз.</div>
+    <div id="returnPickList" style="max-height:50vh;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- Своя клавиатура: пока к телефону подключён сканер, iOS считает, что
+     клавиатура уже есть, и системную не показывает. Печатать нечем. -->
+<div class="softkb" id="softKb" aria-hidden="true">
+  <!-- Пока своя клавиатура на экране, поле закрыто от системной, а значит
+       лупой и пробелом курсор не подвинуть. Двигаем этими стрелками. -->
+  <div class="skb-bar">
+    <button type="button" class="skb-arrow" onclick="skbMove(-1)" aria-label="Курсор влево">‹</button>
+    <button type="button" class="skb-arrow" onclick="skbMove(1)" aria-label="Курсор вправо">›</button>
+    <span class="skb-gap"></span>
+    <button type="button" onclick="skbHide(true)" aria-label="Скрыть клавиатуру">⌄</button>
+  </div>
+  <div id="skbRows"></div>
+</div>
+
+<!-- Лист этикеток для печати: показывается поверх приложения (без всплывающих
+     окон — их блокирует браузер), печатается через системную печать. -->
+<div id="labelSheetOverlay" hidden>
+  <div id="labelSheetBar">
+    <button class="btn primary sm" style="width:auto;" onclick="window.print()"><svg class="icon"><use href="#i-printer"/></svg>Печать</button>
+    <button class="btn ghost sm" style="width:auto;" onclick="closeLabelSheet()"><svg class="icon"><use href="#i-x"/></svg>Закрыть</button>
+    <span id="labelSheetInfo" class="t-caption"></span>
+  </div>
+  <div id="labelSheetGrid" class="label-sheet"></div>
+</div>
+
+<script src="vendor/zxing.min.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="vendor/supabase.min.js"></script>
+<script src="sync-config.js?v=2"></script>
+<script src="js/db.js?v=2"></script>
+<script src="js/cells.js?v=2"></script>
+<script src="js/ff-data.js?v=2"></script>
+<script src="js/sync-ui.js?v=2"></script>
+<script src="js/input.js?v=2"></script>
+<script src="js/returns-scan.js?v=2"></script>
+<script src="js/sounds.js?v=2"></script>
+<script src="js/stock-history.js?v=2"></script>
+<script src="js/finance.js?v=2"></script>
+<script src="js/balance.js?v=2"></script>
+<script src="js/analytics.js?v=2"></script>
+<script src="js/settings-roles.js?v=2"></script>
+<script src="js/roles.js?v=2"></script>
+<script src="js/suppliers.js?v=2"></script>
+<script src="js/stock-ff.js?v=2"></script>
+<script src="js/cells-ui.js?v=2"></script>
+<script src="js/receipts.js?v=2"></script>
+<script src="js/shipments.js?v=2"></script>
+<script src="js/history-ff.js?v=2"></script>
+<script src="js/scan-ff.js?v=2"></script>
+<script src="js/demo.js?v=2"></script>
+<script src="js/backup-labels.js?v=2"></script>
+<!-- после основного кода: синхронизация опирается на его функции -->
+<script src="sync.js?v=2"></script>
+<script src="js/layout.js?v=2"></script>
+</body>
+</html>

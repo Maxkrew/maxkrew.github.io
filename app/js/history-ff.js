@@ -25,7 +25,7 @@ async function renderHistoryFF(){
       const cur = r.result;
       if(!cur || out.length >= 500){ res(out); return; }
       const o = cur.value;
-      if(!o.deletedAt && (!sup || o.supplierId === sup) && (!type || o.type === type) &&
+      if((!o.deletedAt || o.review === 'отменено') && (!sup || o.supplierId === sup) && (!type || o.type === type) &&
          (!q || nameOf(o.modelId).includes(q) || String(labels[o.sizeId] || '').toLowerCase() === q)) out.push(o);
       cur.continue();
     };
@@ -37,10 +37,11 @@ async function renderHistoryFF(){
     const cell = owner && o.cellNumber ? ' — ячейка ' + o.cellNumber : '';
     const sign = o.delta > 0 ? 'in' : (o.delta < 0 ? 'out' : '');
     const d = new Date(o.ts);
-    return `<div class="row-item hist-row ${sign}"><div class="rmain">
+    const rv = o.review === 'отменено' ? ' · <b>отменено складом</b>' : (o.review === 'на проверке' ? ' · <span class="warn">на проверке</span>' : '');
+    return `<div class="row-item hist-row ${sign}${o.deletedAt ? ' cancelled' : ''}"><div class="rmain">
       <div class="rname">${escapeHtml(o.type)} ${Math.abs(o.qty)} шт. — ${escapeHtml(modelName(models[o.modelId] || {}))} ${escapeHtml(labels[o.sizeId] || '')}${escapeHtml(cell)} — ${escapeHtml(who)}</div>
-      <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}${owner ? ' · ' + escapeHtml((sups[o.supplierId] || {}).name || '') : ''}${o.rejected ? ' · <b>не принято сервером</b>' : ''}</div>
-    </div><div class="rside"><span class="rval ${sign}">${o.delta > 0 ? '+' : ''}${o.delta}</span>${owner ? `<button class="icon-btn" data-del-op="${escapeAttr(o.uid)}" onclick="deleteOpUI(${jsArg(o.uid)})" aria-label="Удалить операцию"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div></div>`;
+      <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}${owner ? ' · ' + escapeHtml((sups[o.supplierId] || {}).name || '') : ''}${o.rejected ? ' · <b>не принято сервером</b>' : ''}${rv}</div>
+    </div><div class="rside"><span class="rval ${sign}">${o.delta > 0 ? '+' : ''}${o.delta}</span>${owner && !o.deletedAt ? `<button class="icon-btn" data-del-op="${escapeAttr(o.uid)}" onclick="deleteOpUI(${jsArg(o.uid)})" aria-label="Удалить операцию"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div></div>`;
   }).join('');
 }
 /* Удалить ошибочную операцию (только склад). Остаток вернётся сам — это сумма живых операций.

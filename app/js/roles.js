@@ -2,9 +2,12 @@
    (телефон), и боковое (компьютер, js/layout.js). Склад видит всё; поставщик — свой
    склад товаров и историю, без ячеек, приёмки и поставщиков (ОПИСАНИЕ §3, §9). */
 const NAV_ITEMS = [
-  {id:'stock',     label:'Склад',      icon:'i-box',   group:'Склад',  roles:['owner','supplier']},
+  /* labels — подпись для роли: у поставщика учёт своего товара (этап 2б, ОПИСАНИЕ §11в) */
+  {id:'stock',     label:'Склад',      icon:'i-box',   group:'Склад',  roles:['owner','supplier'], labels:{supplier:'Товары'}},
   {id:'receipts',  label:'Приёмка',    icon:'i-in',    group:'Склад',  roles:['owner']},
-  {id:'shipments', label:'Отправки',   icon:'i-out',   group:'Склад',  roles:['owner']},
+  {id:'incoming',  label:'Приход',     icon:'i-in',    group:'Склад',  roles:['supplier']},
+  {id:'shipments', label:'Отправки',   icon:'i-out',   group:'Склад',  roles:['owner','supplier'], labels:{supplier:'Продажи'}},
+  {id:'analysis',  label:'Анализ',     icon:'i-chart', group:'Склад',  roles:['supplier']},
   {id:'cells',     label:'Ячейки',     icon:'i-grid',  group:'Склад',  roles:['owner']},
   {id:'suppliers', label:'Поставщики', icon:'i-users', group:'Деньги', roles:['owner']},
   {id:'history',   label:'История',    icon:'i-clock', group:'Склад',  roles:['owner','supplier']},
@@ -12,6 +15,7 @@ const NAV_ITEMS = [
   {id:'tariffs',   label:'Тарифы',     icon:'i-coins', group:'Аккаунт', roles:['owner'], sideOnly:true},
   {id:'admin',     label:'Сервис',     icon:'i-gear',  group:'Аккаунт', roles:['admin'], sideOnly:true}
 ];
+function itemLabel(i){ return (i.labels && i.labels[currentRole()]) || i.label; }
 function itemAllowed(i){ return i.roles.includes(currentRole()) || (i.roles.includes('admin') && window.Sync && Sync.isAdmin && Sync.isAdmin()); }
 
 function currentRole(){ return (window.Sync && Sync.role) ? Sync.role() : 'none'; }
@@ -32,7 +36,7 @@ function buildBottomNav(){
   const active = (document.querySelector('main section.active') || {id:''}).id.replace('sec-', '');
   nav.innerHTML = NAV_ITEMS.map(i=>
     `<button type="button" data-section="${i.id}" onclick="showSection('${i.id}',this)"${itemAllowed(i) ? '' : ' hidden'}` +
-    ` class="${i.sideOnly ? 'side-only' : ''}${i.id === active ? ' active' : ''}"><svg class="icon"><use href="#${i.icon}"/></svg>${i.label}</button>`).join('');
+    ` class="${i.sideOnly ? 'side-only' : ''}${i.id === active ? ' active' : ''}"><svg class="icon"><use href="#${i.icon}"/></svg>${itemLabel(i)}</button>`).join('');
 }
 
 async function applyRoleUI(){

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="168 140 204 196" role="img" aria-label="Fulbro">
+  <defs>
+    <linearGradient id="fbg" gradientUnits="userSpaceOnUse" x1="178" y1="0" x2="362" y2="0">
+      <stop offset="0" stop-color="#52F2B8"/>
+      <stop offset="1" stop-color="#10C2A8"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#fbg)" stroke-width="27" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190 212 L276 163 L352 210"/>
+    <path d="M190 268 H318 M272 222 L320 268 L272 314"/>
+  </g>
+</svg>

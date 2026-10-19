@@ -244,43 +244,73 @@
     cells: {
       table:'cells', key:'number', push:['owner'], pull:['owner'],
       toRow: (x, ws)=> Object.assign({number:String(x.number), supplier_id:x.supplierId || null, model_id:x.modelId || null,
-        allowed_sizes:(x.allowedSizes && x.allowedSizes.length) ? x.allowedSizes : null, capacity:x.capacity ? num(x.capacity) : null, reserved:!!x.reserved}, tail(x, ws)),
+        allowed_sizes:(x.allowedSizes && x.allowedSizes.length) ? x.allowedSizes : null, capacity:x.capacity ? num(x.capacity) : null, reserved:!!x.reserved,
+        kind:x.kind === 'брак' ? 'брак' : 'обычная'}, tail(x, ws)),
       toLocal: r=> Object.assign({number:r.number, supplierId:r.supplier_id || null, modelId:r.model_id || null,
-        allowedSizes:r.allowed_sizes || null, capacity:r.capacity || null, reserved:!!r.reserved}, base(r))
+        allowedSizes:r.allowed_sizes || null, capacity:r.capacity || null, reserved:!!r.reserved, kind:r.kind || 'обычная'}, base(r))
     },
     ops: {
-      table:'operations', pullTable:{supplier:'supplier_operations'}, key:'uid', push:['owner'], pull:['owner','supplier'],
-      toRow: (x, ws)=> Object.assign({uid:x.uid, supplier_id:x.supplierId, model_id:x.modelId, size_id:x.sizeId, cell_number:x.cellNumber || null,
-        type:x.type, qty:num(x.qty), delta:num(x.delta), ts:num(x.ts), task_ref:x.taskRef || null, snap:x.snap || null,
-        author_kind:x.authorKind || 'owner', author_name:x.authorName || ''}, tail(x, ws)),
+      /* поставщик шлёт только свои корректировки «на проверке» — без ячейки и брака (этап 2) */
+      table:'operations', pullTable:{supplier:'supplier_operations'}, key:'uid', push:['owner','supplier'], pull:['owner','supplier'],
+      toRow: (x, ws, rl)=> Object.assign({uid:x.uid, supplier_id:x.supplierId, model_id:x.modelId, size_id:x.sizeId, cell_number:rl === 'supplier' ? null : (x.cellNumber || null),
+        type:x.type, qty:num(x.qty), delta:num(x.delta), ts:num(x.ts), task_ref:rl === 'supplier' ? null : (x.taskRef || null), snap:x.snap || null,
+        author_kind:x.authorKind || 'owner', author_name:x.authorName || '', defect:rl === 'supplier' ? false : !!x.defect, review:x.review || null}, tail(x, ws)),
       toLocal: r=> Object.assign({uid:r.uid, supplierId:r.supplier_id, modelId:r.model_id, sizeId:r.size_id, cellNumber:r.cell_number || null,
         type:r.type, qty:num(r.qty), delta:num(r.delta), ts:num(r.ts), taskRef:r.task_ref || null, snap:r.snap || null,
-        authorKind:r.author_kind || 'owner', authorName:r.author_name || ''}, base(r))
+        authorKind:r.author_kind || 'owner', authorName:r.author_name || '', defect:!!r.defect, review:r.review || null}, base(r))
     },
     receipts: {
-      table:'receipts', key:'id', push:['owner'], pull:['owner'],
+      table:'receipts', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
       toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind || 'приёмка', weight_kg:x.weightKg == null ? null : num(x.weightKg), status:x.status || 'черновик', created_ts:num(x.createdTs)}, tail(x, ws)),
       toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, weightKg:r.weight_kg, status:r.status, createdTs:num(r.created_ts)}, base(r))
     },
     receiptLines: {
-      table:'receipt_lines', key:'id', push:['owner'], pull:['owner'],
-      toRow: (x, ws)=> Object.assign({id:x.id, receipt_id:x.receiptId, model_id:x.modelId, size_id:x.sizeId, qty:num(x.qty), plan:x.plan || null, done_qty:num(x.doneQty)}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, receiptId:r.receipt_id, modelId:r.model_id, sizeId:r.size_id, qty:num(r.qty), plan:r.plan || null, doneQty:num(r.done_qty)}, base(r))
+      /* поставщик читает строки через представление без плана раскладки и не шлёт план (этап 2) */
+      table:'receipt_lines', pullTable:{supplier:'supplier_receipt_lines'}, key:'id', push:['owner','supplier'], pull:['owner','supplier'],
+      toRow: (x, ws, rl)=>{
+        const r = Object.assign({id:x.id, receipt_id:x.receiptId, model_id:x.modelId, size_id:x.sizeId, qty:num(x.qty)}, tail(x, ws));
+        if(rl !== 'supplier'){ r.plan = x.plan || null; r.done_qty = num(x.doneQty); r.expected_qty = x.expectedQty == null ? null : num(x.expectedQty); r.defect = !!x.defect; }
+        return r;
+      },
+      toLocal: r=> Object.assign({id:r.id, receiptId:r.receipt_id, supplierId:r.supplier_id || null, modelId:r.model_id, sizeId:r.size_id, qty:num(r.qty), plan:r.plan || null, doneQty:num(r.done_qty),
+        expectedQty:r.expected_qty == null ? null : num(r.expected_qty), defect:!!r.defect}, base(r))
     },
     shipments: {
-      table:'shipments', key:'id', push:['owner'], pull:['owner'],
+      table:'shipments', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
+      /* заказ «Продал» уходит складу только вместе со своим скриншотом */
+      ready: x=> (typeof window.shipmentReady === 'function') ? window.shipmentReady(x.id) : true,
       toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, carrier:x.carrier || '', comment:x.comment || '', status:x.status || 'новая', created_by:x.createdBy || 'owner', created_ts:num(x.createdTs)}, tail(x, ws)),
       toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, carrier:r.carrier || '', comment:r.comment || '', status:r.status, createdBy:r.created_by, createdTs:num(r.created_ts)}, base(r))
     },
     shipmentLines: {
-      table:'shipment_lines', key:'id', push:['owner'], pull:['owner'],
-      toRow: (x, ws)=> Object.assign({id:x.id, shipment_id:x.shipmentId, model_id:x.modelId, size_id:x.sizeId, qty:num(x.qty), cell_number:x.cellNumber || null, collected:!!x.collected}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, shipmentId:r.shipment_id, modelId:r.model_id, sizeId:r.size_id, qty:num(r.qty), cellNumber:r.cell_number || null, collected:!!r.collected}, base(r))
+      /* поставщик читает строки без ячейки и не шлёт ни ячейку, ни «Собрано» (этап 2) */
+      table:'shipment_lines', pullTable:{supplier:'supplier_shipment_lines'}, key:'id', push:['owner','supplier'], pull:['owner','supplier'],
+      ready: x=> (typeof window.shipmentReady === 'function') ? window.shipmentReady(x.shipmentId) : true,
+      toRow: (x, ws, rl)=>{
+        const r = Object.assign({id:x.id, shipment_id:x.shipmentId, model_id:x.modelId, size_id:x.sizeId, qty:num(x.qty)}, tail(x, ws));
+        if(rl !== 'supplier'){ r.cell_number = x.cellNumber || null; r.collected = !!x.collected; r.collected_ts = x.collectedTs == null ? null : num(x.collectedTs); }
+        return r;
+      },
+      toLocal: r=> Object.assign({id:r.id, shipmentId:r.shipment_id, supplierId:r.supplier_id || null, modelId:r.model_id, sizeId:r.size_id, qty:num(r.qty), cellNumber:r.cell_number || null, collected:!!r.collected,
+        collectedTs:r.collected_ts == null ? null : num(r.collected_ts)}, base(r))
+    },
+    /* этап 2б: цены закупки/продажи по строке — только поставщик (склад их не видит) */
+    linePrices: {
+      table:'line_prices', key:'line_id', localKey:'lineId', push:['supplier'], pull:['supplier'],
+      toRow: (x, ws)=> Object.assign({line_id:x.lineId, supplier_id:x.supplierId, doc:x.doc, price:num(x.price)}, tail(x, ws)),
+      toLocal: r=> Object.assign({lineId:r.line_id, supplierId:r.supplier_id, doc:r.doc, price:num(r.price)}, base(r))
+    },
+    /* фото: строка уходит, только когда файл уже в хранилище (ready) */
+    photos: {
+      table:'photos', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
+      ready: x=> (typeof window.photoReady === 'function') ? window.photoReady(x) : true,
+      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind, model_id:x.modelId || null, shipment_id:x.shipmentId || null, path:x.path, created_ts:num(x.createdTs)}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, modelId:r.model_id || null, shipmentId:r.shipment_id || null, path:r.path, createdTs:num(r.created_ts)}, base(r))
     }
   };
   /* Порядок важен: сначала модель, потом её размеры и личные цифры, потом ячейки и операции —
      иначе сервер не пустит строку, ссылающуюся на ещё не известную ему модель. */
-  const ORDER = ['suppliers','models','privates','sizes','cells','receipts','receiptLines','shipments','shipmentLines','ops'];
+  const ORDER = ['suppliers','models','privates','sizes','cells','receipts','receiptLines','photos','shipments','shipmentLines','linePrices','ops'];
   const localKeyOf = (store, x)=> x[MAP[store].localKey || MAP[store].key];
 
   class AccessClosed extends Error {}
@@ -302,10 +332,16 @@
     if(!act.error && act.data === false){
       throw new Error('Подписка склада закончилась — правки сохранены на телефоне и уйдут после продления');
     }
-    for(const p of list){ p.local.rejected = 1; p.local.rejectReason = 'нет прав'; p.local.dirty = 0; await window.put(store, p.local, {fromSync:true}); }
     const me = await client.from('suppliers').select('id').eq('owner_id', ws).eq('id', mySupplierId()).limit(1);
     if(!me.error && (!me.data || !me.data.length)) throw new AccessClosed('архив');
-    if(typeof window.toast === 'function') window.toast('Сервер не принял правку — нет прав на эту запись');
+    /* поставку или заказ склад уже взял в работу — правка поставщика опоздала: берём версию склада */
+    const late = ['receipts', 'receiptLines', 'shipments'].includes(store) && typeof window.ffOnRejected === 'function';
+    let marked = 0;
+    for(const p of list){
+      if(late){ try{ await window.ffOnRejected(store, p.local, msg); continue; }catch(e){} }
+      p.local.rejected = 1; p.local.rejectReason = 'нет прав'; p.local.dirty = 0; await window.put(store, p.local, {fromSync:true}); marked++;
+    }
+    if(marked && typeof window.toast === 'function') window.toast('Сервер не принял правку — нет прав на эту запись');
   }
   async function onAuthTrouble(){
     try{ await client.auth.refreshSession(); }catch(e){}
@@ -317,7 +353,8 @@
   // ------------------------------------------------------------------
   async function pushStore(store, ws, rl){
     const spec = MAP[store];
-    const dirty = (await window.getDirty(store)).filter(r=> !r.rejected);
+    let dirty = (await window.getDirty(store)).filter(r=> !r.rejected);
+    if(spec.ready){ const ok = await Promise.all(dirty.map(r=> spec.ready(r))); dirty = dirty.filter((r, i)=> ok[i]); }
     if(!dirty.length) return 0;
     const pairs = dirty.map(local=> ({local, row: spec.toRow(local, ws, rl)}));
     // одна строка на ключ — иначе сервер отвергает всю пачку
@@ -343,7 +380,8 @@
         const {error, status} = await client.from(spec.table).upsert(send.map(p=> p.row), {onConflict: 'owner_id,' + spec.key});
         if(error){
           if(isCellRuleError(error) || isDataError(error, status)){ sent += await pushOneByOne(store, send, rl, ws); continue; }
-          if(isRlsError(error, status)){ await onRlsRefusal(store, send, rl, ws, error.message); continue; }
+          /* отказ по правам на пачку — виновата обычно одна строка (склад её уже разложил): шлём по одной */
+          if(isRlsError(error, status)){ if(send.length > 1) sent += await pushOneByOne(store, send, rl, ws); else await onRlsRefusal(store, send, rl, ws, error.message); continue; }
           if(isAuthError(error, status)) await onAuthTrouble();
           throw new Error(spec.table + ': ' + error.message);
         }
@@ -407,6 +445,18 @@
       applied++;
     }
     return {applied, maxSeq};
+  }
+
+  /* Одна запись заново с сервера: правку не приняли, а сама запись на сервере не менялась —
+     обычный приём (по seq) её не привезёт. */
+  async function refetch(store, key){
+    const spec = MAP[store], ws = ownerId(), rl = role();
+    if(!spec || !ws || !init()) return false;
+    const table = (spec.pullTable && spec.pullTable[rl]) || spec.table;
+    const {data, error} = await client.from(table).select('*').eq('owner_id', ws).eq(spec.key, key).limit(1);
+    if(error || !data || !data.length) return false;
+    await window.put(store, spec.toLocal(data[0]), {fromSync:true});
+    return true;
   }
 
   async function serverSizeStock(ws){
@@ -475,9 +525,31 @@
   // ------------------------------------------------------------------
   async function wipeLocalData(){
     for(const s of ORDER) await window.clearStore(s);
+    await window.clearStore('photoBlobs');
     for(const r of await window.getAll('settings')){
       if(/^(ffSeq:|ffCursor:|ffEpoch:|ffScope$)/.test(r.key)) await window.del('settings', r.key);
     }
+  }
+  /* Фото, снятые без сети: файл — в хранилище ff-photos; строка photos уйдёт следом (ready). */
+  /* Каждый файл отдельно: один неудачный не стопорит отправку остального (его заказ подождёт). */
+  async function uploadPhotos(){
+    let firstErr = null;
+    for(const b of await window.getAll('photoBlobs')){
+      if(!b.pending) continue;
+      const {error} = await client.storage.from('ff-photos').upload(b.path, b.blob, {upsert:true, contentType:'image/jpeg'});
+      if(error){ if(!firstErr) firstErr = new Error('фото: ' + error.message); continue; }
+      b.pending = false; await window.putRaw('photoBlobs', b);
+    }
+    return firstErr;
+  }
+  async function photoSignedUrl(p){
+    const {data, error} = await client.storage.from('ff-photos').createSignedUrl(p, 3600);
+    return error || !data ? null : data.signedUrl;
+  }
+  async function removePhotoFiles(paths){
+    if(!paths.length) return true;
+    const {error} = await client.storage.from('ff-photos').remove(paths);
+    return !error;
   }
   async function pendingCount(){
     return (await Promise.all(ORDER.map(s=> window.getDirty(s)))).reduce((n, a)=> n + a.filter(r=> !r.rejected).length, 0);
@@ -502,6 +574,8 @@
       queuedRun = true;
       try{ await currentRun; }catch(e){}
       if(queuedRun){ queuedRun = false; return runSync(reason); }
+      /* очередной обмен уже запустил другой ждавший — «готово» только когда он закончится */
+      if(currentRun){ try{ await currentRun; }catch(e){} }
       return {ok:true, sent:0, received:0, coalesced:true};
     }
     return runSync(reason);
@@ -542,21 +616,28 @@
       /* «Только просмотр» (срок истёк, склад заблокирован): правки не отправляются, но и не
          теряются — уйдут после продления. */
       if(active) try{
+        const photoErr = await uploadPhotos();
         for(const s of ORDER) if(MAP[s].push.includes(rl)) sent += await pushStore(s, ws, rl);
         if(rl === 'owner') sent += await pushSettings(ws);
+        if(photoErr) throw photoErr;
       }catch(e){ if(e instanceof AccessClosed) throw e; pushErr = e; }
 
-      const cursorKey = 'ffSeq:' + ws;
-      const cur = await window.get('settings', cursorKey);
-      const since = cur ? num(cur.value) : 0;
-      let received = 0, newCursor = since;
+      /* Номер правки на сервере один на все таблицы, а таблицы принимаются по очереди: пока
+         принимали размеры, другой телефон мог записать модель с номером меньше — с общим
+         курсором она бы потерялась навсегда. Поэтому курсор у каждой таблицы свой
+         (старый общий — начальное значение). */
+      const legacy = await window.get('settings', 'ffSeq:' + ws);
+      let received = 0;
       for(const s of ORDER){
         if(!MAP[s].pull.includes(rl)) continue;
+        const key = 'ffSeq:' + ws + ':' + s;
+        const cur = await window.get('settings', key);
+        const since = cur ? num(cur.value) : (legacy ? num(legacy.value) : 0);
         const r = await pullStore(s, ws, rl, since);
-        received += r.applied; newCursor = Math.max(newCursor, r.maxSeq);
+        received += r.applied;
+        await window.put('settings', {key, value: Math.max(since, r.maxSeq)});
       }
       received += await pullSettings(ws);
-      await window.put('settings', {key: cursorKey, value: newCursor});
 
       if(!pushErr) await selfCheck(ws, rl);
       const pending = await pendingCount();
@@ -610,6 +691,7 @@
     if(remote <= num(row && row.value)) return false;
     for(const s of ORDER) await window.clearStore(s);
     await window.put('settings', {key:'ffSeq:' + ws, value: 0});
+    for(const s of ORDER) await window.put('settings', {key:'ffSeq:' + ws + ':' + s, value: 0});
     await window.put('settings', {key:'ffEpoch:' + ws, value: remote});
     if(typeof window.toast === 'function' && row) window.toast('Данные обновлены с сервера');
     return true;
@@ -741,7 +823,7 @@
   window.Sync = {
     init, start, signIn, signUp, joinByCode, requestPasswordReset, setNewPassword, mustChangePassword, signOut,
     changePassword: setNewPassword, syncNow, currentUser, ready, lastLogin, onStatus,
-    isConfigured: ()=> Boolean(CFG.url && CFG.key),
+    isConfigured: ()=> Boolean(CFG.url && CFG.key), busy: ()=> !!currentRun, refetch, photoSignedUrl, removePhotoFiles,
     resolveMembership, role, ownerId, mySupplierId, memberName, authorName,
     warehouses: ()=> (membership && membership.warehouses) || [],
     chooseWarehouse: async ownerIdToUse=>{ try{ localStorage.setItem(WAREHOUSE_KEY, ownerIdToUse); }catch(e){} await resolveMembership(); return syncNow('другой склад'); },

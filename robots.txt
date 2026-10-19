@@ -1,5 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /app/
 
 Sitemap: https://maxkrew.github.io/sitemap.xml

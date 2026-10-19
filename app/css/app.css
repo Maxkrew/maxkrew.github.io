@@ -29,7 +29,7 @@
   --shadow-card:0 1px 2px rgba(50,60,100,.05), 0 16px 34px -20px rgba(50,60,100,.35);
   --shadow-pop:0 24px 54px -14px rgba(50,60,100,.4);
 
-  --font-display:'Space Grotesk',sans-serif;
+  --font-display:'Inter',sans-serif;   /* как на лендинге (решил владелец) */
   --font-body:'Inter',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --dur:.16s;
@@ -114,9 +114,9 @@ header.top{padding:calc(var(--sp-5) + env(safe-area-inset-top)) var(--sp-4) var(
 @media (hover:hover){ .menu-sheet button:not(:disabled):hover{background:var(--accent-soft);} }
 
 header.top .brand{display:flex;align-items:center;gap:10px;min-width:0;}
-header.top .mark{width:34px;height:34px;border-radius:var(--r-md);background:var(--accent);border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;box-shadow:0 6px 16px -6px rgba(74,125,255,.6);overflow:hidden;}
+header.top .mark{width:34px;height:37px;border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:none;}
 header.top .name{min-width:0;}
-header.top h1{font-size:15px;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+header.top h1{font-size:18px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
 /* кнопок в шапке стало больше — не даём подписи распирать её на три строки */
 header.top .sub{color:var(--text-tertiary);font-size:11px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .status-pill{flex-shrink:0;display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.65);border:1px solid var(--border);border-radius:var(--r-full);padding:6px 10px;font-size:11px;color:var(--text-secondary);white-space:nowrap;}
@@ -447,9 +447,8 @@ nav.bottom button.active{color:var(--accent);background:var(--accent-soft);}
   animation:authRise .28s cubic-bezier(.2,.8,.3,1);
 }
 @keyframes authRise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
-.auth-logo{width:62px;height:62px;border-radius:18px;overflow:hidden;margin:0 auto 16px;
-  box-shadow:0 10px 24px -10px rgba(74,125,255,.8);}
-.auth-logo img{width:100%;height:100%;object-fit:cover;display:block;}
+.auth-logo{width:62px;height:68px;margin:0 auto 16px;}
+.auth-logo img{width:100%;height:100%;object-fit:contain;display:block;}
 .auth-card h2{font-family:var(--font-display);font-size:21px;font-weight:700;text-align:center;margin:0 0 6px;color:var(--text);}
 .auth-card #authHint{margin:0 0 20px;text-align:center;font-size:13px;line-height:1.45;color:var(--text-secondary);}
 
@@ -645,8 +644,13 @@ body.kb-open nav.bottom{display:none;}
    ============================================================ */
 aside.side{display:none;}
 .side-brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:19px;margin:2px 8px 18px;color:var(--text);}
-.side-mark{width:30px;height:30px;border-radius:9px;background:var(--accent);flex-shrink:0;}
+.side-mark{width:30px;height:33px;background:url(../logo-mark.svg) center/contain no-repeat;flex-shrink:0;}
+.home-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px;}
+.home-actions .btn{min-height:56px;font-size:17px;}
+.sizes-line .flow{color:var(--text-secondary);font-size:13px;}
 .side-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* «FULBRO» как в логотипе: широкий наклонный Saira */
+.brand-word{font-family:'Fulbro Logo',var(--font-display);font-style:italic;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
 .side-grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);margin:16px 12px 6px;}
 .side-it{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:none;border-radius:10px;color:var(--text);font-size:14px;text-align:left;}
 .side-it .icon{width:18px;height:18px;color:var(--text-secondary);flex-shrink:0;}
@@ -716,7 +720,7 @@ aside.side{display:none;}
 .rc-card,.sh-card{margin-bottom:var(--sp-3);}
 .rc-lines .row-item{padding:6px 0;}
 .hist-row .rname{font-size:13.5px;font-weight:500;}
-/* ===== FFDrop: плашка подписки и «только просмотр» ===== */
+/* ===== Fulbro: плашка подписки и «только просмотр» ===== */
 .sub-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px var(--sp-4) 0;padding:9px 12px;border-radius:12px;
   background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:600;}
 .sub-banner.warn{background:#FFF4E0;color:#92400E;}
@@ -729,7 +733,7 @@ body.readonly #mmDeleteBtn, body.readonly [data-del-op], body.readonly .sup-acti
 body.readonly .task input{pointer-events:none;opacity:.5;}
 .auth-strong{color:var(--accent) !important;font-weight:700;}
 
-/* ===== FFDrop: тарифы и панель сервиса ===== */
+/* ===== Fulbro: тарифы и панель сервиса ===== */
 nav.bottom .side-only{display:none !important;}
 .tariff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
 .tariff-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:8px;}
@@ -743,3 +747,55 @@ nav.bottom .side-only{display:none !important;}
 .adm-card{margin-bottom:var(--sp-3);display:flex;flex-direction:column;gap:6px;}
 .tf-edit{display:flex;flex-direction:column;gap:10px;}
 .tf-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;}
+
+/* приход из Excel */
+.xls-wrap{overflow-x:auto;margin:var(--sp-2) 0;border:1px solid var(--border);border-radius:var(--r-sm);}
+.xls-table{border-collapse:collapse;font-size:12px;min-width:100%;}
+.xls-table th,.xls-table td{padding:6px 8px;border-bottom:1px solid var(--border-soft);text-align:left;white-space:nowrap;}
+.xls-table th{background:var(--surface-2);vertical-align:bottom;}
+.xls-table th select{font-size:12px;padding:4px 6px;min-width:110px;}
+.xls-table .xls-head td{font-weight:600;color:var(--text-secondary);}
+.xls-size{display:block;font-size:11px;color:var(--accent);margin-bottom:4px;}
+.xls-summary{margin:var(--sp-2) 0 var(--sp-3);}
+.xls-err{color:#B91C1C;font-size:12px;margin-top:4px;}
+
+/* «Продал» и фото */
+.sell-models{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 var(--sp-3);max-height:180px;overflow-y:auto;}
+.sell-models .chip{border:1px solid var(--border);background:var(--surface);border-radius:var(--r-full);padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text);}
+.sell-models .chip.on{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent-strong);font-weight:600;}
+.sell-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.sell-thumb img{display:block;width:56px;height:56px;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--border);}
+.ph-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.ph-thumb{padding:0;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface-2);cursor:pointer;overflow:hidden;width:56px;height:56px;flex:none;}
+.ph-thumb img{display:block;width:56px;height:56px;object-fit:cover;}
+.model-photo{display:inline-flex;align-items:center;gap:6px;margin-right:10px;vertical-align:middle;}
+.model-photo .ph-add{width:44px;height:44px;border:1px dashed var(--border);border-radius:var(--r-sm);background:var(--surface-2);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.model-photo .ph-thumb,.model-photo .ph-thumb img{width:44px;height:44px;}
+.photo-viewer{display:none;position:fixed;inset:0;z-index:60;background:#fff;flex-direction:column;}
+.photo-viewer.show{display:flex;}
+.pv-bar{display:flex;justify-content:space-between;align-items:center;padding:calc(var(--sp-3) + env(safe-area-inset-top)) var(--sp-4) var(--sp-3);}
+.photo-viewer img{flex:1;min-height:0;width:100%;object-fit:contain;padding:0 var(--sp-3) var(--sp-4);}
+@media print{
+  body *{visibility:hidden !important;}
+  #photoViewer,#photoViewer img{visibility:visible !important;}
+  #photoViewer{position:absolute;inset:0;display:flex;}
+  .pv-bar{display:none !important;}
+}
+.sell-pick label.btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;}
+.field label.xls-file{display:flex;margin:0;font-size:13.5px;color:var(--text);align-items:center;justify-content:center;gap:6px;cursor:pointer;}
+/* анализ поставщика */
+.an-seg{display:flex;gap:6px;margin-bottom:var(--sp-3);}
+.an-seg button{flex:1;border:1px solid var(--border);background:var(--surface);border-radius:var(--r-full);padding:8px 10px;font:inherit;font-size:13px;color:var(--text);cursor:pointer;}
+.an-seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;}
+.an-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--sp-2);margin-bottom:var(--sp-3);}
+.an-tile{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-4);box-shadow:var(--shadow-card);}
+.an-label{font-size:12px;color:var(--text-secondary);}
+.an-value{font-size:20px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums;}
+.an-note{font-size:11px;color:var(--text-tertiary);margin-top:4px;}
+.an-hint{padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:14px;}
+.an-hint:last-child{border-bottom:0;}
+/* «Проверить» и история */
+.review-row{flex-wrap:wrap;gap:8px;}
+.review-acts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.review-acts select{width:auto;padding:6px 8px;font-size:13px;}
+.hist-row.cancelled .rname,.hist-row.cancelled .rval{text-decoration:line-through;color:var(--text-tertiary);}

@@ -24,6 +24,10 @@ async function renderStockFF(){
   const list = document.getElementById('ffStockList');
   if(!list) return;
   const owner = isOwnerRole();
+  // у поставщика — «Мои товары» с кнопками «Приход» и «Продал» (этап 2б)
+  document.getElementById('ffStockTitle').textContent = owner ? 'Склад' : 'Мои товары';
+  document.getElementById('ffStockSub').textContent = owner ? 'Модели, размеры и остатки' : 'Что на складе, что едет и что ждёт отправки';
+  document.getElementById('homeActions').hidden = owner;
   const sups = await ffSuppliersMap();
   // фильтр поставщиков — только складу
   const sel = document.getElementById('ffSupplierFilter');
@@ -51,17 +55,21 @@ async function renderStockFF(){
         .concat(letters.map(l=> `<button type="button" data-letter="${escapeAttr(l)}"${l === ffAbcLetter ? ' class="a"' : ''} onclick="ffSetLetter(${jsArg(l)})">${escapeHtml(l)}</button>`)).join('')
     : '';
   if(ffAbcLetter) models = models.filter(m=> (m.brand || modelName(m)).trim().charAt(0).toUpperCase() === ffAbcLetter);
+  const phByModel = new Map();   // последнее фото товара
+  for(const p of (await getAll('photos')).filter(p=> !p.deletedAt && p.kind === 'товар').sort((a, b)=> (a.createdTs || 0) - (b.createdTs || 0))) phByModel.set(p.modelId, p);
   const collator = new Intl.Collator('ru');
   const names = new Map(models.map(m=> [m.id, modelName(m)]));
   models.sort((a, b)=> collator.compare(names.get(a.id), names.get(b.id)));
 
   if(!models.length){
     list.innerHTML = emptyState('i-box', q || ffAbcLetter ? 'Ничего не найдено' : 'Моделей пока нет', owner ? 'Добавьте модель кнопкой «Модель» или через приёмку.' : 'Добавьте свою модель кнопкой «Модель».');
+    if(typeof renderExpected === 'function') await renderExpected();
     return;
   }
   /* Один проход по данным на весь экран, а не по модели: размеры по моделям,
      остатки из общего индекса, ячейки по моделям. Показываем порциями. */
   const idx = await ffStockIndex();
+  const counts = owner ? null : await supplierCounts();
   const sizesByModel = {};
   for(const s of allSizes) (sizesByModel[s.modelId] || (sizesByModel[s.modelId] = [])).push(s);
   const cellsByModel = {};
@@ -77,21 +85,35 @@ async function renderStockFF(){
   const parts = [];
   for(const m of shown){
     const sz = (sizesByModel[m.id] || []).slice().sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel));
-    const v = {sizes: sz.map(s=> ({label: s.sizeLabel, stock: idx.bySize[s.id] || 0})),
+    // в остатке — «можно продать»; брак отдельно (этап 2)
+    const v = {sizes: sz.map(s=> ({label: s.sizeLabel, stock: idx.sellableBySize[s.id] || 0, defect: idx.defectBySize[s.id] || 0})),
                cells: (cellsByModel[m.id] || []).sort((a, b)=> cmpCellNumber(a.number, b.number))};
     const total = v.sizes.reduce((s, x)=> s + x.stock, 0);
-    const sizesLine = v.sizes.length ? v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b>${s.stock}</b></span>`).join(' · ') : '<span class="hint">размеров нет</span>';
+    const sizesLine = !v.sizes.length ? '<span class="hint">размеров нет</span>'
+      : !owner ? sz.map(s=> supplierSizeLine(s.sizeLabel, counts.get(s.id))).join('<br>')
+      : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b>${s.stock}</b>${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
     const cellsLine = (owner && v.cells.length)
       ? '<div class="cells-line">' + v.cells.map(c=> `Ячейка ${escapeHtml(c.number)} (${escapeHtml(sizesLabel(c.allowedSizes))}) — ${c.stock} шт.${c.reserved && !c.stock ? ' · бронь' : ''}`).join(' · ') + '</div>'
       : '';
     const sup = owner ? `<span class="rmeta">${escapeHtml((sups[m.supplierId] || {}).name || '')}${m.sku ? ' · ' + escapeHtml(m.sku) : ''} · ${escapeHtml(m.category || '')}</span>` : (m.sku ? `<span class="rmeta">${escapeHtml(m.sku)}</span>` : '');
     parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
-      <div class="model-head"><div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div><div class="big-num">${total}<span> шт.</span></div></div>
+      <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>
       <div class="sizes-line">${sizesLine}</div>${cellsLine}
     </div>`);
   }
   if(models.length > shown.length) parts.push(`<button class="btn ghost" id="ffStockMore" onclick="ffStockLimit += 200; renderStockFF()">Показать ещё (${models.length - shown.length})</button>`);
   list.innerHTML = parts.join('');
+  if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(list);
+  if(typeof renderExpected === 'function') await renderExpected();
+}
+function photoCell(modelId, p){
+  if(typeof photoThumb !== 'function') return '';
+  return `<span class="model-photo" data-act="photo" onclick="event.stopPropagation()">${p ? photoThumb(p.id, 'Фото товара') : `<label class="ph-add" aria-label="Добавить фото товара"><svg class="icon"><use href="#i-plus"/></svg><input type="file" accept="image/*" hidden onchange="ffModelPhotoPick(${jsArg(modelId)}, this)"></label>`}</span>`;
+}
+async function ffModelPhotoPick(modelId, input){
+  const f = input.files && input.files[0]; if(!f) return;
+  try{ await setModelPhoto(modelId, f); toast('Фото сохранено'); }catch(e){ toast('Не получилось: ' + e.message); }
+  await renderStockFF();
 }
 let ffStockLimit = 200;
 function ffSetLetter(l){ ffAbcLetter = l; ffStockLimit = 200; renderStockFF(); }
@@ -151,6 +173,7 @@ async function openModelModal(id){
   mmRenderSizes();
   document.getElementById('mmError').classList.remove('show');
   document.getElementById('mmDeleteBtn').hidden = !m;
+  await renderModelStockBox(m ? m.id : null);
   document.getElementById('modelModalBg').classList.add('show');
 }
 function closeModelModal(){ document.getElementById('modelModalBg').classList.remove('show'); }

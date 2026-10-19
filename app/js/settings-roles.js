@@ -149,20 +149,20 @@ async function showAppVersion(){
   el.textContent = v;
 }
 async function saveSettings(){
-  settings.company = document.getElementById('setCompany').value.trim() || 'FFDrop';
+  settings.company = document.getElementById('setCompany').value.trim() || 'Fulbro';
   settings.lowStock = Number(document.getElementById('setLowStock').value)||5;
   settings.sound = document.getElementById('setSound').value==='1';
   settings.blockNeg = document.getElementById('setBlockNeg').value==='1';
   setSkbMode(document.getElementById('setKbMode').value);
   await saveAppSettings();
   refreshSoftKeyboardMode();
-  document.getElementById('companyTitle').textContent = settings.company.toUpperCase();
+  setCompanyTitle();
   toast('Настройки сохранены');
   await renderStock();
 }
 
 function applyHeaderLogo(){
-  const src = settings.logoDataUrl || 'icon-192.png';
+  const src = settings.logoDataUrl || 'logo-mark.svg';
   const headerImg = document.getElementById('headerLogoImg');
   if(headerImg) headerImg.src = src;
   const previewImg = document.getElementById('logoPreviewImg');

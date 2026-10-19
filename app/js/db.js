@@ -1,7 +1,7 @@
 /* «Склад»: База на устройстве, остатки (серверные и локальные), хранилище, запуск. */
 let db;
 const DB_NAME = 'ff_fulfillment';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 /* Хранилища «ФФ» (модель склада с поставщиками и ячейками). Ключи — как на сервере,
    чтобы одна запись не могла задвоиться. Индекс dirty — «ещё не уехало на сервер». */
 const FF_STORES = {
@@ -14,7 +14,9 @@ const FF_STORES = {
   receipts:      {key:'id'},
   receiptLines:  {key:'id',       idx:{byReceipt:'receiptId'}},
   shipments:     {key:'id'},
-  shipmentLines: {key:'id',       idx:{byShipment:'shipmentId'}}
+  shipmentLines: {key:'id',       idx:{byShipment:'shipmentId'}},
+  linePrices:    {key:'lineId'},                                       // этап 2б: цены поставщика (только у него)
+  photos:        {key:'id',       idx:{byShipment:'shipmentId', byModel:'modelId'}}
 };
 
 function openDB(){
@@ -62,6 +64,9 @@ function openDB(){
         const as = t.objectStore('adspend');
         if(!as.indexNames.contains('dirty')) as.createIndex('dirty','dirty');
       }
+
+      /* Версия 8 — файлы фото на телефоне (не синхронизируются: уходят в хранилище ff-photos). */
+      if(!d.objectStoreNames.contains('photoBlobs')) d.createObjectStore('photoBlobs', {keyPath:'id'});
 
       /* Версия 6 — хранилища «ФФ». */
       for(const [name, spec] of Object.entries(FF_STORES)){
@@ -420,7 +425,8 @@ function putRaw(store, val){
 function applyRemoteSettings(incoming){
   settings = incoming;
   const title = document.getElementById('companyTitle');
-  if(title) title.textContent = String(settings.company || 'FFDrop').toUpperCase();
+  /* «FFDrop» — прежнее рабочее название, могло сохраниться в настройках склада как имя по умолчанию */
+  if(title) setCompanyTitle();
   applyHeaderLogo();
   loadSettingsForm();
   // звуки могли смениться — пересобираем пулы под новый файл
@@ -505,7 +511,19 @@ async function renderStorageStatus(){
 let currentMode = 'Приход';
 /* var, а не let: так настройки видны как window.settings — это нужно
    вспомогательным скриптам и удобно при разборе проблем на устройстве */
-var settings = { key:'app', company:(window.SYNC_CONFIG && SYNC_CONFIG.APP_NAME) || 'FFDrop', lowStock:5, sound:true, blockNeg:true };
+/* Имя в шапке: своё название склада или «fulbro» (как в логотипе). «FFDrop»/«Fulzo» — прежние
+   рабочие названия, могли сохраниться как имя по умолчанию. */
+function ffCompanyName(){
+  const c = settings && settings.company;
+  return (c && !['FFDrop', 'Fulzo', 'Fulbro'].includes(c)) ? c : ffAppWord();
+}
+/* Название приложения — как в логотипе владельца: «FULBRO» фирменным шрифтом (класс brand-word). */
+function ffAppWord(){ return String((window.SYNC_CONFIG && SYNC_CONFIG.APP_NAME) || 'Fulbro').toUpperCase(); }
+function setCompanyTitle(){
+  const t = document.getElementById('companyTitle'); if(!t) return;
+  const n = ffCompanyName(); t.textContent = n; t.classList.toggle('brand-word', n === ffAppWord());
+}
+var settings = { key:'app', company:(window.SYNC_CONFIG && SYNC_CONFIG.APP_NAME) || 'Fulbro', lowStock:5, sound:true, blockNeg:true };
 
 /* Клавиатура настраивается для каждого устройства отдельно и в общие
    настройки не попадает: на iPhone со сканером своя нужна, а на Android
@@ -544,7 +562,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   const s = await get('settings','app');
   if(s) settings = s; else await saveAppSettings({initial:true});
   refreshSoftKeyboardMode();
-  document.getElementById('companyTitle').textContent = settings.company.toUpperCase();
+  setCompanyTitle();
   applyHeaderLogo();
 
   const migrated = await migrateToOperationModel();

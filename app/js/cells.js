@@ -3,8 +3,13 @@
    Ячейка: {number, supplierId, modelId|null, allowedSizes:[label]|null, capacity|null, reserved}.
    Остаток ячейки: {sizeLabel: qty}. Правила — ОПИСАНИЕ §5. */
 
-/* Номер «4.10» — это не «4.1»: сравниваем по частям как числа (1 < 1.1 < 1.2 < 1.10 < 2). */
+/* Номер «4.10» — это не «4.1»: сравниваем по частям как числа (1 < 1.1 < 1.2 < 1.10 < 2).
+   Ячейки брака «Б1», «Б2»… (этап 2) — после всех числовых, между собой по номеру. */
+const isDefectCell = c => !!c && (c.kind === 'брак' || /^Б/.test(String(c.number || '')));
 function cmpCellNumber(a, b){
+  const da = /^Б/.test(String(a)), db = /^Б/.test(String(b));
+  if(da !== db) return da ? 1 : -1;
+  if(da){ a = String(a).slice(1); b = String(b).slice(1); }
   const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
   for(let i = 0; i < Math.max(pa.length, pb.length); i++){
     const x = pa[i] === undefined ? -1 : pa[i], y = pb[i] === undefined ? -1 : pb[i];
@@ -67,7 +72,8 @@ function sizeAllowed(cell, sizeLabel){
       а не хватило — под-ячейка рядом с последней из них (7 → 7.1, пример «Хром»). */
 function planPlacement(line, cells, cellStock, models){
   const stock = cellStock || {};
-  const own = cells.filter(c=> c.supplierId === line.supplierId).sort((a,b)=> cmpCellNumber(a.number, b.number));
+  // ячейка брака — не для годного товара (ни своя, ни пустая, ни как соседняя для под-ячейки)
+  const own = cells.filter(c=> c.supplierId === line.supplierId && !isDefectCell(c)).sort((a,b)=> cmpCellNumber(a.number, b.number));
   const ofModel = own.filter(c=> c.modelId === line.modelId);
   const empty = own.filter(c=> !c.modelId && !c.reserved && cellTotal(stock[c.number]) === 0);
   const steps = [];
@@ -111,7 +117,7 @@ function planPick(line, cells, cellStock){
     for(const k in s) if(sizeKey(k) === key) q += Number(s[k]) || 0;
     return q;
   };
-  const src = cells.filter(c=> c.modelId === line.modelId && qtyOf(c.number) > 0)
+  const src = cells.filter(c=> c.modelId === line.modelId && !isDefectCell(c) && qtyOf(c.number) > 0)
     .sort((a,b)=> (cellTotal(stock[a.number]) - cellTotal(stock[b.number])) || cmpCellNumber(a.number, b.number));
   const out = [];
   let left = Number(line.qty) || 0;

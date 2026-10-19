@@ -5,178 +5,189 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>/* Приложение, установленное на экран «Домой» до переезда в app/, открывает корень сайта — ведём его в приложение. */
 try{ if((window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone) location.replace('app/'); }catch(e){}</script>
-<title>FFDrop — учёт для фулфилмента: ячейки, приёмка и отправки</title>
-<meta name="description" content="Программа для склада фулфилмента: адресное хранение по ячейкам, приёмка с подсказкой «куда положить», отправки «откуда взять», кабинет поставщика. 14 дней бесплатно.">
+<title>Программа для фулфилмента: учёт склада, ячеек и поставщиков — Fulbro</title>
+<meta name="description" content="Fulbro — программа для склада фулфилмента: адресное хранение, приёмка и отправки по ячейкам, кабинет поставщика с остатками онлайн. 14 дней бесплатно.">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://maxkrew.github.io/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ru_RU">
-<meta property="og:title" content="FFDrop — учёт для фулфилмента">
-<meta property="og:description" content="Ячейки, приёмка и отправки без путаницы. Работает на телефоне и компьютере, даже без интернета.">
+<meta property="og:site_name" content="Fulbro">
+<meta property="og:title" content="Fulbro — программа для фулфилмента">
+<meta property="og:description" content="Склад, поставщики и заказы в одном окне: ячейки, приёмка, отправки и кабинет поставщика. Работает на телефоне и компьютере.">
 <meta property="og:url" content="https://maxkrew.github.io/">
-<meta property="og:image" content="https://maxkrew.github.io/img/screen-stock.jpg">
-<meta name="theme-color" content="#15803D">
-<link rel="icon" href="app/icon-192.png">
+<meta property="og:image" content="https://maxkrew.github.io/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#050A08">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="app/logo-mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="app/apple-touch-icon.png">
+<link rel="preload" href="app/fonts/Saira-700i-wide-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="app/fonts/fonts.css">
+<link rel="stylesheet" href="site.css">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"FFDrop","applicationCategory":"BusinessApplication",
- "operatingSystem":"Web, Android, iOS","inLanguage":"ru","url":"https://maxkrew.github.io/",
- "description":"Учёт для склада фулфилмента: адресное хранение по ячейкам, приёмка, отправки, кабинет поставщика.",
- "offers":{"@type":"Offer","price":"0","priceCurrency":"RUB","description":"14 дней бесплатно"}}
+{"@context":"https://schema.org","@graph":[
+ {"@type":"Organization","@id":"https://maxkrew.github.io/#org","name":"Fulbro","url":"https://maxkrew.github.io/","logo":"https://maxkrew.github.io/app/icon-512.png"},
+ {"@type":"WebSite","@id":"https://maxkrew.github.io/#site","name":"Fulbro","url":"https://maxkrew.github.io/","inLanguage":"ru","publisher":{"@id":"https://maxkrew.github.io/#org"}},
+ {"@type":"SoftwareApplication","name":"Fulbro","applicationCategory":"BusinessApplication","applicationSubCategory":"WMS для фулфилмента",
+  "operatingSystem":"Web, Android, iOS","inLanguage":"ru","url":"https://maxkrew.github.io/","image":"https://maxkrew.github.io/img/screen-stock.jpg",
+  "description":"Программа учёта для склада фулфилмента: адресное хранение по ячейкам, приёмка и отправки, кабинет поставщика с остатками онлайн.",
+  "featureList":["Адресное хранение по ячейкам","Приёмка с подсказкой, куда положить","Отправки с подсказкой, откуда взять","Кабинет поставщика (дропшипера) с остатками","Заказы поставщика со скриншотом штрихкода Авито","Загрузка поставки из Excel","Работа без интернета"],
+  "offers":{"@type":"Offer","price":"0","priceCurrency":"RUB","description":"14 дней бесплатно"},"publisher":{"@id":"https://maxkrew.github.io/#org"}}]}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
  {"@type":"Question","name":"Нужен ли сканер штрихкодов?","acceptedAnswer":{"@type":"Answer","text":"Нет. Приёмка и отправка работают галочками. Если сканер есть — подойдёт обычный сканер-пистолет или камера телефона."}},
+ {"@type":"Question","name":"Как поставщик передаёт заказ с Авито?","acceptedAnswer":{"@type":"Answer","text":"Нажимает «Продал», выбирает товар и размер и прикладывает скриншот штрихкода Авито. Склад получает готовое задание на сборку и открывает штрихкод во весь экран в пункте приёма."}},
+ {"@type":"Question","name":"Можно ли загрузить товары из Excel?","acceptedAnswer":{"@type":"Answer","text":"Да. Поставщик загружает свою таблицу любого вида — приложение само находит название, размер, количество и цену, а он проверяет и отправляет поставку на склад."}},
+ {"@type":"Question","name":"Видят ли поставщики друг друга?","acceptedAnswer":{"@type":"Answer","text":"Нет. Каждый поставщик видит только свои товары и остатки — без номеров ячеек и чужих данных. Его цены закупки и продажи не видит даже склад."}},
  {"@type":"Question","name":"Работает ли без интернета?","acceptedAnswer":{"@type":"Answer","text":"Да. Всё сохраняется на телефоне и само уходит на сервер, когда связь вернётся."}},
- {"@type":"Question","name":"Видят ли поставщики друг друга?","acceptedAnswer":{"@type":"Answer","text":"Нет. Каждый поставщик видит только свои товары, остатки и историю — без номеров ячеек и чужих данных."}},
- {"@type":"Question","name":"Сколько стоит?","acceptedAnswer":{"@type":"Answer","text":"Первые 14 дней бесплатно. Тарифы — на этой странице."}},
+ {"@type":"Question","name":"Сколько стоит?","acceptedAnswer":{"@type":"Answer","text":"Первые 14 дней бесплатно и без карты. Тарифы — на этой странице."}},
  {"@type":"Question","name":"Что будет после пробного периода?","acceptedAnswer":{"@type":"Answer","text":"Данные сохраняются. Без оплаты склад работает в режиме просмотра, после оплаты — снова как обычно."}}]}
 </script>
-<style>
-:root{--g:#15803D;--g2:#16A34A;--gs:#E8F6EE;--t:#14181F;--t2:#5F6B7A;--b:#E3E7EC;--bg:#F6F8F7}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;font:16px/1.55 Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--t);background:#fff}
-a{color:inherit}
-.wrap{max-width:1160px;margin:0 auto;padding:0 20px}
-header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--b)}
-.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;height:64px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none}
-.logo i{width:32px;height:32px;border-radius:9px;background:var(--g);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-style:normal;font-size:13px}
-.links{display:flex;gap:22px;font-size:15px;color:var(--t2)}
-.links a{text-decoration:none}
-.btns{display:flex;gap:8px}
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 18px;border-radius:12px;font-weight:600;font-size:15px;text-decoration:none;border:1px solid var(--g);white-space:nowrap}
-.btn.p{background:var(--g);color:#fff}
-.btn.o{background:#fff;color:var(--g)}
-.hero{background:linear-gradient(180deg,#F1FAF4,#fff);padding:64px 0 40px}
-.hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
-.tag{display:inline-block;background:var(--gs);color:var(--g);border:1px solid #CDEBD8;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600}
-h1{font-size:46px;line-height:1.1;margin:16px 0;letter-spacing:-.02em}
-h1 em{font-style:normal;color:var(--g2)}
-.lead{font-size:18px;color:var(--t2);margin:0 0 24px}
-.hero img{width:100%;height:auto;border-radius:18px;border:1px solid var(--b);box-shadow:0 24px 60px -30px rgba(20,40,30,.35)}
-section{padding:64px 0}
-h2{font-size:34px;line-height:1.2;text-align:center;margin:0 0 10px;letter-spacing:-.01em}
-h2 em{font-style:normal;color:var(--g2)}
-.sub{color:var(--t2);text-align:center;margin:0 auto 36px;max-width:640px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.card{background:#fff;border:1px solid var(--b);border-radius:20px;padding:24px}
-.ico{width:52px;height:52px;border-radius:15px;background:var(--g2);color:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
-.ico svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.card h3{margin:0 0 6px;font-size:19px}
-.card p{margin:0;color:var(--t2);font-size:15px}
-.alt{background:var(--bg)}
-.shots{display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start}
-.shots img{width:100%;height:auto;border-radius:16px;border:1px solid var(--b);background:#fff}
-.shots .col{display:grid;gap:18px}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-/* номер шага — зелёный круг с белой цифрой, отдельной строкой над заголовком */
-.step-num{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 8px 18px -8px rgba(21,128,61,.6)}
-.tariffs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
-.tariff .name{font-size:20px;font-weight:700;margin-bottom:4px}
-.tariff .cond{color:var(--t2);font-size:14px;min-height:21px}
-.tariff .price{font-size:30px;font-weight:800;margin:12px 0 6px}
-.tariff .price span{font-size:14px;font-weight:500;color:var(--t2)}
-.tariff .feat{font-size:14px;color:var(--t);min-height:21px;margin-bottom:14px}
-details{border:1px solid var(--b);border-radius:14px;padding:14px 18px;background:#fff;margin:0 auto 10px;max-width:780px}
-summary{cursor:pointer;font-weight:600}
-details p{color:var(--t2);margin:10px 0 0}
-.cta{background:var(--g);color:#fff;text-align:center;border-radius:24px;padding:44px 20px}
-.cta h2{color:#fff}
-.cta .btn{background:#fff;color:var(--g);border-color:#fff}
-footer{border-top:1px solid var(--b);padding:28px 0;color:var(--t2);font-size:14px}
-@media (max-width:900px){
-  .hero-grid,.shots{grid-template-columns:1fr}
-  .grid3,.steps{grid-template-columns:1fr}
-  h1{font-size:34px} h2{font-size:27px}
-  .links{display:none}
-  section{padding:48px 0}
-}
-@media (max-width:420px){ .btns .btn.o{display:none} .btn{padding:10px 14px} }
-</style>
 </head>
 <body>
 <header><div class="wrap nav">
-  <a class="logo" href="./"><i>FF</i>FFDrop</a>
-  <nav class="links"><a href="#features">Возможности</a><a href="#tariffs">Тарифы</a><a href="#faq">Вопросы</a></nav>
-  <div class="btns"><a class="btn o" href="app/">Войти</a><a class="btn p" href="app/#register">Попробовать</a></div>
+  <a class="logo" href="./" aria-label="Fulbro — на главную"><img src="app/logo-mark.svg" alt="" width="34" height="33">FULBRO</a>
+  <nav class="links" aria-label="Разделы"><a href="#features">Возможности</a><a href="#how">Как работает</a><a href="#tariffs">Тарифы</a><a href="#faq">Вопросы</a><a href="dropshipping/">Дропшиперам</a></nav>
+  <div class="btns"><a class="btn l" href="app/">Войти</a><a class="btn p" href="app/#register">Начать бесплатно</a></div>
 </div></header>
 
 <main>
-<div class="hero"><div class="wrap hero-grid">
-  <div>
-    <span class="tag">Для складов фулфилмента</span>
-    <h1>Учёт для фулфилмента: <em>ячейки, приёмка и отправки</em> без путаницы</h1>
-    <p class="lead">FFDrop подсказывает, в какую ячейку положить товар и откуда его взять, считает остатки по каждому поставщику и работает на телефоне — даже без интернета.</p>
-    <div class="btns"><a class="btn p" href="app/#register">Попробовать 14 дней бесплатно</a><a class="btn o" href="app/">Войти</a></div>
-  </div>
-  <img src="img/screen-stock.jpg" width="1024" height="520" alt="Склад в FFDrop: модели, размеры и ячейки">
-</div></div>
+<div class="dark glow">
+  <div class="hero"><div class="wrap">
+    <div class="float f1"><small>Отправлено сегодня</small><b>126 шт.</b><span>все собраны по ячейкам</span></div>
+    <div class="float f2"><small>Ожидается поставка</small><b>612 шт.</b><span>из Excel поставщика</span></div>
+    <div class="float f3"><small>Заказ с Авито</small><b>Худи серое L</b><span>штрихкод приложен ✓</span></div>
+    <div class="float f4"><small>Свободных мест</small><b>48 ячеек</b><span>подскажет, куда положить</span></div>
+    <span class="pill"><i></i>Программа для склада фулфилмента и его поставщиков</span>
+    <h1>Фулфилмент без хаоса — <em>склад, поставщики и заказы</em> в одном окне</h1>
+    <p class="lead">Fulbro подсказывает, в какую ячейку положить товар и откуда его взять, а поставщики сами вносят приход и продажи с Авито. Остатки у склада и поставщика всегда совпадают.</p>
+    <div class="btns"><a class="btn p big" href="app/#register">Попробовать 14 дней бесплатно</a><a class="btn o big hide-s" href="#how">Как это работает →</a></div>
+    <p class="note">Без карты · Телефон и компьютер · Работает без интернета</p>
+    <div class="device"><img src="img/screen-stock.jpg" width="2048" height="1040" alt="Программа для фулфилмента Fulbro: модели, размеры, остатки и ячейки склада" fetchpriority="high"></div>
+  </div></div>
+</div>
 
-<section id="features"><div class="wrap">
-  <h2>Что умеет <em>FFDrop</em></h2>
-  <p class="sub">Всё, что нужно складу, который хранит и отправляет товары своих поставщиков.</p>
-  <div class="grid3">
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg></div>
-      <h3>Адресное хранение</h3><p>Одна модель — одна коробка. Размеры по ячейкам, вместимость, под-ячейки 4.1, 4.2 — и никакой путаницы.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></svg></div>
-      <h3>Приёмка: куда положить</h3><p>Вводите, что пришло, — приложение раздаёт по ячейкам: «7 шт. в ячейку 2, 3 шт. в 2.1». Положили — галочка.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 20V9M7 14l5-5 5 5M4 4h16"/></svg></div>
-      <h3>Отправки: откуда взять</h3><p>«Возьми из ячейки 4» — сначала из менее заполненной. СДЭК, Почта России, Ozon, Wildberries, самовывоз.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.9-5 5.5-5s4.9 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.4-.3 4.4 1.4 5 4.2"/></svg></div>
-      <h3>Кабинет поставщика</h3><p>Каждый поставщик по коду входит в свой кабинет: видит свои остатки и движение — и ничего чужого.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/><path d="M3 3l18 18"/></svg></div>
-      <h3>Работает без интернета</h3><p>Всё пишется на телефон и само уходит на сервер, когда связь вернётся. Ничего не теряется.</p></div>
-    <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="2.5" y="4" width="13" height="10" rx="2"/><rect x="16.5" y="8" width="5" height="12" rx="1.5"/><path d="M6 19h6"/></svg></div>
-      <h3>Сайт и телефон</h3><p>Один вход на компьютере и телефоне. Сканер-пистолет, камера телефона или просто галочки.</p></div>
+<section class="alt pain after-device"><div class="wrap">
+  <h2>Склад растёт, а учёт <em>живёт в чатах и Excel</em></h2>
+  <p>Поставщики шлют заказы в Telegram: скриншот штрихкода Авито, фото товара, внизу подпись «2 шт., 3500». Сообщения тонут в переписке, размеры путаются — и уходит не тот товар.</p>
+  <p>Остатки — в таблице или в голове кладовщика. Каждый день кто-то спрашивает «а сколько у меня осталось L?», и чтобы ответить, надо идти на склад и пересчитывать.</p>
+  <p>Новый сотрудник не знает, где что лежит. Приехала поставка — «везли 50, пришло 48», и доказать нечем. А в конце месяца счёт поставщику собирается по памяти.</p>
+  <div class="box"><b>Fulbro</b> собирает склад, поставщиков и их заказы в одном месте. Поставщик сам вносит приход и продажи, склад получает готовые задания «куда положить» и «откуда взять», а остатки у обоих — одинаковые и всегда свежие.</div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Чаты и Excel против <em>Fulbro</em></h2>
+  <p class="sub">Что меняется, когда учёт склада и поставщиков в одной программе.</p>
+  <div class="cmp"><table>
+    <thead><tr><th scope="col"></th><th scope="col">Чаты + Excel</th><th scope="col" class="us">Fulbro</th></tr></thead>
+    <tbody>
+      <tr><td>Заказы от поставщиков</td><td><span class="no">✕</span><small>теряются в переписке</small></td><td class="us"><span class="yes">✓</span><small>готовое задание со штрихкодом</small></td></tr>
+      <tr><td>Остатки у поставщика</td><td><span class="no">✕</span><small>«спросите у склада»</small></td><td class="us"><span class="yes">✓</span><small>онлайн, без звонков</small></td></tr>
+      <tr><td>Где лежит товар</td><td><span class="no">✕</span><small>по памяти</small></td><td class="us"><span class="yes">✓</span><small>ячейка подсказывается</small></td></tr>
+      <tr><td>Приёмка с пересчётом</td><td><span class="no">✕</span><small>спор «везли 50 — пришло 48»</small></td><td class="us"><span class="yes">✓</span><small>расхождение видно обоим</small></td></tr>
+      <tr><td>Брак и возвраты</td><td><span class="no">✕</span><small>лежат вперемешку</small></td><td class="us"><span class="yes">✓</span><small>отдельная ячейка брака</small></td></tr>
+      <tr><td>Без интернета</td><td><span class="no">✕</span><small>таблица не открылась</small></td><td class="us"><span class="yes">✓</span><small>всё сохранится и уйдёт само</small></td></tr>
+    </tbody>
+  </table></div>
+</div></section>
+
+<section class="alt" id="features"><div class="wrap">
+  <h2>Всё для фулфилмента — <em>в одном сервисе</em></h2>
+  <p class="sub">Учёт склада, ячеек и поставщиков: один вход на телефоне и компьютере вместо чатов, тетрадей и таблиц.</p>
+  <div class="bento">
+    <div class="tile w4"><h3>Адресное хранение по ячейкам</h3><p>Одна модель — одна коробка. Размеры по ячейкам, вместимость, под-ячейки 4.1 и 4.2 — сразу видно, где лежит товар и сколько свободных мест.</p>
+      <div class="shot"><img src="img/screen-cells.jpg" width="2048" height="1040" alt="Адресное хранение на складе фулфилмента: ячейки, модели и заполненность" loading="lazy"></div></div>
+    <div class="tile w2"><h3>Приёмка: куда положить</h3><p>Внесли, что пришло, — Fulbro раздаёт по ячейкам: «7 шт. в ячейку 2, 3 шт. в 2.1». Положили — галочка.</p>
+      <div class="phone"><img src="img/screen-receipt.jpg" width="390" height="844" alt="Приёмка товара на телефоне: задания по ячейкам с галочками" loading="lazy"></div></div>
+    <div class="tile w2"><h3>Кабинет поставщика</h3><p>Поставщик входит по коду и видит свои остатки: на складе, едет, ждёт отправки. Чужого — ничего.</p>
+      <div class="phone"><img src="img/screen-supplier.jpg" width="780" height="1328" alt="Кабинет поставщика (дропшипера): остатки на складе фулфилмента" loading="lazy"></div></div>
+    <div class="tile w4"><h3>Заказы с Авито — сразу готовым заданием</h3><p>Поставщик нажимает «Продал», выбирает товар и прикладывает скриншот штрихкода Авито. Склад видит «откуда взять», открывает штрихкод во весь экран в пункте приёма и отмечает «Собрано» — остаток у поставщика уменьшается сам.</p>
+      <div class="chips"><span>Авито Доставка</span><span>СДЭК</span><span>Почта России</span><span>Яндекс Доставка</span><span>Boxberry</span><span>5Post</span><span>Ozon</span><span>Wildberries</span><span>Самовывоз</span></div></div>
+    <div class="tile w3"><h3>Поставка из Excel</h3><p>Поставщик загружает свою таблицу любого вида — Fulbro сам находит название, размер, количество и цену. Склад принимает и пересчитывает, расхождение видно обоим.</p></div>
+    <div class="tile w3"><h3>Анализ для поставщика</h3><p>Сколько продано, выручка и прибыль, что заканчивается и сколько довезти — поставщики будут рады работать именно с вашим складом.</p></div>
+    <div class="tile w3"><h3>Работает без интернета</h3><p>Всё пишется на телефон и само уходит на сервер, когда связь вернётся. Несколько телефонов склада — без потерь и дублей.</p></div>
+    <div class="tile w3"><h3>Деньги поставщиков <span class="soon">скоро</span></h3><p>Приёмка за кг, отправки, хранение и допуслуги считаются сами по тарифам каждого поставщика, долг и оплаты — в его карточке.</p></div>
   </div>
 </div></section>
 
-<section class="alt"><div class="wrap">
-  <h2>Как это выглядит</h2>
-  <p class="sub">Светлый понятный интерфейс: на компьютере меню слева, на телефоне — снизу.</p>
-  <div class="shots">
-    <img src="img/screen-cells.jpg" width="1024" height="520" alt="Ячейки склада: модель, размеры, заполненность" loading="lazy">
-    <img src="img/screen-receipt.jpg" width="390" height="844" alt="Приёмка на телефоне: задания с галочками" loading="lazy">
+<section id="how"><div class="green">
+  <div class="wrap">
+    <div>
+      <h2>Склад и поставщики работают <em>как одна система</em></h2>
+      <p>Одни данные у всех: что внёс поставщик, сразу видит склад, а что сделал склад — поставщик.</p>
+      <ul class="checks">
+        <li>Поставщик вносит приход — у склада «Ожидается поставка»</li>
+        <li>Склад принял и пересчитал — у поставщика остаток вырос на то, что пришло</li>
+        <li>Поставщик нажал «Продал» — у склада задание на сборку со штрихкодом</li>
+        <li>Склад собрал — остаток уменьшился у обоих, без звонков и сверок</li>
+        <li>Каждый поставщик видит только своё, ячейки — только склад</li>
+      </ul>
+    </div>
+    <div class="phone"><img src="img/screen-supplier.jpg" width="780" height="1328" alt="Остатки поставщика на складе фулфилмента в Fulbro" loading="lazy"></div>
   </div>
 </div></section>
 
 <section><div class="wrap">
-  <h2>Как начать</h2>
-  <p class="sub">Пять минут — и склад работает.</p>
+  <h2>Запустите склад <em>за один вечер</em></h2>
+  <p class="sub">Три шага — и поставщики работают с вами через Fulbro.</p>
   <div class="steps">
-    <div class="card step"><div class="step-num">1</div><h3>Зарегистрируйте склад</h3><p>Почта, пароль, название — и 14 дней бесплатно.</p></div>
-    <div class="card step"><div class="step-num">2</div><h3>Разметьте ячейки</h3><p>Назначьте ячейки поставщикам, укажите модели и размеры — или пусть приложение раздаст их при первой приёмке.</p></div>
-    <div class="card step"><div class="step-num">3</div><h3>Пригласите поставщиков</h3><p>Каждый получает код и видит в своём кабинете остатки и движение своего товара.</p></div>
+    <div class="step"><div class="step-num">1</div><h3>Регистрация</h3><p>Почта, пароль и название склада. 14 дней бесплатно, без карты.</p></div>
+    <div class="step"><div class="step-num">2</div><h3>Ячейки</h3><p>Назначьте ячейки поставщикам — или пусть Fulbro раздаст их при первой приёмке.</p></div>
+    <div class="step"><div class="step-num">3</div><h3>Поставщики</h3><p>Отправьте каждому код. Поставщик сам заведёт товары и пришлёт поставку из Excel.</p></div>
   </div>
 </div></section>
 
-<section class="alt" id="tariffs"><div class="wrap">
+<section class="alt"><div class="wrap">
+  <h2>Кому подходит <em>Fulbro</em></h2>
+  <p class="sub">Складам, которые хранят и отправляют товар своих поставщиков — селлеров и дропшиперов.</p>
+  <div class="who">
+    <div><div class="n">01</div><h3>Небольшой фулфилмент</h3><p>10–50 поставщиков, заказы в чатах, остатки в Excel. Наведите порядок за вечер.</p></div>
+    <div><div class="n">02</div><h3>Растущий склад</h3><p>Новые сотрудники, поставка за поставкой. Ячейки и задания с галочками — без ошибок сборки.</p></div>
+    <div><div class="n">03</div><h3>Дропшиперы и селлеры</h3><p>Товар лежит на складе, продаёте на Авито. Свои остатки, продажи и анализ — <a href="dropshipping/">подробнее</a>.</p></div>
+  </div>
+</div></section>
+
+<section id="tariffs"><div class="wrap">
   <h2>Простое и понятное <em>ценообразование</em></h2>
   <p class="sub">Первые 14 дней — бесплатно, со всеми возможностями.</p>
   <div class="tariffs" id="tariffList">
-    <div class="card tariff"><div class="name">Тарифы</div><div class="cond">Скоро</div><div class="price">Скоро</div></div>
+    <div class="tariff"><div class="name">Тарифы</div><div class="cond">Скоро</div><div class="price">Скоро</div></div>
   </div>
 </div></section>
 
-<section id="faq"><div class="wrap">
-  <h2>Вопросы и ответы</h2>
-  <p class="sub">Если не нашли ответа — напишите нам.</p>
-  <details><summary>Нужен ли сканер штрихкодов?</summary><p>Нет. Приёмка и отправка работают галочками. Если сканер есть — подойдёт обычный сканер-пистолет или камера телефона.</p></details>
-  <details><summary>Работает ли без интернета?</summary><p>Да. Всё сохраняется на телефоне и само уходит на сервер, когда связь вернётся.</p></details>
-  <details><summary>Видят ли поставщики друг друга?</summary><p>Нет. Каждый поставщик видит только свои товары, остатки и историю — без номеров ячеек и чужих данных.</p></details>
-  <details><summary>Сколько стоит?</summary><p>Первые 14 дней бесплатно. Тарифы — выше на этой странице.</p></details>
-  <details><summary>Что будет после пробного периода?</summary><p>Данные сохраняются. Без оплаты склад работает в режиме просмотра, после оплаты — снова как обычно.</p></details>
+<section class="alt" id="faq"><div class="wrap">
+  <h2>Частые <em>вопросы</em></h2>
+  <p class="sub">Не нашли ответ — напишите нам из приложения.</p>
+  <div class="faq">
+    <details><summary><span class="q">01</span>Нужен ли сканер штрихкодов?</summary><p>Нет. Приёмка и отправка работают галочками. Если сканер есть — подойдёт обычный сканер-пистолет или камера телефона.</p></details>
+    <details><summary><span class="q">02</span>Как поставщик передаёт заказ с Авито?</summary><p>Нажимает «Продал», выбирает товар и размер и прикладывает скриншот штрихкода Авито. Склад получает готовое задание на сборку и открывает штрихкод во весь экран в пункте приёма.</p></details>
+    <details><summary><span class="q">03</span>Можно ли загрузить товары из Excel?</summary><p>Да. Поставщик загружает свою таблицу любого вида — приложение само находит название, размер, количество и цену, а он проверяет и отправляет поставку на склад.</p></details>
+    <details><summary><span class="q">04</span>Видят ли поставщики друг друга?</summary><p>Нет. Каждый поставщик видит только свои товары и остатки — без номеров ячеек и чужих данных. Его цены закупки и продажи не видит даже склад.</p></details>
+    <details><summary><span class="q">05</span>Работает ли без интернета?</summary><p>Да. Всё сохраняется на телефоне и само уходит на сервер, когда связь вернётся.</p></details>
+    <details><summary><span class="q">06</span>Сколько стоит?</summary><p>Первые 14 дней бесплатно и без карты. Тарифы — выше на этой странице.</p></details>
+    <details><summary><span class="q">07</span>Что будет после пробного периода?</summary><p>Данные сохраняются. Без оплаты склад работает в режиме просмотра, после оплаты — снова как обычно.</p></details>
+  </div>
 </div></section>
 
-<section><div class="wrap"><div class="cta">
-  <h2>Попробуйте FFDrop на своём складе</h2>
-  <p>14 дней бесплатно. Без карты.</p>
-  <a class="btn" href="app/#register">Зарегистрировать склад</a>
-</div></div></section>
+<section><div class="cta glow">
+  <h2>Хватит искать товар по памяти — <em>начните видеть склад</em></h2>
+  <p>Зарегистрируйте склад, пригласите поставщиков — и уже завтра заказы придут готовыми заданиями.</p>
+  <a class="btn p big" href="app/#register">Попробовать бесплатно</a>
+  <p class="note">14 дней бесплатно · Без карты · Телефон и компьютер</p>
+</div></section>
 </main>
 
-<footer><div class="wrap">© 2026 FFDrop · Учёт для складов фулфилмента</div></footer>
+<footer><div class="wrap">
+  <div class="foot">
+    <div><a class="logo" href="./"><img src="app/logo-mark.svg" alt="" width="34" height="33">FULBRO</a><p>Программа учёта для склада фулфилмента и его поставщиков: ячейки, приёмка, отправки и остатки онлайн.</p></div>
+    <div><h4>Продукт</h4><a href="app/">Войти</a><a href="app/#register">Регистрация склада</a><a href="#tariffs">Тарифы</a><a href="#faq">Вопросы</a></div>
+    <div><h4>Для кого</h4><a href="./">Складам фулфилмента</a><a href="dropshipping/">Дропшиперам и селлерам Авито</a></div>
+  </div>
+  <div class="copy">© 2026 Fulbro · Учёт для фулфилмента</div>
+</div></footer>
 
 <script src="app/sync-config.js"></script>
 <script>
@@ -195,12 +206,12 @@ if('serviceWorker' in navigator){
     .then(function(rows){
       var list = (rows && rows[0] && rows[0].value) || [];
       if(!Array.isArray(list) || !list.length) list = [{name:'Старт'}, {name:'Рост'}, {name:'Про'}, {name:'Бизнес'}];
-      box.innerHTML = list.slice(0, 8).map(function(t){
+      box.innerHTML = list.slice(0, 8).map(function(t, i){
         t = (t && typeof t === 'object') ? t : {};
         var p = String(t.price || '').trim(), n = Number(p);
-        return '<div class="card tariff"><div class="name">' + esc(t.name || 'Тариф') + '</div><div class="cond">' + esc(t.condition || '') + '</div>' +
+        return '<div class="tariff"><div class="name">' + esc(t.name || 'Тариф') + '</div><div class="cond">' + esc(t.condition || '') + '</div>' +
           '<div class="price">' + (p ? esc(n ? n.toLocaleString('ru-RU') : p) + ' <span>₽/мес</span>' : 'Скоро') + '</div>' +
-          '<div class="feat">' + esc(t.features || '') + '</div><a class="btn p" href="app/#register">Попробовать бесплатно</a></div>';
+          '<div class="feat">' + esc(t.features || '') + '</div><a class="btn ' + (i === 1 ? 'p' : 'o') + '" href="app/#register">Попробовать бесплатно</a></div>';
       }).join('');
     }).catch(function(){});
 })();

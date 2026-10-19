@@ -13,7 +13,7 @@ function describeSync(state, detail){
   if(state === 'access-closed') return 'Доступ закрыт';
   if(state === 'error') return 'Обмен не удался';
   if(state === 'idle'){
-    if(detail.pending) return 'Ждут отправки: ' + detail.pending;
+    if(detail.pending) return 'Не отправлено на сервер: ' + detail.pending;
     const t = detail.at ? new Date(detail.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
     return t ? ('Синхронизировано в ' + t) : 'Синхронизировано';
   }
@@ -35,7 +35,7 @@ async function refreshAfterSync(){
    В каждом шаге (кроме первого и обязательной смены пароля) — стрелка «назад».
    ============================================================ */
 const AUTH_TEXT = {
-  choose:   {title:'Добро пожаловать в FFDrop', hint:'Кто вы?', submit:''},
+  choose:   {title:'Добро пожаловать в Fulbro', hint:'Кто вы?', submit:''},
   login:    {title:'Вход', hint:'Один вход на телефон и компьютер — данные хранятся на сервере.', submit:'Войти'},
   regwarehouse: {title:'Регистрация склада', hint:'14 дней бесплатно. Потом — подписка. Поставщики подключатся к складу по коду.', submit:'Зарегистрировать склад'},
   register: {title:'Регистрация поставщика', hint:'Введите код приглашения от склада, свою почту и придумайте пароль.', submit:'Зарегистрироваться'},
@@ -226,7 +226,7 @@ async function renderSyncStatusBox(){
   el.className = pending ? 'alert' : 'alert success';
   el.innerHTML = '<svg class="icon"><use href="#i-' + (pending ? 'clock' : 'check-circle') + '"/></svg><span>'
                + 'Вход: <b>' + escapeHtml(user.email || '') + '</b> (' + escapeHtml(role) + ')<br>'
-               + (pending ? ('Ждут отправки: ' + pending + '. Уйдут при первой связи.') : 'Всё синхронизировано с сервером.')
+               + (pending ? ('Не отправлено на сервер: ' + pending + '. Уйдут при первой связи.') : 'Всё синхронизировано с сервером.')
                + '</span>';
 }
 async function syncNowFromSettings(){
@@ -241,7 +241,7 @@ async function fullResyncFromSettings(){
   if(!confirm('Скачать все данные с сервера заново?\n\nНужно, если на этом устройстве что-то не совпадает с другими.')) return;
   toast('Пересинхронизация…');
   const ws = Sync.ownerId();
-  if(ws) await put('settings', {key:'ffSeq:' + ws, value: 0});
+  if(ws) for(const r of await getAll('settings')) if(r.key === 'ffSeq:' + ws || String(r.key).startsWith('ffSeq:' + ws + ':')) await put('settings', {key: r.key, value: 0});   // курсоры всех таблиц
   const r = await Sync.syncNow('полная пересинхронизация');
   toast(r.ok ? 'Готово' : ('Не вышло: ' + r.error));
   await renderSyncStatusBox();
@@ -255,7 +255,7 @@ async function syncSignOut(){
 
 async function initSync(){
   if(!window.Sync || !Sync.isConfigured()){ setSyncLine(describeSync('signed-out')); return; }
-  Sync.onStatus((state, detail)=> setSyncLine(describeSync(state, detail)));
+  Sync.onStatus((state, detail)=>{ setSyncLine(describeSync(state, detail)); if(state === 'idle' && typeof ffAfterSync === 'function') ffAfterSync(); });
   window.refreshAfterSync = refreshAfterSync;
   const started = await Sync.start();
   await applyRoleUI();
@@ -290,6 +290,8 @@ async function renderSection(name){
   const call = fn=> (typeof window[fn] === 'function') ? window[fn]() : null;
   if(name === 'stock') await (typeof renderStockFF === 'function' ? renderStockFF() : call('renderStock'));
   if(name === 'receipts') await call('renderReceipts');
+  if(name === 'incoming') await call('renderIncoming');
+  if(name === 'analysis') await call('renderSupplierAnalysis');
   if(name === 'shipments') await call('renderShipments');
   if(name === 'cells') await call('renderCells');
   if(name === 'suppliers') await call('renderSuppliers');

@@ -24,7 +24,10 @@ async function ffLogOp(o){
     type: o.type, qty: Math.abs(Number(o.qty) || 0), delta: ffDelta(o.type, o.qty, o.delta),
     ts: o.ts || Date.now(), taskRef: o.taskRef || null, snap: o.snap || null,
     authorKind: supplier ? 'supplier' : 'owner',
-    authorName: (window.Sync && Sync.authorName) ? Sync.authorName() : ''
+    authorName: (window.Sync && Sync.authorName) ? Sync.authorName() : '',
+    /* этап 2: правка поставщика — всегда на проверку складу; брак ставит только склад */
+    defect: supplier ? false : !!o.defect,
+    review: supplier ? 'на проверке' : (o.review || null)
   };
   await put('ops', row);
   return row;
@@ -51,17 +54,22 @@ async function ffSizeStock(sizeId){
    их по каждой модели заново. */
 function ffStockIndex(){
   return cachedByVersion('ffStockIndex', async ()=>{
-    const bySize = {}, byCell = {};
+    /* bySize — всё (сверка с сервером); sellableBySize — «можно продать» (без брака);
+       defectBySize — брак; pendingBySize — сколько правок поставщика ждут проверки (этап 2) */
+    const bySize = {}, byCell = {}, sellableBySize = {}, defectBySize = {}, pendingBySize = {};
     for(const op of await getAll('ops')){
       if(!ffLive(op)) continue;
       const d = Number(op.delta) || 0;
       bySize[op.sizeId] = (bySize[op.sizeId] || 0) + d;
+      const part = op.defect ? defectBySize : sellableBySize;
+      part[op.sizeId] = (part[op.sizeId] || 0) + d;
+      if(op.review === 'на проверке') pendingBySize[op.sizeId] = (pendingBySize[op.sizeId] || 0) + 1;
       if(op.cellNumber){
         const c = byCell[op.cellNumber] || (byCell[op.cellNumber] = {});
         c[op.sizeId] = (c[op.sizeId] || 0) + d;
       }
     }
-    return {bySize, byCell};
+    return {bySize, byCell, sellableBySize, defectBySize, pendingBySize};
   });
 }
 
@@ -78,18 +86,19 @@ async function modelView(modelId){
     .filter(s=> !s.deletedAt)
     .sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel));
   const idx = await ffStockIndex();
-  const view = {model, sizes: sizes.map(s=> ({id: s.id, label: s.sizeLabel, barcode: s.barcode || '', stock: idx.bySize[s.id] || 0}))};
+  const view = {model, sizes: sizes.map(s=> ({id: s.id, label: s.sizeLabel, barcode: s.barcode || '',
+    stock: idx.sellableBySize[s.id] || 0, defect: idx.defectBySize[s.id] || 0, pending: idx.pendingBySize[s.id] || 0}))};
   if(ffRole() === 'owner'){
     const cs = idx.byCell;
     const labelOf = Object.fromEntries(sizes.map(s=> [s.id, s.sizeLabel]));
     view.cells = (await getAll('cells'))
-      .filter(c=> !c.deletedAt && c.modelId === modelId)
+      .filter(c=> !c.deletedAt && (c.modelId === modelId || (isDefectCell(c) && c.supplierId === model.supplierId && Object.keys(cs[c.number] || {}).some(sid=> labelOf[sid] && cs[c.number][sid]))))
       .sort((a, b)=> cmpCellNumber(a.number, b.number))
       .map(c=>{
         const bySize = {};
         let total = 0;
         for(const [sid, q] of Object.entries(cs[c.number] || {})){ if(q){ bySize[labelOf[sid] || sid] = q; total += q; } }
-        return {number: c.number, allowedSizes: c.allowedSizes || null, capacity: c.capacity || model.capacity || 7, reserved: !!c.reserved, stock: total, bySize};
+        return {number: c.number, allowedSizes: c.allowedSizes || null, capacity: c.capacity || model.capacity || 7, reserved: !!c.reserved, stock: total, bySize, defect: isDefectCell(c)};
       });
   }
   return view;

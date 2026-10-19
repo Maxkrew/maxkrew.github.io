@@ -7,12 +7,13 @@ async function newReceipt(supplierId, kind){
   await put('receipts', {id, supplierId, kind: kind === 'возврат' ? 'возврат' : 'приёмка', weightKg: null, status: 'черновик', createdTs: Date.now()});
   return id;
 }
-async function addReceiptLine(receiptId, modelId, sizeId, qty){
+/* defect — строка возврата «брак»: ляжет в ячейку брака поставщика (этап 2, §6.2) */
+async function addReceiptLine(receiptId, modelId, sizeId, qty, defect){
   const n = Math.max(0, parseInt(qty, 10) || 0);
   if(!n) return {ok:false, error:'Укажите количество'};
   if(n > 10000) return {ok:false, error:'Слишком много в одной строке — не больше 10 000'};
   const id = newUid();
-  await put('receiptLines', {id, receiptId, modelId, sizeId, qty: n, plan: null, doneQty: 0});
+  await put('receiptLines', {id, receiptId, modelId, sizeId, qty: n, plan: null, doneQty: 0, defect: !!defect});
   return {ok:true, id};
 }
 async function receiptLines(receiptId){
@@ -32,6 +33,11 @@ async function finishReceipt(receiptId, weightKg){
   const virtual = JSON.parse(JSON.stringify(await cellStockByLabel()));
   const confirm = [];
   for(const line of await receiptLines(receiptId)){
+    if(line.defect){   // брак — одним шагом в ячейку брака, мест не считаем
+      line.plan = [{cell: await defectCellFor(r.supplierId), qty: line.qty, uid: line.id + ':0', done: false, defect: true}];
+      await put('receiptLines', line);
+      continue;
+    }
     const label = await sizeLabelOf(line.sizeId);
     const res = planPlacement({supplierId: r.supplierId, modelId: line.modelId, sizeLabel: label, qty: line.qty}, cells, virtual, models);
     line.plan = res.steps.map((s, i)=> Object.assign({}, s, {uid: line.id + ':' + i, done: false}));
@@ -97,6 +103,7 @@ async function receiptIsDone(receiptId){
 async function stepStillValid(r, line, step){
   const c = await get('cells', step.cell);
   if(!c || c.deletedAt || c.supplierId !== r.supplierId) return false;
+  if(step.defect || isDefectCell(c)) return !!step.defect && isDefectCell(c);
   if(c.modelId && c.modelId !== line.modelId) return false;
   return sizeAllowed(c, await sizeLabelOf(line.sizeId));
 }
@@ -112,7 +119,8 @@ async function tickReceiptStep(lineId, idx){
     const models = await modelsMap();
     const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
     const label = await sizeLabelOf(line.sizeId);
-    const res = planPlacement({supplierId: r.supplierId, modelId: line.modelId, sizeLabel: label, qty: step.qty}, cells, await cellStockByLabel(), models);
+    const res = step.defect ? {steps: [{cell: await defectCellFor(r.supplierId), qty: step.qty, defect: true}]}
+      : planPlacement({supplierId: r.supplierId, modelId: line.modelId, sizeLabel: label, qty: step.qty}, cells, await cellStockByLabel(), models);
     const fresh = res.steps.map(s=> Object.assign({}, s, {uid: line.id + ':' + newUid(), done: false}));
     line.plan.splice(idx, 1, ...fresh);
     await put('receiptLines', line);
@@ -123,9 +131,9 @@ async function tickReceiptStep(lineId, idx){
   /* Привязку пустой ячейки делает сервер вместе с операцией (и откажет, если ячейку уже
      отдали другой модели). Здесь — только для показа на этом телефоне, на сервер не шлём. */
   const c = await get('cells', step.cell);
-  if(!c.modelId){ c.modelId = line.modelId; c.reserved = false; await putRaw('cells', c); }
+  if(!c.modelId && !isDefectCell(c)){ c.modelId = line.modelId; c.reserved = false; await putRaw('cells', c); }
   await ffLogOp({uid: step.uid, supplierId: r.supplierId, modelId: line.modelId, sizeId: line.sizeId, cellNumber: step.cell,
-                 type: r.kind === 'возврат' ? 'Возврат' : 'Приход', qty: step.qty, taskRef: line.id});
+                 type: r.kind === 'возврат' ? 'Возврат' : 'Приход', qty: step.qty, taskRef: line.id, defect: !!step.defect});
   step.done = true;
   line.doneQty = line.plan.filter(s=> s.done).reduce((n, s)=> n + s.qty, 0);
   await put('receiptLines', line);
@@ -136,6 +144,8 @@ async function tickReceiptStep(lineId, idx){
 /* Сервер не принял галочку (ячейку уже отдали другой модели, неверные данные): задание
    снова открыто, приёмка снова в списке — товар физически в коробке, его надо переложить. */
 async function ffOnRejected(store, op, msg){
+  if(store === 'shipments' && typeof ffShipmentRejected === 'function'){ await ffShipmentRejected(store, op, msg); return; }
+  if((store === 'receipts' || store === 'receiptLines') && typeof ffIncomingRejected === 'function'){ await ffIncomingRejected(store, op, msg); return; }
   if(store !== 'ops' || !op.taskRef) return;
   const rl = await get('receiptLines', op.taskRef);
   if(rl && rl.plan){
@@ -161,13 +171,14 @@ async function renderReceipts(){
   if(!box) return;
   const sups = Object.values(await ffSuppliersMap()).filter(s=> !s.deletedAt && !s.archived).sort((a, b)=> String(a.name).localeCompare(String(b.name), 'ru'));
   const open = [];
-  for(const r of (await getAll('receipts')).filter(r=> !r.deletedAt).sort((a, b)=> b.createdTs - a.createdTs)){
+  for(const r of (await getAll('receipts')).filter(r=> !r.deletedAt && r.kind !== 'ожидается').sort((a, b)=> b.createdTs - a.createdTs)){
     if(!(await receiptIsDone(r.id))) open.push(r);
   }
   if(rcCurrent && !(await get('receipts', rcCurrent))) rcCurrent = null;
   const parts = [`<div class="card"><div class="field-row">
       <select id="rcSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>
       <button class="btn primary" style="width:auto;white-space:nowrap;" onclick="rcStart()"><svg class="icon"><use href="#i-plus"/></svg>Новая приёмка</button>
+      <button class="btn ghost" id="rcStartReturn" style="width:auto;white-space:nowrap;" onclick="rcStart('возврат')"><svg class="icon"><use href="#i-in"/></svg>Новый возврат</button>
     </div></div>`];
   if(!sups.length) parts.push(emptyState('i-users', 'Нет поставщиков', 'Сначала добавьте поставщика в «Поставщиках».'));
   for(const r of open) parts.push(await receiptCard(r));
@@ -183,7 +194,7 @@ async function receiptCard(r){
   if(r.status === 'черновик'){
     const ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === r.supplierId).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
     const lineRows = [];
-    for(const l of lines) lineRows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b></div><div class="rside"><b>${l.qty} шт.</b> <button class="icon-btn" onclick="rcRemoveLine(${jsArg(l.id)})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
+    for(const l of lines) lineRows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b>${l.defect ? ' · <span class="warn">брак</span>' : ''}</div><div class="rside">${l.expectedQty != null ? `<span class="rmeta">ждали ${l.expectedQty} · пришло</span> <input type="number" min="0" style="width:72px;" value="${l.qty}" data-rc-qty="${escapeAttr(l.id)}" onchange="rcSetQty(${jsArg(l.id)}, this.value)"> шт.` : `<b>${l.qty} шт.</b>`} <button class="icon-btn" onclick="rcRemoveLine(${jsArg(l.id)})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
     return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}
       <div class="field-row scan-row"><input type="text" data-scan-receipt="${escapeAttr(r.id)}" placeholder="Скан штрихкода (сканер или камера)" autocomplete="off">
         <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanReceipt(${jsArg(r.id)}, c))">Камера</button></div>
@@ -191,6 +202,7 @@ async function receiptCard(r){
         <button class="btn ghost sm" style="width:auto;margin-top:6px;" onclick="openModelModal()">+ Новая модель</button></div>
       <div class="field"><label>Размер</label><div class="size-pick" id="rcSizes-${escapeAttr(r.id)}"><span class="hint">Выберите модель</span></div></div>
       <div class="field-row"><input type="number" id="rcQty-${escapeAttr(r.id)}" min="1" placeholder="Сколько штук"><button class="btn ghost" style="width:auto;" onclick="rcAddLine(${jsArg(r.id)})">Добавить строку</button></div>
+      ${r.kind === 'возврат' ? `<label class="check-row"><input type="checkbox" id="rcDefect-${escapeAttr(r.id)}" data-defect-toggle> Брак — положить в ячейку брака</label>` : ''}
       <div class="rc-lines">${lineRows.join('') || '<div class="hint">Строк пока нет</div>'}</div>
       <div class="field-row" style="margin-top:8px;"><input type="text" inputmode="decimal" id="rcWeight-${escapeAttr(r.id)}" placeholder="Вес поставки, кг (если нужен)">
         <button class="btn primary" style="width:auto;" onclick="rcFinish(${jsArg(r.id)})"${lines.length ? '' : ' disabled'}><svg class="icon"><use href="#i-check"/></svg>Готово — куда класть</button></div>
@@ -207,7 +219,7 @@ async function receiptCard(r){
     (l.plan || []).forEach((s0, i)=>{
       const s = Object.assign({}, s0, {done: doneArr[i]});
       tasks.push(`<label class="task${s.done ? ' done' : ''}"><input type="checkbox"${s.done ? ' checked disabled' : ''} onchange="rcTick(${jsArg(l.id)}, ${i})">
-        <span><b>${escapeHtml(name)} ${escapeHtml(label)}</b> — ${s.qty} шт.<br><span class="${s.isNew ? 'warn' : 'go'}">➡ ${s.isNew ? 'создай ячейку ' + escapeHtml(s.cell) + ' и положи туда' : 'Ячейка ' + escapeHtml(s.cell)}</span></span></label>`);
+        <span><b>${escapeHtml(name)} ${escapeHtml(label)}</b> — ${s.qty} шт.<br><span class="${s.isNew || s.defect ? 'warn' : 'go'}">➡ ${s.isNew ? 'создай ячейку ' + escapeHtml(s.cell) + ' и положи туда' : 'Ячейка ' + escapeHtml(s.cell) + (s.defect ? ' (брак)' : '')}</span></span></label>`);
     });
   }
   return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}<div class="tasks">${tasks.join('')}</div></div>`;
@@ -222,10 +234,10 @@ async function rcConfirmText(receiptId){
   }
   return out.join(' ');
 }
-async function rcStart(){
+async function rcStart(kind){
   const sup = document.getElementById('rcSupplier').value;
   if(!sup){ toast('Выберите поставщика'); return; }
-  rcCurrent = await newReceipt(sup);
+  rcCurrent = await newReceipt(sup, kind);
   await renderReceipts();
 }
 async function rcFillSizes(rid){
@@ -240,7 +252,8 @@ async function rcAddLine(rid){
   const sz = document.querySelector('#rcSizes-' + CSS.escape(rid) + ' button.on');
   const qty = document.getElementById('rcQty-' + rid).value;
   if(!mid || !sz){ toast('Выберите модель и размер'); return; }
-  const r = await addReceiptLine(rid, mid, sz.dataset.sizeId, qty);
+  const defEl = document.getElementById('rcDefect-' + rid);
+  const r = await addReceiptLine(rid, mid, sz.dataset.sizeId, qty, defEl && defEl.checked);
   if(!r.ok){ toast(r.error); return; }
   await renderReceipts();
 }

@@ -1,7 +1,7 @@
 {
   "id": "ff-app",
-  "name": "FFDrop",
-  "short_name": "FFDrop",
+  "name": "Fulbro",
+  "short_name": "Fulbro",
   "description": "Автономная система учёта склада со сканером штрихкодов",
   "start_url": "./",
   "scope": "./",

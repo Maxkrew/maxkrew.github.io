@@ -2,7 +2,7 @@
    на телефоне — нижнее. Источник правды — нижнее меню: роли, «активный» и скрытые пункты
    решаются там (как в «Складе»), боковое повторяет его. */
 const SIDE_GROUPS = [
-  {title:'Склад',  sections:['stock','receipts','shipments','cells','history']},
+  {title:'Склад',  sections:['stock','receipts','incoming','shipments','analysis','cells','history']},
   {title:'Деньги', sections:['suppliers']},
   {title:'Аккаунт', sections:['tariffs','admin']}
 ];
@@ -18,7 +18,7 @@ function renderSideNav(){
   const side = document.querySelector('aside.side');
   if(!side) return;
   const items = bottomButtons();
-  const title = (document.getElementById('companyTitle') || {}).textContent || 'FFDrop';
+  const title = (document.getElementById('companyTitle') || {}).textContent || 'Fulbro';
   const html = ['<div class="side-brand"><span class="side-mark"></span><span class="side-name"></span></div>'];
   const placed = new Set();
   const groups = SIDE_GROUPS.map(g=> ({title:g.title, items: items.filter(i=> g.sections.includes(i.section))}));
@@ -39,7 +39,7 @@ function renderSideNav(){
   if(!groups.some(g=> g.title === 'Аккаунт' && g.items.some(i=> !i.btn.hidden))) html.push('<div class="side-grp">Аккаунт</div>');
   html.push('<button type="button" data-action="settings" class="side-it' + (isSectionActive('settings') ? ' a' : '') + '"><svg class="icon"><use href="#i-gear"/></svg><span>Настройки</span></button>');
   side.innerHTML = html.join('');
-  side.querySelector('.side-name').textContent = title;
+  const sn = side.querySelector('.side-name'); sn.textContent = title; sn.classList.toggle('brand-word', typeof ffAppWord === 'function' && title === ffAppWord());
   /* подписи — текстом, а не разметкой: они берутся из кнопок нижнего меню */
   items.forEach(i=>{
     const b = side.querySelector('button[data-section="' + i.section + '"] span');

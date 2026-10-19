@@ -59,10 +59,13 @@ async function anFirstArrival(){
 }
 
 async function analysisSummary(o){
-  const days = (o && o.days) || 30, now = (o && o.now) || Date.now();
+  const now = (o && o.now) || Date.now();
+  // период: последние N дней или «с … по …» из календаря
+  const from = o && o.from ? Number(o.from) : null, to = o && o.to ? Number(o.to) : null;
+  const days = from && to ? Math.max(1, Math.round((dayStart(to) - dayStart(from)) / AN_DAY) + 1) : ((o && o.days) || 30);
   const sales = await supplierSales(), cost = await anCostIndex(), counts = await supplierCounts(), first = await anFirstArrival();
   const inWin = (s, d)=> s.ts > now - d * AN_DAY && s.ts <= now;
-  const win = sales.filter(s=> inWin(s, days));
+  const win = sales.filter(s=> from && to ? s.ts >= from && s.ts <= to : inWin(s, days));
   let soldQty = 0, revenue = 0, costSum = 0, costUnknown = false;
   const byModel = {};
   for(const s of win){
@@ -118,19 +121,56 @@ async function anNames(){
 }
 
 /* --- экран --- */
-let anDays = 30;
-function anSetDays(d){ anDays = d; renderSupplierAnalysis(); }
+/* Столбики ровно по дням периода (до 45 дней), дольше — по неделям. */
+function anBuckets(rows, from, to){
+  const weeks = Math.round((dayStart(to) - dayStart(from)) / AN_DAY) + 1 > 45;
+  const step = weeks ? 7 * AN_DAY : AN_DAY, out = [];
+  for(let s = weeks ? weekStart(from) : dayStart(from); s <= to; s = (weeks ? weekStart : dayStart)(s + step + AN_DAY / 2)){
+    out.push({start: s, end: (weeks ? weekStart : dayStart)(s + step + AN_DAY / 2), value: 0});
+  }
+  for(const r of rows) for(const b of out) if(r.ts >= b.start && r.ts < b.end){ b.value += r.qty; break; }
+  const every = Math.max(1, Math.ceil(out.length / 5));
+  out.forEach((b, i)=>{
+    b.label = weeks ? 'неделя с ' + ddmm(b.start) : new Date(b.start).toLocaleDateString('ru-RU', {day:'numeric', month:'long', weekday:'short'});
+    b.short = ddmm(b.start); b.tick = i % every === 0 || i === out.length - 1;
+  });
+  return out;
+}
+let anDays = 30, anRange = null, anPeriodOpen = false;   // anRange = {from, to} — свой период
+function anSetDays(d){ anDays = d; anRange = null; anPeriodOpen = false; renderSupplierAnalysis(); }
+function anTogglePeriod(){ anPeriodOpen = !anPeriodOpen; renderSupplierAnalysis(); }
+const anIso = ts=> { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function anApplyPeriod(){
+  const f = document.getElementById('anFrom').value, t = document.getElementById('anTo').value;
+  const err = document.getElementById('anPeriodErr');
+  if(!f || !t){ err.textContent = 'Выберите обе даты'; return; }
+  const from = new Date(f + 'T00:00:00').getTime(), to = new Date(t + 'T00:00:00').getTime() + AN_DAY - 1;
+  if(from > to){ err.textContent = 'Дата «с» должна быть раньше даты «по»'; return; }
+  anRange = {from, to}; anPeriodOpen = false; renderSupplierAnalysis();
+}
 async function renderSupplierAnalysis(){
   const box = document.getElementById('analysisBox');
   if(!box) return;
-  const sum = await analysisSummary({days: anDays}), names = await anNames();
+  const now = Date.now();
+  const range = anRange || {from: dayStart(now) - (anDays - 1) * AN_DAY, to: now};
+  const sum = await analysisSummary(anRange ? {from: anRange.from, to: anRange.to} : {days: anDays}), names = await anNames();
   const tile = (label, value, note)=> `<div class="an-tile"><div class="an-label">${label}</div><div class="an-value">${value}</div>${note ? `<div class="an-note">${note}</div>` : ''}</div>`;
   const hints = analysisHints(sum, names);
   const list = (title, rows)=> rows.length ? `<div class="card"><div class="rname" style="margin-bottom:6px;">${title}</div>${rows.join('')}</div>` : '';
   const row = (a, b)=> `<div class="row-item"><div class="rmain">${escapeHtml(a)}</div><div class="rside"><b>${escapeHtml(b)}</b></div></div>`;
-  const chart = typeof barChartSvg === 'function' && typeof bucketize === 'function'
-    ? barChartSvg(bucketize(sum.rows, anDays > 30 ? 'week' : 'day', 'qty'), 'шт.') : '';
-  box.innerHTML = `<div class="an-seg" role="group" aria-label="Период">${[7, 30, 90].map(d=> `<button type="button" data-days="${d}" class="${d === anDays ? 'on' : ''}" onclick="anSetDays(${d})">${d} дней</button>`).join('')}</div>
+  const buckets = anBuckets(sum.rows, range.from, range.to);
+  const byWeek = buckets.length && buckets[0].end - buckets[0].start > 2 * AN_DAY;
+  const chart = typeof barChartSvg === 'function' ? barChartSvg(buckets, 'шт.') : '';
+  const fmtD = ts=> new Date(ts).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit', year:'numeric'});
+  const seg = [7, 30].map(d=> `<button type="button" data-days="${d}" class="${!anRange && d === anDays ? 'on' : ''}" onclick="anSetDays(${d})">${d} дней</button>`).join('') +
+    `<button type="button" data-period class="${anRange ? 'on' : ''}" onclick="anTogglePeriod()" aria-expanded="${anPeriodOpen}"><svg class="icon"><use href="#i-calendar"/></svg>Период</button>`;
+  const form = anPeriodOpen ? `<div class="card an-period"><div class="field-row">
+      <div class="field" style="margin:0;"><label for="anFrom">С</label><input type="date" id="anFrom" value="${anIso(range.from)}" max="${anIso(now)}"></div>
+      <div class="field" style="margin:0;"><label for="anTo">По</label><input type="date" id="anTo" value="${anIso(range.to)}" max="${anIso(now)}"></div></div>
+      <div class="xls-err" id="anPeriodErr" role="alert"></div>
+      <button class="btn primary" id="anApply" style="margin-top:8px;" onclick="anApplyPeriod()"><svg class="icon"><use href="#i-check"/></svg>Показать</button></div>` : '';
+  box.innerHTML = `<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}
+    ${anRange ? `<p class="hint an-range">Период: ${fmtD(anRange.from)} — ${fmtD(anRange.to)}</p>` : ''}
     <div class="an-tiles">
       ${tile('Продано, шт.', fmtNum(sum.soldQty))}
       ${tile('Выручка', fmtMoney(sum.revenue))}
@@ -138,7 +178,7 @@ async function renderSupplierAnalysis(){
       ${tile('Прибыль', fmtMoney(sum.profit), 'плата складу появится позже')}
       ${tile('Заморожено в остатках', fmtMoney(sum.frozen), 'остаток × средняя закупка')}
     </div>
-    <div class="card"><div class="rname" style="margin-bottom:6px;">Продажи по ${anDays > 30 ? 'неделям' : 'дням'}</div>${chart}</div>
+    <div class="card"><div class="rname" style="margin-bottom:6px;">Продажи по ${byWeek ? 'неделям' : 'дням'}</div>${chart}</div>
     ${hints.length ? `<div class="card an-hints">${hints.map(h=> `<div class="an-hint">${escapeHtml(h)}</div>`).join('')}</div>` : ''}
     ${list('Заканчивается', sum.runningOut.map(r=> row(names.sizes[r.sizeId] || '', r.daysLeft + ' ' + ruPlural(r.daysLeft, 'день', 'дня', 'дней'))))}
     ${list('Довезти на месяц', sum.restock.map(r=> row(names.sizes[r.sizeId] || '', r.qty + ' шт.')))}

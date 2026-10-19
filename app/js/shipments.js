@@ -154,7 +154,9 @@ async function renderShipments(){
   const done = list.filter(s=> s.status === 'собрана').slice(0, 10);
   const parts = [];
   if(!sup && typeof renderReviewBlock === 'function') parts.push(await renderReviewBlock());
-  parts.push(`<div class="card">
+  // поставщик заказывает через «Продал» (служба, скриншот, комментарий — там)
+  if(sup) parts.push(`<button class="btn primary sh-sell" id="shStart" onclick="shStart()"><svg class="icon"><use href="#i-out"/></svg>Продал — новый заказ</button>`);
+  else parts.push(`<div class="card">
       <div class="field-row">${sup ? '' : `<select id="shSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>`}
         <select id="shCarrier">${carrierList().map(c=> `<option>${escapeHtml(c)}</option>`).join('')}</select></div>
       <div class="field-row" style="margin-top:8px;"><input type="text" id="shComment" placeholder="Комментарий: номер заказа, адрес">
@@ -204,7 +206,9 @@ async function shipmentCard(s, editable){
   }
   const phRow = phs.length ? '<div class="ph-row">' + phs.join('') + '</div>' : '';
   const from = !sup && s.createdBy === 'supplier' ? ' · <span class="tag-sup">от поставщика</span>' : '';
-  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}"><div class="rname">${sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || '') + ' · '}${escapeHtml(s.carrier)}${from}</div>
+  const pencil = sup && typeof shipmentEditable === 'function' && await shipmentEditable(s)
+    ? `<button type="button" class="icon-btn sh-edit" data-edit="${escapeAttr(s.id)}" onclick="sellEditStart(${jsArg(s.id)})" aria-label="Изменить заказ"><svg class="icon"><use href="#i-edit"/></svg></button>` : '';
+  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}<div class="rname">${sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || '') + ' · '}${escapeHtml(s.carrier)}${from}</div>
     <div class="rmeta">${escapeHtml(s.comment || '')}${s.comment ? ' · ' : ''}${escapeHtml(s.status)}</div>
     ${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${add}</div>`;
 }

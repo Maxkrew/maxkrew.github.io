@@ -123,16 +123,91 @@ function closePhoto(){
 /* --- окно «Продал» --- */
 const sell = {cart: [], modelId: '', sizeId: '', barcode: null, photo: null};
 async function sellStart(){
-  Object.assign(sell, {cart: [], modelId: '', sizeId: '', barcode: null, photo: null});
+  Object.assign(sell, {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, editId: null, priceTouched: false});
+  sellSetMode(false);
   document.getElementById('sellSearch').value = '';
   document.getElementById('sellComment').value = '';
+  document.getElementById('sellPrice').value = ''; document.getElementById('sellQty').value = '1';
   document.getElementById('sellBarcode').value = ''; document.getElementById('sellPhoto').value = '';
   const c = document.getElementById('sellCarrier');
   c.innerHTML = carrierList().map(x=> `<option${x === SELL_AVITO ? ' selected' : ''}>${escapeHtml(x)}</option>`).join('');
   document.getElementById('sellModalBg').classList.add('show');
   await sellRender();
 }
-function closeSell(){ document.getElementById('sellModalBg').classList.remove('show'); }
+function closeSell(){ document.getElementById('sellModalBg').classList.remove('show'); sell.editId = null; }
+function sellSetMode(edit){
+  document.getElementById('sellTitle').textContent = edit ? 'Изменить заказ' : 'Продал';
+  document.getElementById('sellSendText').textContent = edit ? 'Сохранить изменения' : 'Отправить складу';
+}
+
+/* --- изменить заказ (карандаш) ---
+   Склад раскладывает заказ по ячейкам, как только его увидел, и строки поставщику уже не
+   поменять (правило сервера). Поэтому «изменить» = старый заказ отменить, новый — вместо него,
+   с теми же картинками. Только со связью: сначала сервер подтверждает отмену, потом новый. */
+async function shipmentEditable(s){
+  if(!s || s.deletedAt || s.status !== 'новая' || s.createdBy !== 'supplier') return false;
+  return !(await shipmentLines(s.id)).some(l=> l.collected);
+}
+async function photoBlobOf(p){
+  const b = await get('photoBlobs', p.id);
+  if(b && b.blob) return b.blob;
+  const u = await photoUrl(p.id); if(!u) return null;
+  try{ const r = await fetch(u); return r.ok ? await r.blob() : null; }catch(e){ return null; }
+}
+async function sellEditStart(id){
+  const s = await get('shipments', id);
+  if(!(await shipmentEditable(s))){ toast(CANCEL_LATE); return; }
+  await sellStart();
+  sell.editId = id; sellSetMode(true);
+  // строку, которую склад разделил по ячейкам, показываем одной
+  const bySize = new Map();
+  for(const l of await shipmentLines(id)){
+    const k = l.modelId + '|' + l.sizeId, c = bySize.get(k) || {modelId: l.modelId, sizeId: l.sizeId, qty: 0, price: null};
+    c.qty += Number(l.qty) || 0;
+    if(c.price === null){ const p = await linePrice(l.id); if(p !== null) c.price = p; }
+    bySize.set(k, c);
+  }
+  sell.cart = [...bySize.values()];
+  const c = document.getElementById('sellCarrier'); if(![...c.options].some(o=> o.value === s.carrier)) c.insertAdjacentHTML('beforeend', `<option>${escapeHtml(s.carrier)}</option>`);
+  c.value = s.carrier;
+  document.getElementById('sellComment').value = s.comment || '';
+  for(const p of await shipmentPhotos(id)){
+    const b = await photoBlobOf(p);
+    if(b && p.kind === 'штрихкод') sell.barcode = b;
+    if(b && p.kind === 'заказ') sell.photo = b;
+  }
+  await sellRender();
+}
+async function replaceSale(oldId, o){
+  if(!navigator.onLine) return {ok:false, error:'Изменить заказ можно только со связью — склад должен сразу узнать об изменении'};
+  const old = await get('shipments', oldId);
+  if(!(await shipmentEditable(old))) return {ok:false, error: CANCEL_LATE};
+  const lines = (o && o.lines) || [];
+  if(!lines.length) return {ok:false, error:'Добавьте товар'};
+  if((o.carrier || SELL_AVITO) === SELL_AVITO && !o.barcode) return {ok:false, error: SELL_NEED_BARCODE};
+  // проверяем заранее, с учётом того, что старый заказ освободит
+  const mine = {}, need = {};
+  for(const l of await shipmentLines(oldId)) mine[l.sizeId] = (mine[l.sizeId] || 0) + (Number(l.qty) || 0);
+  for(const l of lines){ const q = sanitizeQty(l.qty); if(q.error) return {ok:false, error:q.error}; need[l.sizeId] = (need[l.sizeId] || 0) + q.n; }
+  for(const [sizeId, n] of Object.entries(need)){
+    const free = await freeQty(sizeId) + (mine[sizeId] || 0);
+    if(n > free) return {ok:false, error:'Не хватает ' + (n - Math.max(0, free)) + ' шт. ' + await sizeLabelOf(sizeId) + ' — свободно ' + Math.max(0, free)};
+  }
+  try{ if(o.barcode) await compressImage(o.barcode); if(o.photo) await compressImage(o.photo); }
+  catch(e){ return {ok:false, error:'Не получилось открыть картинку — сохраните её как JPEG или PNG'}; }
+  const c = await cancelShipment(oldId);
+  if(!c.ok) return c;
+  await Sync.syncNow('изменение заказа');
+  const after = await get('shipments', oldId);
+  if(!after || after.status !== 'отменена' || after.dirty){
+    const noNet = !!after && after.status === 'отменена';
+    if(noNet){ after.status = 'новая'; await put('shipments', after); }   // сервер не узнал — оставляем как было
+    return {ok:false, error: noNet ? 'Нет связи с сервером — заказ не изменён' : CANCEL_LATE};
+  }
+  const r = await submitSale(o);
+  if(r.ok) try{ await Sync.syncNow('изменённый заказ'); }catch(e){}
+  return r;
+}
 async function sellRecentModels(){
   const mine = new Set((await getAll('shipments')).filter(s=> !s.deletedAt && s.supplierId === Sync.mySupplierId()).map(s=> s.id));
   const ts = new Map((await getAll('shipments')).map(s=> [s.id, s.createdTs || 0]));
@@ -175,7 +250,8 @@ const xlsNormSafe = s=> String(s || '').toLowerCase().replace(/ё/g, 'е').repla
 async function sellPickModel(id){
   sell.modelId = id; sell.sizeId = '';
   const m = await get('models', id);
-  document.getElementById('sellPrice').value = m && m.price ? String(m.price) : '';
+  // цену из карточки подставляем, только если человек не вписал свою
+  if(!sell.priceTouched) document.getElementById('sellPrice').value = m && m.price ? String(m.price) : '';
   await sellRender();
 }
 async function sellPickSize(id){ sell.sizeId = id; await sellRender(); }
@@ -209,9 +285,10 @@ async function sellSend(){
   if(p) lines.push(p);
   const btn = document.getElementById('sellSend'); btn.disabled = true;
   try{
-    const r = await submitSale({lines, carrier: document.getElementById('sellCarrier').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo});
+    const o = {lines, carrier: document.getElementById('sellCarrier').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo};
+    const r = sell.editId ? await replaceSale(sell.editId, o) : await submitSale(o);
     if(!r.ok){ err.textContent = r.error; return; }
-    closeSell(); toast('Заказ отправлен складу');
+    closeSell(); toast(sell.editId ? 'Заказ изменён — склад видит новый вариант' : 'Заказ отправлен складу');
     if(typeof renderShipments === 'function') await renderShipments();
   } catch(e){ err.textContent = 'Не получилось: ' + e.message; }
   finally { btn.disabled = false; }

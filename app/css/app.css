@@ -799,3 +799,21 @@ nav.bottom .side-only{display:none !important;}
 .review-acts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
 .review-acts select{width:auto;padding:6px 8px;font-size:13px;}
 .hist-row.cancelled .rname,.hist-row.cancelled .rval{text-decoration:line-through;color:var(--text-tertiary);}
+/* карандаш на заказе, отступ под заголовком окна, зелёная стрелка назад, ровные ряды полей */
+.sh-card{position:relative;}
+.sh-card .sh-edit{position:absolute;top:var(--sp-3);right:var(--sp-3);color:var(--accent);}
+.sh-card:has(.sh-edit) > .rname{padding-right:40px;}
+.modal > .head-row{margin-bottom:var(--sp-3);}
+[data-back]{color:var(--accent);border-color:var(--accent-border);background:var(--accent-soft);}
+[data-back] .icon{color:var(--accent);}
+.field-row:has(> .field){align-items:stretch;}
+.field-row > .field{display:flex;flex-direction:column;}
+.field-row > .field > label{flex:1;}
+.an-seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.an-seg button .icon{width:15px;height:15px;}
+.an-period{margin-bottom:var(--sp-3);}
+.an-range{margin:-4px 4px var(--sp-3);}
+.sh-sell{width:100%;padding:14px 16px;font-size:15px;margin-bottom:var(--sp-3);}
+.an-period input[type=date]{width:100%;min-width:0;}
+.an-period .field{flex:1;min-width:0;}
+.modal-head{margin-bottom:var(--sp-3);}

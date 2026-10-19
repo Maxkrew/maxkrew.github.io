@@ -817,3 +817,5 @@ nav.bottom .side-only{display:none !important;}
 .an-period input[type=date]{width:100%;min-width:0;}
 .an-period .field{flex:1;min-width:0;}
 .modal-head{margin-bottom:var(--sp-3);}
+.is-supplier [data-owner-only]{display:none !important;}
+.no-billing [data-section="tariffs"]{display:none !important;}

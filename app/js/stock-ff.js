@@ -1,12 +1,22 @@
 /* «ФФ»: Склад — модели и размеры, алфавитная «шпаргалка», карточка модели.
    Склад видит все модели и ячейки; поставщик — свои модели без ячеек (ОПИСАНИЕ §4, §9). */
 const SIZE_SET = ['XS','S','M','L','XL','2XL','3XL','4XL'];
-const DEFAULT_CATEGORIES = ['Одежда', 'Обувь / пуховики'];
+/* готовые категории; любую другую поставщик или склад пишет сам («+ Своя категория») — товары бывают любые */
+const DEFAULT_CATEGORIES = ['Одежда', 'Обувь / пуховики', 'Электроника', 'Бытовая техника', 'Автотовары', 'Дом и сад', 'Красота и здоровье', 'Детские товары', 'Спорт и отдых', 'Аксессуары', 'Другое'];
 let ffAbcLetter = '';
 
 function ffCategories(){
   const c = (window.settings && Array.isArray(settings.categories) && settings.categories.length) ? settings.categories : DEFAULT_CATEGORIES;
   return c;
+}
+/* список для выбора: готовые + те, что уже есть у товаров */
+async function ffCategoryList(){
+  const used = (await getAll('models')).filter(m=> !m.deletedAt && m.category).map(m=> String(m.category).trim()).filter(Boolean);
+  return [...new Set(ffCategories().concat(used))];
+}
+function mmCategoryChanged(){
+  const own = document.getElementById('mmCategory').value === '__own';
+  const el = document.getElementById('mmCategoryOwn'); el.hidden = !own; if(own) try{ el.focus(); }catch(e){}
 }
 function modelName(m){ return [m.brand, m.title, m.color].filter(Boolean).join(' ').trim() || 'Без названия'; }
 /* ['3XL','4XL'] → «3XL–4XL»; ['L'] → «L»; пусто → «все» */
@@ -149,7 +159,7 @@ async function openModelModal(id){
   const m = id ? await get('models', id) : null;
   const priv = (!owner && id) ? await get('privates', id) : null;
   const sups = Object.values(await ffSuppliersMap()).filter(s=> !s.deletedAt && !s.archived);
-  document.getElementById('mmTitleHead').textContent = m ? modelName(m) : 'Новая модель';
+  document.getElementById('mmTitleHead').textContent = m ? modelName(m) : 'Новый товар';
   document.getElementById('mmId').value = m ? m.id : '';
   const supSel = document.getElementById('mmSupplier');
   supSel.innerHTML = sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('');
@@ -157,7 +167,10 @@ async function openModelModal(id){
   else if(owner && document.getElementById('ffSupplierFilter').value) supSel.value = document.getElementById('ffSupplierFilter').value;
   supSel.disabled = !!m;               // модель не переезжает к другому поставщику
   document.getElementById('mmSupplierRow').hidden = !owner;
-  document.getElementById('mmCategory').innerHTML = ffCategories().map(c=> `<option>${escapeHtml(c)}</option>`).join('');
+  const cats = await ffCategoryList();
+  if(m && m.category && !cats.includes(m.category)) cats.push(m.category);
+  document.getElementById('mmCategory').innerHTML = cats.map(c=> `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('') + '<option value="__own">+ Своя категория…</option>';
+  document.getElementById('mmCategoryOwn').value = ''; document.getElementById('mmCategoryOwn').hidden = true;
   const setv = (k, v)=>{ const el = document.getElementById(k); if(el) el.value = (v === undefined || v === null) ? '' : v; };
   setv('mmBrand', m && m.brand); setv('mmTitle', m && m.title); setv('mmColor', m && m.color);
   setv('mmCategory', (m && m.category) || ffCategories()[0]); setv('mmCapacity', (m && m.capacity) || 7);
@@ -187,7 +200,7 @@ async function saveModel(form){
   const existing = form.id ? await get('models', form.id) : null;
   const m = Object.assign({}, existing || {id: newUid(), supplierId}, {
     brand: String(form.brand || '').trim(), title: String(form.title || '').trim(), color: String(form.color || '').trim(),
-    category: form.category || ffCategories()[0], capacity: Math.min(1000, Math.max(1, parseInt(form.capacity, 10) || 7)),
+    category: String(form.category || '').trim() || 'Другое', capacity: Math.min(1000, Math.max(1, parseInt(form.capacity, 10) || 7)),
     lenCm: parseDim(form.lenCm), widCm: parseDim(form.widCm), heiCm: parseDim(form.heiCm),
     sku: String(form.sku || '').trim(), price: Number(form.price) || 0
   });
@@ -226,13 +239,15 @@ function parseDim(v){
 }
 async function saveModelFromForm(){
   const g = id=> (document.getElementById(id) || {}).value;
+  if(g('mmCategory') === '__own' && !String(g('mmCategoryOwn') || '').trim()){ const err = document.getElementById('mmError'); err.textContent = 'Напишите свою категорию'; err.classList.add('show'); return; }
   try{
     await saveModel({
       id: g('mmId') || null, supplierId: g('mmSupplier'), brand: g('mmBrand'), title: g('mmTitle'), color: g('mmColor'),
-      category: g('mmCategory'), capacity: g('mmCapacity'), lenCm: g('mmLen'), widCm: g('mmWid'), heiCm: g('mmHei'),
+      category: g('mmCategory') === '__own' ? String(g('mmCategoryOwn') || '').trim() : g('mmCategory'), capacity: g('mmCapacity'), lenCm: g('mmLen'), widCm: g('mmWid'), heiCm: g('mmHei'),
       sku: g('mmSku'), price: g('mmPrice'), calcPrice: g('mmCalcPrice'), buyFrom: g('mmBuyFrom'), cost: g('mmCost'),
       commissionPercent: g('mmCommission'), taxPercent: g('mmTax'), packaging: g('mmPackaging'), deliveryDiscount: g('mmDelivery'),
-      sizes: mmPicked.slice(), barcodes: Object.assign({}, mmBarcodes)
+      sizes: mmPicked.length ? mmPicked.slice() : ['Единый'],   // товар без размеров (пылесос) — один вариант
+      barcodes: Object.assign({}, mmBarcodes)
     });
   }catch(e){
     const err = document.getElementById('mmError'); err.textContent = e.message; err.classList.add('show');

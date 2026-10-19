@@ -56,6 +56,9 @@ async function applyRoleUI(){
   try{ refreshSoftKeyboardMode(); }catch(e){}
   if(typeof renderSubBanner === 'function') renderSubBanner();
   const sb = document.getElementById('setAdminBtn'); if(sb) sb.hidden = !(Sync.isAdmin && Sync.isAdmin());
-  const st = document.getElementById('setTariffsBtn'); if(st) st.hidden = rl !== 'owner';
+  const billing = typeof ffSelfSignup === 'function' ? ffSelfSignup() : true;
+  document.body.classList.toggle('no-billing', !billing);   // тарифы — когда включат регистрацию складов
+  const st = document.getElementById('setTariffsBtn'); if(st) st.hidden = rl !== 'owner' || !billing;
+  const links = document.getElementById('setLinksCard'); if(links) links.hidden = ![...links.querySelectorAll('button')].some(b=> !b.hidden);
 }
 window.applyRoleUI = applyRoleUI;

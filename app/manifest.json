@@ -1,7 +1,7 @@
 {
   "id": "ff-app",
-  "name": "ФФ",
-  "short_name": "ФФ",
+  "name": "FFDrop",
+  "short_name": "FFDrop",
   "description": "Автономная система учёта склада со сканером штрихкодов",
   "start_url": "./",
   "scope": "./",

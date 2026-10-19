@@ -149,7 +149,7 @@ async function showAppVersion(){
   el.textContent = v;
 }
 async function saveSettings(){
-  settings.company = document.getElementById('setCompany').value.trim() || 'ФФ';
+  settings.company = document.getElementById('setCompany').value.trim() || 'FFDrop';
   settings.lowStock = Number(document.getElementById('setLowStock').value)||5;
   settings.sound = document.getElementById('setSound').value==='1';
   settings.blockNeg = document.getElementById('setBlockNeg').value==='1';

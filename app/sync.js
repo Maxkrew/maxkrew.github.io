@@ -88,8 +88,24 @@
     }
     return {ok:true};
   }
+  /* Регистрация склада: учётка + склад с пробным периодом (сервер: register_warehouse). */
+  async function registerWarehouse(email, password, title, phone){
+    if(!String(title || '').trim()) return {ok:false, error:'Укажите название склада'};
+    if(!init()) return {ok:false, error:'Сервер не настроен'};
+    /* уже вошёл (учётка есть, склада нет) — почта и пароль не нужны; учётка осталась
+       от прошлой сорвавшейся попытки — входим ею и доводим регистрацию склада до конца */
+    const {data: s} = await client.auth.getSession();
+    if(!(s && s.session)){
+      const r = await signUp(email, password, null);
+      if(!r.ok){ const li = await signIn(email, password); if(!li.ok) return r; }
+    }
+    const {error} = await client.rpc('register_warehouse', {p_title: String(title).trim(), p_phone: String(phone || '').trim()});
+    if(error) return {ok:false, error: error.message};
+    await resolveMembership();
+    return {ok:true};
+  }
   async function joinByCode(code){
-    if(!ready()) return {ok:false, error:'Нет связи'};
+    if(!init()) return {ok:false, error:'Сервер не настроен'};
     const {data, error} = await client.rpc('join_supplier', {p_code: String(code || '').trim()});
     if(error) return {ok:false, error: error.message};
     if(!data) return {ok:false, error:'Код уже использован или не подходит'};
@@ -145,10 +161,10 @@
     const user = await currentUser();
     if(!user) return membership;
     try{
-      const w = await client.from('warehouses').select('owner_id,title').eq('owner_id', user.id).limit(1);
+      const w = await client.from('warehouses').select('owner_id,title,paid_until,blocked,trial').eq('owner_id', user.id).limit(1);
       if(w.error) throw w.error;
       if(w.data && w.data.length){
-        membership = {role:'owner', ownerId:user.id, title:w.data[0].title, email:user.email || ''};
+        membership = Object.assign({role:'owner', ownerId:user.id, email:user.email || ''}, whStatus(w.data[0]));
       } else {
         const s = await client.from('suppliers').select('owner_id,id,name').eq('member_id', user.id);
         if(s.error) throw s.error;
@@ -157,15 +173,29 @@
           let pick = null;
           try{ const saved = localStorage.getItem(WAREHOUSE_KEY); pick = list.find(x=> x.owner_id === saved) || null; }catch(e){}
           pick = pick || list[0];
-          membership = {role:'supplier', ownerId:pick.owner_id, supplierId:pick.id, name:pick.name, email:user.email || '',
-                        warehouses: list.map(x=> ({ownerId:x.owner_id, supplierId:x.id, name:x.name}))};
+          const ww = await client.from('warehouses').select('owner_id,title,paid_until,blocked,trial').eq('owner_id', pick.owner_id).limit(1);
+          membership = Object.assign({role:'supplier', ownerId:pick.owner_id, supplierId:pick.id, name:pick.name, email:user.email || '',
+                        warehouses: list.map(x=> ({ownerId:x.owner_id, supplierId:x.id, name:x.name}))}, whStatus((ww.data || [])[0] || {}));
         } else {
           membership = {role:'none', email:user.email || ''};
         }
       }
+      try{ const a = await client.rpc('is_service_admin'); membership.isAdmin = !a.error && a.data === true; }catch(e){}
       writeCachedMembership(membership);
     }catch(e){ /* нет связи — держимся кэша */ }
     return membership;
+  }
+  /* Подписка склада: работает ли (не заблокирован и срок не истёк; пусто — без срока). */
+  function whStatus(w){
+    const until = w.paid_until ? new Date(w.paid_until).getTime() : null;
+    return {title: w.title || '', paidUntil: until, blocked: !!w.blocked, trial: !!w.trial,
+            active: !w.blocked && (until === null || until > Date.now())};
+  }
+  function subscription(){
+    if(!membership || (membership.role !== 'owner' && membership.role !== 'supplier')) return null;
+    const m = membership;
+    return {role: m.role, title: m.title, paidUntil: m.paidUntil === undefined ? null : m.paidUntil, blocked: !!m.blocked, trial: !!m.trial,
+            active: m.active !== false && !(m.paidUntil && m.paidUntil <= Date.now())};
   }
   function role(){ return membership ? membership.role : 'none'; }
   function ownerId(){ return membership ? (membership.ownerId || null) : null; }
@@ -266,6 +296,12 @@
      отвергнутыми (повтор при следующем обмене). Поставщику — проверяем, не закрыли ли доступ. */
   async function onRlsRefusal(store, list, rl, ws, msg){
     if(rl !== 'supplier') throw new Error(MAP[store].table + ': сервер не принял (' + msg + ')');
+    /* срок склада закончился на сервере раньше, чем телефон узнал: правки не «отвергнуты»,
+       они ждут, пока склад продлят */
+    const act = await client.rpc('warehouse_active', {ws});
+    if(!act.error && act.data === false){
+      throw new Error('Подписка склада закончилась — правки сохранены на телефоне и уйдут после продления');
+    }
     for(const p of list){ p.local.rejected = 1; p.local.rejectReason = 'нет прав'; p.local.dirty = 0; await window.put(store, p.local, {fromSync:true}); }
     const me = await client.from('suppliers').select('id').eq('owner_id', ws).eq('id', mySupplierId()).limit(1);
     if(!me.error && (!me.data || !me.data.length)) throw new AccessClosed('архив');
@@ -489,6 +525,12 @@
     emit('syncing', {reason});
     try{
       await ensureScope(user.id, ws);
+      const st = await client.from('warehouses').select('owner_id,title,paid_until,blocked,trial').eq('owner_id', ws).limit(1);
+      if(!st.error && st.data && st.data.length){
+        Object.assign(membership, whStatus(st.data[0])); writeCachedMembership(membership);
+        if(typeof window.renderSubBanner === 'function'){ try{ window.renderSubBanner(); }catch(e){} }
+      }
+      const active = (subscription() || {}).active !== false;
       /* Архивному поставщику сервер просто ничего не отдаёт — без ошибки. Проверяем явно. */
       if(rl === 'supplier'){
         const me = await client.from('suppliers').select('id').eq('owner_id', ws).eq('id', mySupplierId()).limit(1);
@@ -497,7 +539,9 @@
       await adoptEpochIfNeeded(ws, rl);
       /* Отправка не удалась — приём всё равно идёт: телефон не «глохнет» из-за одной беды. */
       let sent = 0, pushErr = null;
-      try{
+      /* «Только просмотр» (срок истёк, склад заблокирован): правки не отправляются, но и не
+         теряются — уйдут после продления. */
+      if(active) try{
         for(const s of ORDER) if(MAP[s].push.includes(rl)) sent += await pushStore(s, ws, rl);
         if(rl === 'owner') sent += await pushSettings(ws);
       }catch(e){ if(e instanceof AccessClosed) throw e; pushErr = e; }
@@ -701,7 +745,14 @@
     resolveMembership, role, ownerId, mySupplierId, memberName, authorName,
     warehouses: ()=> (membership && membership.warehouses) || [],
     chooseWarehouse: async ownerIdToUse=>{ try{ localStorage.setItem(WAREHOUSE_KEY, ownerIdToUse); }catch(e){} await resolveMembership(); return syncNow('другой склад'); },
-    createSupplier, resetSupplierPassword, pendingCount, wipeLocalData,
+    createSupplier, resetSupplierPassword, pendingCount, wipeLocalData, registerWarehouse, subscription,
+    isAdmin: ()=> !!(membership && membership.isAdmin),
+    loadTariffs: async ()=>{ if(!init()) return []; const {data, error} = await client.from('service_settings').select('value').eq('key', 'tariffs').limit(1); if(error) throw new Error(error.message); return (data && data[0] && data[0].value) || []; },
+    adminList: async ()=>{ const {data, error} = await client.rpc('admin_list_warehouses'); if(error) throw new Error(error.message); return data || []; },
+    adminExtend: async (id, days)=>{ const {error} = await client.rpc('admin_extend', {p_owner: id, p_days: days}); if(error) throw new Error(error.message); },
+    adminUnlimited: async id=>{ const {error} = await client.rpc('admin_set_unlimited', {p_owner: id}); if(error) throw new Error(error.message); },
+    adminBlock: async (id, on)=>{ const {error} = await client.rpc('admin_block', {p_owner: id, p_blocked: !!on}); if(error) throw new Error(error.message); },
+    adminSetTariffs: async list=>{ const {error} = await client.rpc('admin_set_tariffs', {p_value: list}); if(error) throw new Error(error.message); },
     takeSnapshot, listSnapshots, restoreSnapshot, startRealtime, stopRealtime,
     // совместимость со старыми экранами «Склада» (уходят в задачах 5–7)
     joinWorkspace: code=> joinByCode(code), listMembers: async()=> [], removeMember: async()=> ({ok:false, error:'нет'}),

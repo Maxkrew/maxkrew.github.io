@@ -371,6 +371,8 @@ cachedByVersion.store = {};
 
 function put(store,val,opts){
   opts = opts || {};
+  /* «Только просмотр» (подписка закончилась): свои правки в данные склада не пишем. */
+  if(window.ffReadonly && !opts.fromSync && FF_STORES[store]){ if(typeof ffReadonlyBlocked === 'function') ffReadonlyBlocked(); return Promise.resolve(); }
   touchData(store);
   if(SYNCED_STORES.indexOf(store) !== -1){
     if(opts.fromSync){
@@ -418,7 +420,7 @@ function putRaw(store, val){
 function applyRemoteSettings(incoming){
   settings = incoming;
   const title = document.getElementById('companyTitle');
-  if(title) title.textContent = String(settings.company || 'ФФ').toUpperCase();
+  if(title) title.textContent = String(settings.company || 'FFDrop').toUpperCase();
   applyHeaderLogo();
   loadSettingsForm();
   // звуки могли смениться — пересобираем пулы под новый файл
@@ -503,7 +505,7 @@ async function renderStorageStatus(){
 let currentMode = 'Приход';
 /* var, а не let: так настройки видны как window.settings — это нужно
    вспомогательным скриптам и удобно при разборе проблем на устройстве */
-var settings = { key:'app', company:(window.SYNC_CONFIG && SYNC_CONFIG.APP_NAME) || 'ФФ', lowStock:5, sound:true, blockNeg:true };
+var settings = { key:'app', company:(window.SYNC_CONFIG && SYNC_CONFIG.APP_NAME) || 'FFDrop', lowStock:5, sound:true, blockNeg:true };
 
 /* Клавиатура настраивается для каждого устройства отдельно и в общие
    настройки не попадает: на iPhone со сканером своя нужна, а на Android

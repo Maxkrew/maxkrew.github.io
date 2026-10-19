@@ -3,7 +3,8 @@
    решаются там (как в «Складе»), боковое повторяет его. */
 const SIDE_GROUPS = [
   {title:'Склад',  sections:['stock','receipts','shipments','cells','history']},
-  {title:'Деньги', sections:['suppliers']}
+  {title:'Деньги', sections:['suppliers']},
+  {title:'Аккаунт', sections:['tariffs','admin']}
 ];
 
 function bottomButtons(){
@@ -17,7 +18,7 @@ function renderSideNav(){
   const side = document.querySelector('aside.side');
   if(!side) return;
   const items = bottomButtons();
-  const title = (document.getElementById('companyTitle') || {}).textContent || 'ФФ';
+  const title = (document.getElementById('companyTitle') || {}).textContent || 'FFDrop';
   const html = ['<div class="side-brand"><span class="side-mark"></span><span class="side-name"></span></div>'];
   const placed = new Set();
   const groups = SIDE_GROUPS.map(g=> ({title:g.title, items: items.filter(i=> g.sections.includes(i.section))}));
@@ -35,7 +36,7 @@ function renderSideNav(){
         ' class="side-it' + (i.btn.classList.contains('active') ? ' a' : '') + '"><svg class="icon"><use href="' + href + '"/></svg><span></span></button>');
     });
   });
-  html.push('<div class="side-grp">Аккаунт</div>');
+  if(!groups.some(g=> g.title === 'Аккаунт' && g.items.some(i=> !i.btn.hidden))) html.push('<div class="side-grp">Аккаунт</div>');
   html.push('<button type="button" data-action="settings" class="side-it' + (isSectionActive('settings') ? ' a' : '') + '"><svg class="icon"><use href="#i-gear"/></svg><span>Настройки</span></button>');
   side.innerHTML = html.join('');
   side.querySelector('.side-name').textContent = title;

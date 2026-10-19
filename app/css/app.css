@@ -323,9 +323,9 @@ section.active{display:block;animation:fade .18s ease;}
 
 .field{margin-bottom:var(--sp-3);}
 .field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
-input[type=text],input[type=number],input[type=date],select{width:100%;padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:rgba(255,255,255,.6);color:var(--text);font-size:14px;transition:border-color var(--dur),background var(--dur);}
+input[type=text],input[type=number],input[type=date],input[type=search],input[type=email],input[type=tel],select{width:100%;padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:rgba(255,255,255,.6);color:var(--text);font-size:14px;transition:border-color var(--dur),background var(--dur);}
 input[type=date]{color-scheme:light;}
-input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,select:focus{border-color:var(--accent-border);background:rgba(255,255,255,.9);outline:none;}
+input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[type=search]:focus,input[type=email]:focus,input[type=tel]:focus,select:focus{border-color:var(--accent-border);background:rgba(255,255,255,.9);outline:none;}
 input.invalid{border-color:var(--danger-border);}
 .field-error{color:var(--danger);font-size:11px;margin-top:4px;display:none;}
 .field-error.show{display:block;}
@@ -695,3 +695,30 @@ aside.side{display:none;}
 .rc-card,.sh-card{margin-bottom:var(--sp-3);}
 .rc-lines .row-item{padding:6px 0;}
 .hist-row .rname{font-size:13.5px;font-weight:500;}
+/* ===== FFDrop: плашка подписки и «только просмотр» ===== */
+.sub-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px var(--sp-4) 0;padding:9px 12px;border-radius:12px;
+  background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:600;}
+.sub-banner.warn{background:#FFF4E0;color:#92400E;}
+.sub-banner.danger{background:#FDECEC;color:#B91C1C;}
+.sub-banner .btn{width:auto;}
+@media (min-width:1024px){ .sub-banner{max-width:1200px;margin:12px auto 0;width:calc(100% - 2*var(--sp-7));} }
+body.readonly #ffAddModelBtn, body.readonly #supAddBtn, body.readonly #supNewName, body.readonly .rc-card .field-row,
+body.readonly #receiptsBox > .card:first-child, body.readonly #shipmentsBox > .card:first-child, body.readonly #mmSaveBtn,
+body.readonly #mmDeleteBtn, body.readonly [data-del-op], body.readonly .sup-actions, body.readonly #cellsBox .head-row .btn{display:none !important;}
+body.readonly .task input{pointer-events:none;opacity:.5;}
+.auth-strong{color:var(--accent) !important;font-weight:700;}
+
+/* ===== FFDrop: тарифы и панель сервиса ===== */
+nav.bottom .side-only{display:none !important;}
+.tariff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.tariff-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:8px;}
+.tariff-ico{width:48px;height:48px;border-radius:14px;background:#16A34A;color:#fff;display:flex;align-items:center;justify-content:center;}
+.tariff-ico .icon{width:24px;height:24px;}
+.tariff-name{font-family:var(--font-display);font-size:19px;font-weight:700;}
+.tariff-cond{color:var(--text-secondary);font-size:13px;}
+.tariff-price{font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--text);}
+.tariff-price span{font-size:13px;font-weight:500;color:var(--text-secondary);}
+.tariff-feat{font-size:13px;color:var(--text);}
+.adm-card{margin-bottom:var(--sp-3);display:flex;flex-direction:column;gap:6px;}
+.tf-edit{display:flex;flex-direction:column;gap:10px;}
+.tf-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;}

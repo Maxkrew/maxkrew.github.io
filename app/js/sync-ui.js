@@ -31,9 +31,11 @@ async function refreshAfterSync(){
 }
 
 /* ============================================================
-   ОКНО ВХОДА: login · register · forgot · newpass · noaccess
+   ОКНО ВХОДА: choose · login · register · regwarehouse · forgot · newpass · noaccess
+   В каждом шаге (кроме первого и обязательной смены пароля) — стрелка «назад».
    ============================================================ */
 const AUTH_TEXT = {
+  choose:   {title:'Добро пожаловать в FFDrop', hint:'Кто вы?', submit:''},
   login:    {title:'Вход', hint:'Один вход на телефон и компьютер — данные хранятся на сервере.', submit:'Войти'},
   regwarehouse: {title:'Регистрация склада', hint:'14 дней бесплатно. Потом — подписка. Поставщики подключатся к складу по коду.', submit:'Зарегистрировать склад'},
   register: {title:'Регистрация поставщика', hint:'Введите код приглашения от склада, свою почту и придумайте пароль.', submit:'Зарегистрироваться'},
@@ -59,12 +61,14 @@ function authMode(mode){
   show('authPassField', mode === 'login' || mode === 'register' || mode === 'newpass' || (mode === 'regwarehouse' && !regSigned));
   show('authWhTitleField', mode === 'regwarehouse');
   show('authWhPhoneField', mode === 'regwarehouse');
-  show('authToRegWarehouse', mode === 'login' || mode === 'noaccess');
+  show('authChoose', mode === 'choose');
+  show('authSubmit', mode !== 'choose');
+  show('authToRegWarehouse', mode === 'noaccess');
   show('authCodeField', mode === 'register' || mode === 'noaccess');
-  show('authToRegister', mode === 'login');
   show('authToForgot', mode === 'login');
-  show('authToLogin', mode === 'register' || mode === 'forgot' || (mode === 'regwarehouse' && !regSigned));
+  show('authToLogin', mode === 'choose' || mode === 'register' || (mode === 'regwarehouse' && !regSigned));
   show('authSignOut', mode === 'noaccess' || regSigned || (mode === 'newpass' && authNewPassForced));
+  show('authBack', !!authBackTarget(mode));
   document.getElementById('authPassLabel').textContent = mode === 'newpass' ? 'Новый пароль' : 'Пароль';
   document.getElementById('authPass').setAttribute('autocomplete', (mode === 'login') ? 'current-password' : 'new-password');
   authError('');
@@ -73,6 +77,23 @@ function authMode(mode){
   const em = document.getElementById('authEmail');
   if(em && !em.value && window.Sync && Sync.lastLogin) em.value = Sync.lastLogin();
 }
+/* Куда ведёт стрелка «назад» из шага; null — стрелки нет. */
+function authBackTarget(mode){
+  if(mode === 'choose') return null;
+  if(mode === 'newpass') return authNewPassForced ? null : 'close';
+  if(mode === 'forgot') return 'login';
+  if(mode === 'noaccess') return 'signout';
+  if(mode === 'regwarehouse' && authSignedNoAccess) return 'noaccess';
+  return 'choose';
+}
+async function authBack(){
+  const t = authBackTarget(document.getElementById('authModalBg').dataset.mode);
+  if(t === 'close'){ document.getElementById('authModalBg').classList.remove('show'); return; }
+  if(t === 'signout'){ await authSignOut('choose'); return; }
+  if(t) authMode(t);
+}
+/* Первый экран без входа: уже входил на этом устройстве — сразу вход, иначе «Кто вы?». */
+function authStartMode(){ return (window.Sync && Sync.lastLogin && Sync.lastLogin()) ? 'login' : 'choose'; }
 function openAuth(mode){
   const bg = document.getElementById('authModalBg');
   if(!bg) return;
@@ -83,7 +104,7 @@ function openAuth(mode){
     /* Курсор ставим сами, только если человек ещё никуда не нажал: иначе он уже
        печатает в другом поле, и перенос курсора увёл бы ввод (код — в пароль). */
     const a = document.activeElement;
-    if(bg.dataset.mode !== openedMode || (a && a !== document.body && bg.contains(a))) return;
+    if(openedMode === 'choose' || bg.dataset.mode !== openedMode || (a && a !== document.body && bg.contains(a))) return;
     const id = (openedMode === 'newpass') ? 'authPass' : (openedMode === 'noaccess' ? 'authCode' : (openedMode === 'regwarehouse' && authSignedNoAccess) ? 'authWhTitle' : (document.getElementById('authEmail').value ? 'authPass' : 'authEmail'));
     const el = document.getElementById(id); if(el) el.focus();
   }, 60);
@@ -175,13 +196,13 @@ async function afterLogin(){
   toast('Вход выполнен');
   await Sync.start();
 }
-async function authSignOut(){
+async function authSignOut(nextMode){
   const pending = await Sync.pendingCount();
   if(pending && !confirm('На этом устройстве ' + pending + ' правок ещё не отправлено на сервер — при выходе они пропадут. Выйти?')) return;
   authNewPassForced = false; authSignedNoAccess = false;
   await Sync.signOut();
   await applyRoleUI();
-  openAuth('login');
+  openAuth(typeof nextMode === 'string' ? nextMode : 'login');
 }
 
 async function renderSyncStatusBox(){
@@ -239,7 +260,7 @@ async function initSync(){
   const started = await Sync.start();
   await applyRoleUI();
   /* С лендинга «Попробовать бесплатно» ведёт на app/#register — сразу регистрация склада. */
-  if(!started){ openAuth(location.hash === '#register' ? 'regwarehouse' : 'login'); return; }
+  if(!started){ openAuth(location.hash === '#register' ? 'regwarehouse' : authStartMode()); return; }
   if(Sync.role() === 'none' && !document.getElementById('ffAccessClosed')){
     authSignedNoAccess = true;
     openAuth(location.hash === '#register' ? 'regwarehouse' : 'noaccess');

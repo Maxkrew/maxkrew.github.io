@@ -54,7 +54,7 @@ header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.92);backdrop
 h1{font-size:46px;line-height:1.1;margin:16px 0;letter-spacing:-.02em}
 h1 em{font-style:normal;color:var(--g2)}
 .lead{font-size:18px;color:var(--t2);margin:0 0 24px}
-.hero img{width:100%;border-radius:18px;border:1px solid var(--b);box-shadow:0 24px 60px -30px rgba(20,40,30,.35)}
+.hero img{width:100%;height:auto;border-radius:18px;border:1px solid var(--b);box-shadow:0 24px 60px -30px rgba(20,40,30,.35)}
 section{padding:64px 0}
 h2{font-size:34px;line-height:1.2;text-align:center;margin:0 0 10px;letter-spacing:-.01em}
 h2 em{font-style:normal;color:var(--g2)}
@@ -67,11 +67,11 @@ h2 em{font-style:normal;color:var(--g2)}
 .card p{margin:0;color:var(--t2);font-size:15px}
 .alt{background:var(--bg)}
 .shots{display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start}
-.shots img{width:100%;border-radius:16px;border:1px solid var(--b);background:#fff}
+.shots img{width:100%;height:auto;border-radius:16px;border:1px solid var(--b);background:#fff}
 .shots .col{display:grid;gap:18px}
-.steps{counter-reset:s;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.step{position:relative;padding-top:56px}
-.step:before{counter-increment:s;content:counter(s);position:absolute;top:24px;left:24px;width:34px;height:34px;border-radius:50%;background:var(--gs);color:var(--g);font-weight:800;display:flex;align-items:center;justify-content:center}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+/* номер шага — зелёный круг с белой цифрой, отдельной строкой над заголовком */
+.step-num{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 8px 18px -8px rgba(21,128,61,.6)}
 .tariffs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
 .tariff .name{font-size:20px;font-weight:700;margin-bottom:4px}
 .tariff .cond{color:var(--t2);font-size:14px;min-height:21px}
@@ -110,7 +110,7 @@ footer{border-top:1px solid var(--b);padding:28px 0;color:var(--t2);font-size:14
     <p class="lead">FFDrop подсказывает, в какую ячейку положить товар и откуда его взять, считает остатки по каждому поставщику и работает на телефоне — даже без интернета.</p>
     <div class="btns"><a class="btn p" href="app/#register">Попробовать 14 дней бесплатно</a><a class="btn o" href="app/">Войти</a></div>
   </div>
-  <img src="img/screen-stock.jpg" width="1280" height="760" alt="Склад в FFDrop: модели, размеры и ячейки">
+  <img src="img/screen-stock.jpg" width="1024" height="520" alt="Склад в FFDrop: модели, размеры и ячейки">
 </div></div>
 
 <section id="features"><div class="wrap">
@@ -136,7 +136,7 @@ footer{border-top:1px solid var(--b);padding:28px 0;color:var(--t2);font-size:14
   <h2>Как это выглядит</h2>
   <p class="sub">Светлый понятный интерфейс: на компьютере меню слева, на телефоне — снизу.</p>
   <div class="shots">
-    <img src="img/screen-cells.jpg" width="1280" height="760" alt="Ячейки склада: модель, размеры, заполненность" loading="lazy">
+    <img src="img/screen-cells.jpg" width="1024" height="520" alt="Ячейки склада: модель, размеры, заполненность" loading="lazy">
     <img src="img/screen-receipt.jpg" width="390" height="844" alt="Приёмка на телефоне: задания с галочками" loading="lazy">
   </div>
 </div></section>
@@ -145,9 +145,9 @@ footer{border-top:1px solid var(--b);padding:28px 0;color:var(--t2);font-size:14
   <h2>Как начать</h2>
   <p class="sub">Пять минут — и склад работает.</p>
   <div class="steps">
-    <div class="card step"><h3>Зарегистрируйте склад</h3><p>Почта, пароль, название — и 14 дней бесплатно.</p></div>
-    <div class="card step"><h3>Разметьте ячейки</h3><p>Назначьте ячейки поставщикам, укажите модели и размеры — или пусть приложение раздаст их при первой приёмке.</p></div>
-    <div class="card step"><h3>Пригласите поставщиков</h3><p>Каждый получает код и видит в своём кабинете остатки и движение своего товара.</p></div>
+    <div class="card step"><div class="step-num">1</div><h3>Зарегистрируйте склад</h3><p>Почта, пароль, название — и 14 дней бесплатно.</p></div>
+    <div class="card step"><div class="step-num">2</div><h3>Разметьте ячейки</h3><p>Назначьте ячейки поставщикам, укажите модели и размеры — или пусть приложение раздаст их при первой приёмке.</p></div>
+    <div class="card step"><div class="step-num">3</div><h3>Пригласите поставщиков</h3><p>Каждый получает код и видит в своём кабинете остатки и движение своего товара.</p></div>
   </div>
 </div></section>
 

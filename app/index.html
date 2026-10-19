@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="css/app.css?v=3">
+<link rel="stylesheet" href="css/app.css?v=4">
 </head>
 <body>
 
@@ -61,6 +61,7 @@
   <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="8.5" cy="6.5" rx="5.5" ry="3"/><path d="M3 6.5v4c0 1.66 2.46 3 5.5 3s5.5-1.34 5.5-3v-4"/><path d="M14 10.2c2.9-.2 6-1.4 6-3.2M9 13.5v3.5c0 1.66 2.46 3 5.5 3s5.5-1.34 5.5-3V13"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
   <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.9-5 5.5-5s4.9 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.4-.3 4.4 1.4 5 4.2"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></symbol>
 </svg>
 
 <aside class="side" aria-label="Меню"></aside>
@@ -808,13 +809,25 @@
   </div>
 </div>
 
-<!-- Вход — отдельный экран. Режимы (data-mode): login · register · forgot · newpass · noaccess.
+<!-- Вход — отдельный экран. Режимы (data-mode): choose · login · register · regwarehouse · forgot · newpass · noaccess.
      Работы «без входа» нет: главное хранилище — сервер (ОПИСАНИЕ §10). -->
-<div id="authModalBg" data-mode="login">
+<div id="authModalBg" data-mode="choose">
   <div class="auth-card">
+    <button type="button" class="auth-back" id="authBack" onclick="authBack()" aria-label="Назад" hidden><svg class="icon"><use href="#i-arrow-left"/></svg></button>
     <div class="auth-logo"><img src="icon-192.png" alt=""></div>
     <h2 id="authTitle">Вход</h2>
     <p id="authHint"></p>
+
+    <div class="auth-choose" id="authChoose" hidden>
+      <button type="button" class="auth-choice" id="authChooseSupplier" onclick="authMode('register')">
+        <span class="auth-choice-ico"><svg class="icon"><use href="#i-box"/></svg></span>
+        <span><b>Я поставщик</b><small>Мой товар хранится на складе. Склад дал мне код приглашения.</small></span>
+      </button>
+      <button type="button" class="auth-choice" id="authChooseWarehouse" onclick="authMode('regwarehouse')">
+        <span class="auth-choice-ico"><svg class="icon"><use href="#i-home"/></svg></span>
+        <span><b>У меня склад</b><small>Я фулфилмент: храню и отправляю товар поставщиков. 14 дней бесплатно.</small></span>
+      </button>
+    </div>
 
     <div class="auth-field" id="authEmailField">
       <label for="authEmail">Почта</label>
@@ -843,8 +856,7 @@
     <div class="alert success" id="authInfo" hidden></div>
 
     <button class="btn primary auth-submit" id="authSubmit" onclick="authSubmit()"><svg class="icon"><use href="#i-check"/></svg><span id="authSubmitText">Войти</span></button>
-    <button type="button" class="auth-skip auth-strong" id="authToRegWarehouse" onclick="authMode('regwarehouse')">Зарегистрировать склад — 14 дней бесплатно</button>
-    <button type="button" class="auth-skip" id="authToRegister" onclick="authMode('register')">Я поставщик — регистрация по коду</button>
+    <button type="button" class="auth-skip auth-strong" id="authToRegWarehouse" onclick="authMode('regwarehouse')" hidden>У меня свой склад — зарегистрировать</button>
     <button type="button" class="auth-skip" id="authToForgot" onclick="authMode('forgot')">Забыли пароль?</button>
     <button type="button" class="auth-skip" id="authToLogin" onclick="authMode('login')" hidden>Уже есть учётка — войти</button>
     <button type="button" class="auth-skip" id="authSignOut" onclick="authSignOut()" hidden>Выйти</button>
@@ -1010,34 +1022,34 @@
 <script src="vendor/zxing.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="sync-config.js?v=3"></script>
-<script src="js/db.js?v=3"></script>
-<script src="js/cells.js?v=3"></script>
-<script src="js/ff-data.js?v=3"></script>
-<script src="js/sync-ui.js?v=3"></script>
-<script src="js/input.js?v=3"></script>
-<script src="js/returns-scan.js?v=3"></script>
-<script src="js/sounds.js?v=3"></script>
-<script src="js/stock-history.js?v=3"></script>
-<script src="js/finance.js?v=3"></script>
-<script src="js/balance.js?v=3"></script>
-<script src="js/analytics.js?v=3"></script>
-<script src="js/settings-roles.js?v=3"></script>
-<script src="js/roles.js?v=3"></script>
-<script src="js/suppliers.js?v=3"></script>
-<script src="js/stock-ff.js?v=3"></script>
-<script src="js/cells-ui.js?v=3"></script>
-<script src="js/receipts.js?v=3"></script>
-<script src="js/shipments.js?v=3"></script>
-<script src="js/history-ff.js?v=3"></script>
-<script src="js/scan-ff.js?v=3"></script>
-<script src="js/demo.js?v=3"></script>
-<script src="js/subscription.js?v=3"></script>
-<script src="js/tariffs.js?v=3"></script>
-<script src="js/admin.js?v=3"></script>
-<script src="js/backup-labels.js?v=3"></script>
+<script src="sync-config.js?v=4"></script>
+<script src="js/db.js?v=4"></script>
+<script src="js/cells.js?v=4"></script>
+<script src="js/ff-data.js?v=4"></script>
+<script src="js/sync-ui.js?v=4"></script>
+<script src="js/input.js?v=4"></script>
+<script src="js/returns-scan.js?v=4"></script>
+<script src="js/sounds.js?v=4"></script>
+<script src="js/stock-history.js?v=4"></script>
+<script src="js/finance.js?v=4"></script>
+<script src="js/balance.js?v=4"></script>
+<script src="js/analytics.js?v=4"></script>
+<script src="js/settings-roles.js?v=4"></script>
+<script src="js/roles.js?v=4"></script>
+<script src="js/suppliers.js?v=4"></script>
+<script src="js/stock-ff.js?v=4"></script>
+<script src="js/cells-ui.js?v=4"></script>
+<script src="js/receipts.js?v=4"></script>
+<script src="js/shipments.js?v=4"></script>
+<script src="js/history-ff.js?v=4"></script>
+<script src="js/scan-ff.js?v=4"></script>
+<script src="js/demo.js?v=4"></script>
+<script src="js/subscription.js?v=4"></script>
+<script src="js/tariffs.js?v=4"></script>
+<script src="js/admin.js?v=4"></script>
+<script src="js/backup-labels.js?v=4"></script>
 <!-- после основного кода: синхронизация опирается на его функции -->
-<script src="sync.js?v=3"></script>
-<script src="js/layout.js?v=3"></script>
+<script src="sync.js?v=4"></script>
+<script src="js/layout.js?v=4"></script>
 </body>
 </html>

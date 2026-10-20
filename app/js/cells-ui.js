@@ -48,7 +48,7 @@ async function renderCells(){
 /* Разметить ячейку. Возвращает {ok, warning?} или {ok:false, error}. */
 async function saveCell(form){
   const number = String(form.number || '').trim();
-  if(!/^\d+(\.\d+)?$/.test(number)) return {ok:false, error:'Номер — число, например 4 или 4.1'};
+  if(!/^Б?\d+(\.\d+)?$/.test(number)) return {ok:false, error:'Номер — число, например 4 или 4.1'};
   const models = await modelsMap(), sups = await ffSuppliersMap();
   const m = form.modelId ? models[form.modelId] : null;
   if(form.modelId && !m) return {ok:false, error:'Модель не найдена'};
@@ -64,6 +64,7 @@ async function saveCell(form){
   const allowed = (form.allowedSizes && form.allowedSizes.length) ? form.allowedSizes.slice() : null;
   const cell = Object.assign({}, cur || {}, {number, supplierId, modelId: form.modelId || null, allowedSizes: allowed,
     capacity: form.capacity ? Math.min(1000, Math.max(1, parseInt(form.capacity, 10) || 1)) : null, reserved: cur ? !!cur.reserved : false, deletedAt: undefined});
+  if(form.defect !== undefined){ cell.kind = form.defect ? 'брак' : 'обычная'; if(form.defect){ cell.modelId = null; cell.allowedSizes = null; } }
   await put('cells', cell);
   const wrong = sizesConflict(cell, stock);
   const warning = wrong.length ? 'В ячейке ' + number + ' лежат ' + wrong.map(w=> w.sizeLabel + ' — ' + w.qty + ' шт.').join(', ') + ', переложите' : '';
@@ -78,6 +79,7 @@ async function cellAction(number, action){
   if(lying) return {ok:false, error:'В ячейке ещё ' + lying + ' шт. — сначала заберите товар'};
   if(action === 'reserve'){ if(!c.modelId) return {ok:false, error:'Ячейка не привязана к модели'}; c.reserved = true; }
   else if(action === 'free'){ c.modelId = null; c.reserved = false; c.allowedSizes = null; }
+  else if(action === 'delete'){ c.deletedAt = Date.now(); }
   else return {ok:false, error:'Неизвестное действие'};
   await put('cells', c);
   return {ok:true};
@@ -108,6 +110,8 @@ async function openCellModal(number){
   document.getElementById('cmCapacity').value = c && c.capacity || '';
   const lying = c ? cellTotal((await cellStockByLabel())[c.number]) : 0;
   document.getElementById('cmEmptyActions').hidden = !(c && !lying && c.modelId);
+  document.getElementById('cmDelete').hidden = !(c && !lying);
+  document.getElementById('cmDefect').checked = !!(c && isDefectCell(c));
   document.getElementById('cmWarn').hidden = true;
   document.getElementById('cmError').classList.remove('show');
   document.getElementById('cellModalBg').classList.add('show');
@@ -136,7 +140,8 @@ async function saveCellFromForm(){
     supplierId: document.getElementById('cmSupplier').value || null,
     modelId: document.getElementById('cmModel').value || null,
     allowedSizes: [...document.querySelectorAll('#cmSizes button.on')].map(b=> b.dataset.size),
-    capacity: document.getElementById('cmCapacity').value
+    capacity: document.getElementById('cmCapacity').value,
+    defect: document.getElementById('cmDefect').checked
   });
   if(!r.ok){ const e = document.getElementById('cmError'); e.textContent = r.error; e.classList.add('show'); return; }
   if(r.warning){ const w = document.getElementById('cmWarn'); w.textContent = r.warning; w.hidden = false; toast(r.warning); await renderCells(); return; }
@@ -145,7 +150,7 @@ async function saveCellFromForm(){
 async function cmAction(action){
   const r = await cellAction(cmEditing, action);
   if(!r.ok){ toast(r.error); return; }
-  closeCellModal(); toast(action === 'reserve' ? 'Ячейка ждёт эту модель' : 'Ячейка свободна'); await renderCells();
+  closeCellModal(); toast(action === 'reserve' ? 'Ячейка ждёт этот товар' : action === 'delete' ? 'Ячейка удалена' : 'Ячейка свободна'); await renderCells();
 }
 async function cmSubCell(){
   if(!cmEditing){ toast('Сначала сохраните ячейку'); return; }

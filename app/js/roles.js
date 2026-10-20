@@ -59,6 +59,8 @@ async function applyRoleUI(){
   const billing = typeof ffSelfSignup === 'function' ? ffSelfSignup() : true;
   document.body.classList.toggle('no-billing', !billing);   // тарифы — когда включат регистрацию складов
   const st = document.getElementById('setTariffsBtn'); if(st) st.hidden = rl !== 'owner' || !billing;
+  // демо-учётки: пример не удаляем (иначе демо-поставщик теряет вход)
+  const demoBtn = document.getElementById('demoRemoveBtn'); if(demoBtn) demoBtn.hidden = /@fulbro.test$/i.test((Sync.lastLogin && Sync.lastLogin()) || '');
   const links = document.getElementById('setLinksCard'); if(links) links.hidden = ![...links.querySelectorAll('button')].some(b=> !b.hidden);
 }
 window.applyRoleUI = applyRoleUI;

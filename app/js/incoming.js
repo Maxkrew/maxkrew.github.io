@@ -74,7 +74,8 @@ async function renderExpected(){
   if(!box) return;
   if(!isOwnerRole()){ box.innerHTML = ''; return; }
   const sups = await ffSuppliersMap(), parts = [];
-  for(const r of await expectedList()){
+  const supF = (document.getElementById('ffSupplierFilter') || {}).value;
+  for(const r of (await expectedList()).filter(r=> !supF || r.supplierId === supF)){
     const n = (await receiptLines(r.id)).reduce((s, l)=> s + (Number(l.qty) || 0), 0);
     parts.push(`<div class="row-item exp-row" data-expected="${escapeAttr(r.id)}"><div class="rmain"><span class="exp-sup">${escapeHtml((sups[r.supplierId] || {}).name || '')}</span> <span class="exp-qty">${n} шт.</span><div class="rmeta">${new Date(r.createdTs || Date.now()).toLocaleDateString('ru-RU', {day:'numeric', month:'long'})}</div></div>
       <div class="rside"><button class="btn primary sm" style="width:auto;" data-accept="${escapeAttr(r.id)}" onclick="rcAcceptExpected(${jsArg(r.id)})">Принять</button></div></div>`);

@@ -149,7 +149,7 @@ async function showAppVersion(){
   el.textContent = v;
 }
 async function saveSettings(){
-  settings.company = document.getElementById('setCompany').value.trim() || 'Fulbro';
+  settings.company = 'Fulbro';
   settings.lowStock = Number(document.getElementById('setLowStock').value)||5;
   settings.sound = document.getElementById('setSound').value==='1';
   settings.blockNeg = document.getElementById('setBlockNeg').value==='1';
@@ -162,7 +162,7 @@ async function saveSettings(){
 }
 
 function applyHeaderLogo(){
-  const src = settings.logoDataUrl || 'logo-mark.svg';
+  const src = 'logo-mark.svg';   // логотип — только Fulbro (владелец)
   const headerImg = document.getElementById('headerLogoImg');
   if(headerImg) headerImg.src = src;
   const previewImg = document.getElementById('logoPreviewImg');

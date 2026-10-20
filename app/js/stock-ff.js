@@ -73,6 +73,9 @@ async function renderStockFF(){
   models.sort((a, b)=> collator.compare(names.get(a.id), names.get(b.id)));
 
   if(!models.length){
+    const supF = owner && (document.getElementById('ffSupplierFilter') || {}).value;
+    const supName = supF ? ((await ffSuppliersMap())[supF] || {}).name || '' : '';
+    if(supF && !q && !ffAbcLetter){ list.innerHTML = emptyState('i-box', 'У поставщика «' + supName + '» пока нет товаров', 'Товары появятся, когда он добавит их или склад примет его поставку.'); if(typeof renderExpected === 'function') await renderExpected(); return; }
     list.innerHTML = emptyState('i-box', q || ffAbcLetter ? 'Ничего не найдено' : 'Товаров пока нет', owner ? 'Добавьте товар кнопкой «Товар» или через приёмку.' : 'Добавьте товар кнопкой «+ Товар».');
     if(typeof renderExpected === 'function') await renderExpected();
     return;
@@ -181,7 +184,7 @@ async function openModelModal(id){
   setv('mmSku', m && m.sku); setv('mmPrice', m && m.price); setv('mmCalcPrice', m && m.calcPrice);
   setv('mmBuyFrom', priv && priv.buyFrom); setv('mmCost', priv && priv.cost); setv('mmCommission', priv && priv.commissionPercent);
   setv('mmTax', priv && priv.taxPercent); setv('mmPackaging', priv && priv.packaging); setv('mmDelivery', priv && priv.deliveryDiscount);
-  document.getElementById('mmCalcPriceRow').hidden = !owner;
+  document.getElementById('mmCalcPriceRow').hidden = true;   // нужна для тарифа «% от цены» (этап 3) — пока не показываем
   document.getElementById('mmPrivate').hidden = owner;     // личные цифры поставщика складу не показываем вовсе
   const sizes = m ? (await getAll('sizes')).filter(s=> s.modelId === m.id && !s.deletedAt) : [];
   mmPicked = sizes.map(s=> s.sizeLabel);

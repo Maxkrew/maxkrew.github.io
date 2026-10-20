@@ -203,8 +203,9 @@ async function renderReceipts(){
 async function receiptCard(r){
   const sups = await ffSuppliersMap(), models = await modelsMap();
   const lines = await receiptLines(r.id);
+  const del = r.status === 'черновик' ? `<button type="button" class="icon-btn rc-del" data-rc-del="${escapeAttr(r.id)}" onclick="rcDelete(${jsArg(r.id)})" aria-label="Удалить черновик"><svg class="icon"><use href="#i-trash"/></svg></button>` : '';
   const head = `<div class="head-row"><div><div class="rname">${r.kind === 'возврат' ? 'Возврат' : 'Приёмка'} · ${escapeHtml((sups[r.supplierId] || {}).name || '')}</div>
-    <div class="rmeta">${new Date(r.createdTs).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})} · ${escapeHtml(r.status)}${r.weightKg ? ' · ' + r.weightKg + ' кг' : ''}</div></div></div>`;
+    <div class="rmeta">${new Date(r.createdTs).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})} · ${escapeHtml(r.status)}${r.weightKg ? ' · ' + r.weightKg + ' кг' : ''}</div></div>${del}</div>`;
   if(r.status === 'черновик'){
     const ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === r.supplierId).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
     const lineRows = [];
@@ -216,7 +217,7 @@ async function receiptCard(r){
         <button class="btn ghost sm" style="width:auto;margin-top:6px;" onclick="openModelModal()">+ Новый товар</button></div>
       <div class="field"><label>Размер</label><div class="size-pick" id="rcSizes-${escapeAttr(r.id)}"><span class="hint">Выберите товар</span></div></div>
       <div class="field"><label for="rcQty-${escapeAttr(r.id)}">Сколько штук</label><input type="number" id="rcQty-${escapeAttr(r.id)}" min="1" placeholder="0"></div>
-      ${r.kind === 'возврат' ? `<label class="check-row rc-defect"><input type="checkbox" id="rcDefect-${escapeAttr(r.id)}" data-defect-toggle><span>Брак — положить в ячейку брака</span></label>` : ''}
+      <label class="check-row rc-defect"><input type="checkbox" id="rcDefect-${escapeAttr(r.id)}" data-defect-toggle><span>Брак — положить в ячейку брака</span></label>
       <button class="btn ghost" id="rcMore-${escapeAttr(r.id)}" onclick="rcAddLine(${jsArg(r.id)})"><svg class="icon"><use href="#i-plus"/></svg>Ещё товар в ${r.kind === 'возврат' ? 'этот возврат' : 'эту приёмку'}</button>
       ${lineRows.length ? `<div class="rc-lines"><div class="rc-lines-title">В ${r.kind === 'возврат' ? 'возврате' : 'приёмке'}</div>${lineRows.join('')}</div>` : ''}
       <div class="field"><label for="rcWeight-${escapeAttr(r.id)}">Вес поставки, кг <span class="hint">— если нужен</span></label><input type="text" inputmode="decimal" id="rcWeight-${escapeAttr(r.id)}" placeholder="0"></div>
@@ -253,8 +254,24 @@ async function rcConfirmText(receiptId){
 async function rcStart(kind){
   const sup = document.getElementById('rcSupplier').value;
   if(!sup){ toast('Выберите поставщика'); return; }
-  rcCurrent = await newReceipt(sup, kind);
+  const k = kind || 'приёмка';
+  // пустой черновик того же поставщика уже есть — открываем его, а не создаём ещё один
+  let same = null;
+  for(const r of (await getAll('receipts')).filter(r=> !r.deletedAt && r.status === 'черновик' && r.supplierId === sup && (r.kind || 'приёмка') === k)){
+    if(!(await receiptLines(r.id)).length){ same = r; break; }
+  }
+  rcCurrent = same ? same.id : await newReceipt(sup, kind);
   await renderReceipts();
+  const card = document.querySelector('[data-receipt="' + CSS.escape(rcCurrent) + '"]');
+  if(card) try{ card.scrollIntoView({behavior: 'smooth', block: 'start'}); }catch(e){}
+  if(same) toast('Черновик уже открыт — заполните его');
+}
+async function rcDelete(id){
+  const lines = await receiptLines(id);
+  if(lines.length && !confirm('Удалить черновик вместе с ' + lines.length + ' строками?')) return;
+  for(const l of lines){ l.deletedAt = Date.now(); await put('receiptLines', l); }
+  const r = await get('receipts', id); if(r){ r.deletedAt = Date.now(); await put('receipts', r); }
+  toast('Черновик удалён'); await renderReceipts();
 }
 async function rcFillSizes(rid){
   const mid = document.getElementById('rcModel-' + rid).value;

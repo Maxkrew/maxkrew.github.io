@@ -57,8 +57,8 @@ async function renderSuppliers(){
       ${temp}
       <div class="btn-row sup-actions">
         <button class="btn ghost sm" onclick="assignCellsPrompt(${jsArg(s.id)})">Ячейки</button>
-        ${s.memberId && !s.archived ? `<button class="btn ghost sm" data-sup-reset="${escapeAttr(s.id)}" onclick="resetSupplierPasswordUI(${jsArg(s.id)})">Сброс пароля</button>` : ''}
-        <button class="btn ghost sm" data-sup-archive="${escapeAttr(s.id)}" onclick="toggleSupplierArchive(${jsArg(s.id)})">${s.archived ? 'Вернуть из архива' : 'В архив'}</button>
+        ${s.memberId && !s.archived ? `<button class="btn alt sm" data-sup-reset="${escapeAttr(s.id)}" onclick="resetSupplierPasswordUI(${jsArg(s.id)})">Сброс пароля</button>` : ''}
+        <button class="btn amber sm" data-sup-archive="${escapeAttr(s.id)}" onclick="toggleSupplierArchive(${jsArg(s.id)})">${s.archived ? 'Вернуть из архива' : 'В архив'}</button>
       </div>
     </div>`;
   }).join('');

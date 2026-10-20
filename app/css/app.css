@@ -1006,3 +1006,14 @@ header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box
 .rc-card > *, .modal > *{flex-shrink:0;}
 .modal > .pick-list{flex-shrink:1;min-height:0;}
 .rc-lines:empty{display:none;}
+/* ui5: разные цвета кнопок, история, окна */
+.btn.alt{background:#E8EEF7;color:#24406B;border:0;}
+.btn.alt:hover{background:#DCE5F2;}
+.btn.amber{background:#FFF1DE;color:#8A4B06;border:0;}
+.btn.amber:hover{background:#FCE6C6;}
+.row-item .rval.in, .hist-row .rval.in{color:var(--accent);}
+.row-item .rval.out, .hist-row .rval.out{color:#C2283B;}
+#supAddForm{display:flex;flex-direction:column;gap:12px;}
+#supAddForm .field{margin:0;}
+.rc-card .head-row{align-items:flex-start;}
+.rc-del{color:#C2283B;flex:none;}

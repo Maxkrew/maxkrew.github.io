@@ -513,10 +513,8 @@ let currentMode = 'Приход';
    вспомогательным скриптам и удобно при разборе проблем на устройстве */
 /* Имя в шапке: своё название склада или «fulbro» (как в логотипе). «FFDrop»/«Fulzo» — прежние
    рабочие названия, могли сохраниться как имя по умолчанию. */
-function ffCompanyName(){
-  const c = settings && settings.company;
-  return (c && !['FFDrop', 'Fulzo', 'Fulbro'].includes(c)) ? c : ffAppWord();
-}
+/* название в шапке — только Fulbro (владелец, 20.10.2026: «название компании менять нельзя») */
+function ffCompanyName(){ return ffAppWord(); }
 /* Название приложения — как в логотипе владельца: «FULBRO» фирменным шрифтом (класс brand-word). */
 function ffAppWord(){ return String((window.SYNC_CONFIG && SYNC_CONFIG.APP_NAME) || 'Fulbro').toUpperCase(); }
 function setCompanyTitle(){

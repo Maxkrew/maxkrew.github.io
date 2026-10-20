@@ -1048,3 +1048,9 @@ header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box
 .tf-row .field{margin:0;}
 .tf-row input{width:100%;}
 .tf-num{font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;}
+/* тарифы: овальные современные поля, крупный заголовок */
+.tf-row input[type=text]{border-radius:999px;min-height:52px;padding:14px 20px;font-size:15px;background-color:var(--field);border:1.5px solid transparent;}
+.tf-row input[type=text]:focus{background-color:#fff;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+.tf-row .field label{margin:0 0 6px 16px;}
+.tf-num{font-size:20px;font-weight:800;letter-spacing:0;text-transform:none;color:var(--text);display:flex;align-items:center;gap:10px;}
+.tf-num::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--accent);}

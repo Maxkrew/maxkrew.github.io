@@ -30,7 +30,7 @@ async function renderAdmin(){
   const tf = (Array.isArray(tariffs) && tariffs.length ? tariffs : []).concat([{}, {}, {}, {}]).slice(0, Math.max(4, tariffs.length || 0));
   const fld = (i, k, label, ph, v, attrs)=> `<div class="field"><label>${label}</label><input type="text" data-tf="${i}" data-k="${k}" placeholder="${ph}" value="${escapeAttr(v || '')}"${attrs || ''}></div>`;
   const editor = `<div class="adm-sec-title">Тарифы</div><p class="adm-sec-note">Карточки на лендинге и в разделе «Тарифы» у складов. Пустая цена показывается как «Скоро».</p>
-    ${tf.map((t, i)=> `<div class="card tf-row"><div class="tf-num">Тариф ${i + 1}</div>
+    ${tf.map((t, i)=> `<div class="card tf-row"><div class="tf-num">Тариф ${i + 1}${t.name ? " · " + escapeHtml(t.name) : ""}</div>
       ${fld(i, 'name', 'Название', 'Старт', t.name)}
       ${fld(i, 'condition', 'Условие', 'до 300 отправок за 30 дней', t.condition)}
       ${fld(i, 'price', 'Цена в месяц, ₽', '2990', t.price, ' inputmode="numeric"')}

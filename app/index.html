@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="css/app.css?v=13">
+<link rel="stylesheet" href="css/app.css?v=14">
 </head>
 <body>
 
@@ -858,17 +858,17 @@
     <h3 id="cmHead">Ячейка</h3>
     <div class="field"><label>Номер</label><input type="text" id="cmNumber" placeholder="например 4 или 4.1"></div>
     <div class="field"><label>Поставщик</label><select id="cmSupplier" onchange="cmFillModels()"></select></div>
-    <div class="field"><label>Модель</label><select id="cmModel" onchange="cmFillSizes()"></select></div>
-    <div class="field"><label>Какие размеры сюда класть <span class="hint">— ничего не отмечено = вся модель</span></label><div class="size-pick" id="cmSizes"></div></div>
-    <div class="field"><label>Вместимость, шт</label><input type="number" id="cmCapacity" min="1" placeholder="как у модели"></div>
+    <div class="field"><label>Товар</label><select id="cmModel" onchange="cmFillSizes()"></select></div>
+    <div class="field"><label>Какие размеры класть в эту ячейку <span class="hint">— если ничего не выбрать, подойдут все размеры товара</span></label><div class="size-pick" id="cmSizes"></div></div>
+    <div class="field"><label>Вместимость, шт</label><input type="number" id="cmCapacity" min="1" placeholder="как у товара"></div>
     <div class="alert" id="cmWarn" hidden></div>
     <div class="field-error" id="cmError"></div>
     <div class="btn-row" id="cmEmptyActions" hidden>
-      <button class="btn ghost" onclick="cmAction('reserve')">Оставить бронь за моделью</button>
+      <button class="btn ghost" onclick="cmAction('reserve')">Бронь за товаром</button>
       <button class="btn ghost" onclick="cmAction('free')">Освободить ячейку</button>
     </div>
     <div class="btn-row">
-      <button class="btn ghost" onclick="cmSubCell()">Создать под-ячейку</button>
+      <button class="btn ghost" onclick="cmSubCell()">+ Под-ячейка</button>
       <button class="btn primary" onclick="saveCellFromForm()"><svg class="icon"><use href="#i-check"/></svg>Сохранить</button>
     </div>
   </div>
@@ -1115,44 +1115,44 @@
 <script src="vendor/zxing.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="sync-config.js?v=13"></script>
-<script src="js/db.js?v=13"></script>
-<script src="js/cells.js?v=13"></script>
-<script src="js/ff-data.js?v=13"></script>
-<script src="js/sync-ui.js?v=13"></script>
-<script src="js/input.js?v=13"></script>
-<script src="js/returns-scan.js?v=13"></script>
-<script src="js/sounds.js?v=13"></script>
-<script src="js/stock-history.js?v=13"></script>
-<script src="js/finance.js?v=13"></script>
-<script src="js/balance.js?v=13"></script>
-<script src="js/analytics.js?v=13"></script>
-<script src="js/settings-roles.js?v=13"></script>
-<script src="js/roles.js?v=13"></script>
-<script src="js/suppliers.js?v=13"></script>
-<script src="js/stock-ff.js?v=13"></script>
-<script src="js/cells-ui.js?v=13"></script>
-<script src="js/moves.js?v=13"></script>
-<script src="js/receipts.js?v=13"></script>
-<script src="js/shipments.js?v=13"></script>
-<script src="js/photos.js?v=13"></script>
-<script src="js/supplier-home.js?v=13"></script>
-<script src="js/incoming.js?v=13"></script>
-<script src="js/excel-import.js?v=13"></script>
-<script src="js/sell.js?v=13"></script>
-<script src="js/supplier-analysis.js?v=13"></script>
-<script src="js/review.js?v=13"></script>
-<script src="js/history-ff.js?v=13"></script>
-<script src="js/scan-ff.js?v=13"></script>
-<script src="js/demo.js?v=13"></script>
-<script src="js/subscription.js?v=13"></script>
-<script src="js/tariffs.js?v=13"></script>
-<script src="js/admin.js?v=13"></script>
-<script src="js/backup-labels.js?v=13"></script>
+<script src="sync-config.js?v=14"></script>
+<script src="js/db.js?v=14"></script>
+<script src="js/cells.js?v=14"></script>
+<script src="js/ff-data.js?v=14"></script>
+<script src="js/sync-ui.js?v=14"></script>
+<script src="js/input.js?v=14"></script>
+<script src="js/returns-scan.js?v=14"></script>
+<script src="js/sounds.js?v=14"></script>
+<script src="js/stock-history.js?v=14"></script>
+<script src="js/finance.js?v=14"></script>
+<script src="js/balance.js?v=14"></script>
+<script src="js/analytics.js?v=14"></script>
+<script src="js/settings-roles.js?v=14"></script>
+<script src="js/roles.js?v=14"></script>
+<script src="js/suppliers.js?v=14"></script>
+<script src="js/stock-ff.js?v=14"></script>
+<script src="js/cells-ui.js?v=14"></script>
+<script src="js/moves.js?v=14"></script>
+<script src="js/receipts.js?v=14"></script>
+<script src="js/shipments.js?v=14"></script>
+<script src="js/photos.js?v=14"></script>
+<script src="js/supplier-home.js?v=14"></script>
+<script src="js/incoming.js?v=14"></script>
+<script src="js/excel-import.js?v=14"></script>
+<script src="js/sell.js?v=14"></script>
+<script src="js/supplier-analysis.js?v=14"></script>
+<script src="js/review.js?v=14"></script>
+<script src="js/history-ff.js?v=14"></script>
+<script src="js/scan-ff.js?v=14"></script>
+<script src="js/demo.js?v=14"></script>
+<script src="js/subscription.js?v=14"></script>
+<script src="js/tariffs.js?v=14"></script>
+<script src="js/admin.js?v=14"></script>
+<script src="js/backup-labels.js?v=14"></script>
 <!-- после основного кода: синхронизация опирается на его функции -->
-<script src="sync.js?v=13"></script>
-<script src="js/layout.js?v=13"></script>
-<script src="js/nav-back.js?v=13"></script>
-<script src="js/picker.js?v=13"></script>
+<script src="sync.js?v=14"></script>
+<script src="js/layout.js?v=14"></script>
+<script src="js/nav-back.js?v=14"></script>
+<script src="js/picker.js?v=14"></script>
 </body>
 </html>

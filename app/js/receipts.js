@@ -20,7 +20,17 @@ async function receiptLines(receiptId){
   return (await new Promise((res, rej)=>{ const r = tx('receiptLines').index('byReceipt').getAll(receiptId); r.onsuccess = ()=> res(r.result || []); r.onerror = rej; }))
     .filter(l=> !l.deletedAt);
 }
-const sizeLabelOf = async sizeId => ((await get('sizes', sizeId)) || {}).sizeLabel || '';
+/* «Единый» — товар без размеров: людям пишем «Без размера» */
+const sizeText = l=> String(l || '') === 'Единый' ? 'Без размера' : String(l || '');
+const sizeLabelOf = async sizeId => sizeText(((await get('sizes', sizeId)) || {}).sizeLabel || '');
+/* кнопка размера: выбрать / снять повторным нажатием */
+function szPick(btn){
+  const on = btn.classList.contains('on');
+  btn.parentNode.querySelectorAll('button').forEach(b=> b.classList.remove('on'));
+  if(!on) btn.classList.add('on');
+}
+/* размер один — выбираем сам */
+function szAutoOne(box){ const bs = box ? box.querySelectorAll('button') : []; if(bs.length === 1) bs[0].classList.add('on'); }
 function joinRu(list){ return list.length <= 1 ? list.join('') : list.slice(0, -1).join(', ') + ' и ' + list[list.length - 1]; }
 
 /* Раскладка всех строк приёмки с учётом друг друга (вторая строка видит то, что
@@ -202,14 +212,15 @@ async function receiptCard(r){
     return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}
       <div class="field-row scan-row"><input type="text" data-scan-receipt="${escapeAttr(r.id)}" placeholder="Скан штрихкода" autocomplete="off">
         <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanReceipt(${jsArg(r.id)}, c))">Камера</button></div>
-      <div class="field"><label>Модель</label><select id="rcModel-${escapeAttr(r.id)}" onchange="rcFillSizes(${jsArg(r.id)})"><option value="">— выберите —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select>
-        <button class="btn ghost sm" style="width:auto;margin-top:6px;" onclick="openModelModal()">+ Новая модель</button></div>
-      <div class="field"><label>Размер</label><div class="size-pick" id="rcSizes-${escapeAttr(r.id)}"><span class="hint">Выберите модель</span></div></div>
-      <div class="field-row"><input type="number" id="rcQty-${escapeAttr(r.id)}" min="1" placeholder="Сколько штук"><button class="btn ghost" style="width:auto;" onclick="rcAddLine(${jsArg(r.id)})">Добавить строку</button></div>
-      ${r.kind === 'возврат' ? `<label class="check-row"><input type="checkbox" id="rcDefect-${escapeAttr(r.id)}" data-defect-toggle> Брак — положить в ячейку брака</label>` : ''}
-      <div class="rc-lines">${lineRows.join('') || '<div class="hint">Строк пока нет</div>'}</div>
-      <div class="field-row" style="margin-top:8px;"><input type="text" inputmode="decimal" id="rcWeight-${escapeAttr(r.id)}" placeholder="Вес, кг">
-        <button class="btn primary" style="width:auto;" onclick="rcFinish(${jsArg(r.id)})"${lines.length ? '' : ' disabled'}><svg class="icon"><use href="#i-check"/></svg>Готово — куда класть</button></div>
+      <div class="field"><label>Товар</label><select id="rcModel-${escapeAttr(r.id)}" onchange="rcFillSizes(${jsArg(r.id)})"><option value="">— выберите —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select>
+        <button class="btn ghost sm" style="width:auto;margin-top:6px;" onclick="openModelModal()">+ Новый товар</button></div>
+      <div class="field"><label>Размер</label><div class="size-pick" id="rcSizes-${escapeAttr(r.id)}"><span class="hint">Выберите товар</span></div></div>
+      <div class="field"><label for="rcQty-${escapeAttr(r.id)}">Сколько штук</label><input type="number" id="rcQty-${escapeAttr(r.id)}" min="1" placeholder="0"></div>
+      ${r.kind === 'возврат' ? `<label class="check-row rc-defect"><input type="checkbox" id="rcDefect-${escapeAttr(r.id)}" data-defect-toggle><span>Брак — положить в ячейку брака</span></label>` : ''}
+      <button class="btn ghost" id="rcMore-${escapeAttr(r.id)}" onclick="rcAddLine(${jsArg(r.id)})"><svg class="icon"><use href="#i-plus"/></svg>Ещё товар в ${r.kind === 'возврат' ? 'этот возврат' : 'эту приёмку'}</button>
+      ${lineRows.length ? `<div class="rc-lines"><div class="rc-lines-title">В ${r.kind === 'возврат' ? 'возврате' : 'приёмке'}</div>${lineRows.join('')}</div>` : ''}
+      <div class="field"><label for="rcWeight-${escapeAttr(r.id)}">Вес поставки, кг <span class="hint">— если нужен</span></label><input type="text" inputmode="decimal" id="rcWeight-${escapeAttr(r.id)}" placeholder="0"></div>
+      <button class="btn primary" id="rcFinishBtn-${escapeAttr(r.id)}" onclick="rcFinish(${jsArg(r.id)})"><svg class="icon"><use href="#i-check"/></svg>Готово — куда класть</button>
     </div>`;
   }
   if(r.status === 'ждёт подтверждения'){
@@ -220,10 +231,11 @@ async function receiptCard(r){
   for(const l of lines){
     const label = await sizeLabelOf(l.sizeId), name = modelName(models[l.modelId] || {});
     const doneArr = []; for(const s of (l.plan || [])) doneArr.push(await stepIsDone(s));
+    const overArr = []; for(const s of (l.plan || [])) overArr.push(s.isNew ? 0 : (await cellOverflow(s.cell, s.qty)).over);
     (l.plan || []).forEach((s0, i)=>{
       const s = Object.assign({}, s0, {done: doneArr[i]});
       tasks.push(`<label class="task${s.done ? ' done' : ''}"><input type="checkbox"${s.done ? ' checked disabled' : ''} onchange="rcTick(${jsArg(l.id)}, ${i})">
-        <span><b>${escapeHtml(name)} ${escapeHtml(label)}</b> — ${s.qty} шт.<br><span class="${s.isNew || s.defect ? 'warn' : 'go'}">➡ ${s.isNew ? 'создай ячейку ' + escapeHtml(s.cell) + ' и положи туда' : 'Ячейка ' + escapeHtml(s.cell) + (s.defect ? ' (брак)' : '')}</span></span></label>`);
+        <span><b>${escapeHtml(name)} ${escapeHtml(label)}</b> — ${s.qty} шт.<br><span class="${s.isNew || s.defect ? 'warn' : 'go'}">➡ ${s.isNew ? 'создай ячейку ' + escapeHtml(s.cell) + ' и положи туда' : 'Ячейка ' + escapeHtml(s.cell) + (s.defect ? ' (брак)' : '')}</span>${!s.done && overArr[i] ? `<br><span class="over-warn">⚠ переполнит ячейку на ${overArr[i]} шт.</span>` : ''}</span></label>`);
     });
   }
   return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}<div class="tasks">${tasks.join('')}</div></div>`;
@@ -248,21 +260,26 @@ async function rcFillSizes(rid){
   const mid = document.getElementById('rcModel-' + rid).value;
   const sizes = mid ? (await getAll('sizes')).filter(s=> s.modelId === mid && !s.deletedAt).sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel)) : [];
   document.getElementById('rcSizes-' + rid).innerHTML = sizes.length
-    ? sizes.map(s=> `<button type="button" data-size-id="${escapeAttr(s.id)}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${escapeHtml(s.sizeLabel)}</button>`).join('')
-    : '<span class="hint">У модели нет размеров — добавьте их в карточке модели</span>';
+    ? sizes.map(s=> `<button type="button" data-size-id="${escapeAttr(s.id)}" onclick="szPick(this)">${escapeHtml(sizeText(s.sizeLabel))}</button>`).join('')
+    : '<span class="hint">У товара нет размеров — добавьте их в карточке товара</span>';
+  szAutoOne(document.getElementById('rcSizes-' + rid));
 }
-async function rcAddLine(rid){
+async function rcAddLine(rid, quiet){
   const mid = document.getElementById('rcModel-' + rid).value;
   const sz = document.querySelector('#rcSizes-' + CSS.escape(rid) + ' button.on');
   const qty = document.getElementById('rcQty-' + rid).value;
-  if(!mid || !sz){ toast('Выберите модель и размер'); return; }
+  if(!mid || !sz){ toast('Выберите товар и размер'); return false; }
   const defEl = document.getElementById('rcDefect-' + rid);
   const r = await addReceiptLine(rid, mid, sz.dataset.sizeId, qty, defEl && defEl.checked);
-  if(!r.ok){ toast(r.error); return; }
-  await renderReceipts();
+  if(!r.ok){ toast(r.error); return false; }
+  if(!quiet) await renderReceipts();
+  return true;
 }
 async function rcRemoveLine(id){ const l = await get('receiptLines', id); if(l){ l.deletedAt = Date.now(); await put('receiptLines', l); } await renderReceipts(); }
 async function rcFinish(rid){
+  const mid = (document.getElementById('rcModel-' + rid) || {}).value, sz = document.querySelector('#rcSizes-' + CSS.escape(rid) + ' button.on'), q = (document.getElementById('rcQty-' + rid) || {}).value;
+  if(mid && sz && q){ const ok = await rcAddLine(rid, true); if(!ok) return; }
+  if(!(await receiptLines(rid)).length){ toast('Выберите товар, размер и сколько штук'); return; }
   const w = (document.getElementById('rcWeight-' + rid) || {}).value;
   const res = await finishReceipt(rid, w);
   await renderReceipts();
@@ -270,6 +287,8 @@ async function rcFinish(rid){
 }
 async function rcConfirm(rid){ await confirmReceiptPlan(rid); await renderReceipts(); }
 async function rcTick(lineId, idx){
+  const l = await get('receiptLines', lineId), st = l && l.plan && l.plan[idx];
+  if(st && !st.done && !st.isNew && !(await okToOverfill(st.cell, st.qty))){ await renderReceipts(); return; }
   const r = await tickReceiptStep(lineId, idx);
   if(r.ok && !r.already) toast('Положено');
   await renderReceipts();

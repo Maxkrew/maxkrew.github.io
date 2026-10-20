@@ -228,7 +228,7 @@ async function shFillSizes(sid){
   const mid = document.getElementById('shModel-' + sid).value;
   const sizes = mid ? (await getAll('sizes')).filter(s=> s.modelId === mid && !s.deletedAt).sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel)) : [];
   const parts = [];
-  for(const s of sizes) parts.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${escapeHtml(s.sizeLabel)} · ${Math.max(0, await freeQty(s.id))}</button>`);
+  for(const s of sizes) parts.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" onclick="szPick(this)">${escapeHtml(sizeText(s.sizeLabel))} · ${Math.max(0, await freeQty(s.id))}</button>`);
   document.getElementById('shSizes-' + sid).innerHTML = parts.join('');
 }
 async function shAddLine(sid){

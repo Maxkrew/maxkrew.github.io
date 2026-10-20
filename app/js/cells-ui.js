@@ -127,7 +127,7 @@ async function cmFillSizes(checked){
   const labels = mid ? (await getAll('sizes')).filter(s=> s.modelId === mid && !s.deletedAt).map(s=> s.sizeLabel).sort((a, b)=> sizeOrder(a) - sizeOrder(b)) : [];
   const on = new Set(checked || []);
   document.getElementById('cmSizes').innerHTML = labels.length
-    ? labels.map(l=> `<button type="button" data-size="${escapeAttr(l)}" class="${on.has(l) ? 'on' : ''}" onclick="this.classList.toggle('on')">${escapeHtml(l)}</button>`).join('')
+    ? labels.map(l=> `<button type="button" data-size="${escapeAttr(l)}" class="${on.has(l) ? 'on' : ''}" onclick="this.classList.toggle('on')">${escapeHtml(sizeText(l))}</button>`).join('')
     : '<span class="hint">Выберите модель</span>';
 }
 async function saveCellFromForm(){

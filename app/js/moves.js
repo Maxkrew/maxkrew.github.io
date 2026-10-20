@@ -16,6 +16,20 @@ async function defectCellFor(supplierId){
 }
 
 /* Сколько этого размера лежит в ячейке (у склада). */
+/* Сколько будет сверх места, если положить ещё addQty: {cap, lying, over}. */
+async function cellOverflow(cellNumber, addQty){
+  const c = await get('cells', String(cellNumber || ''));
+  if(!c) return {cap: 0, lying: 0, over: 0};
+  const lying = cellTotal((await cellStockByLabel())[c.number]);
+  const cap = cellCapacity(c, await modelsMap());
+  return {cap, lying, over: Math.max(0, lying + Math.max(0, Number(addQty) || 0) - cap)};
+}
+/* спросить, если ячейка переполнится; true — можно класть */
+async function okToOverfill(cellNumber, addQty){
+  const o = await cellOverflow(cellNumber, addQty);
+  if(!o.over) return true;
+  return confirm('Ячейка ' + cellNumber + ' будет переполнена: будет ' + (o.lying + Number(addQty)) + ' из ' + o.cap + ' шт. (лишних ' + o.over + '). Всё равно положить?');
+}
 async function cellSizeQty(cellNumber, sizeId){
   return Number(((await ffCellStockMap())[cellNumber] || {})[sizeId]) || 0;
 }
@@ -106,6 +120,10 @@ async function mmCorrectForm(modelId, sizeId){
 }
 async function mmCorrectSave(modelId, sizeId){
   const cellEl = document.getElementById('corrCell');
+  if(cellEl && cellEl.value){
+    const want = parseInt(document.getElementById('corrQty').value, 10), now = (await ffStockIndex()).sellableBySize[sizeId] || 0;
+    if(want > now && !(await okToOverfill(cellEl.value, want - now))) return;
+  }
   const r = await correctStock({sizeId, newQty: document.getElementById('corrQty').value, cellNumber: cellEl ? cellEl.value : undefined});
   if(!r.ok){ toast(r.error); return; }
   toast(ffRole() === 'owner' ? 'Остаток изменён' : 'Остаток изменён — склад проверит');
@@ -124,6 +142,7 @@ async function mmMoveForm(modelId, fromCell){
       <button type="button" class="btn primary" style="width:auto;" id="moveSave" onclick="mmMoveSave(${jsArg(modelId)}, ${jsArg(fromCell)})">Переложить</button></div></div>`;
 }
 async function mmMoveSave(modelId, fromCell){
+  if(!(await okToOverfill(document.getElementById('moveTo').value, document.getElementById('moveQty').value))) return;
   const r = await moveStock({sizeId: document.getElementById('moveSize').value, fromCell, toCell: document.getElementById('moveTo').value, qty: document.getElementById('moveQty').value});
   if(!r.ok){ toast(r.error); return; }
   toast('Переложено');

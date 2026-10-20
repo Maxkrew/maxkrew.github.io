@@ -174,8 +174,9 @@ async function incFillSizes(){
   const mid = document.getElementById('incModel').value;
   const sizes = mid ? (await getAll('sizes')).filter(s=> s.modelId === mid && !s.deletedAt).sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel)) : [];
   document.getElementById('incSizes').innerHTML = sizes.length
-    ? sizes.map(s=> `<button type="button" data-size-id="${escapeAttr(s.id)}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${escapeHtml(s.sizeLabel)}</button>`).join('')
+    ? sizes.map(s=> `<button type="button" data-size-id="${escapeAttr(s.id)}" onclick="szPick(this)">${escapeHtml(sizeText(s.sizeLabel))}</button>`).join('')
     : '<span class="hint">У товара нет размеров — добавьте их в карточке товара</span>';
+  szAutoOne(document.getElementById('incSizes'));
 }
 async function incAdd(){
   const mid = document.getElementById('incModel').value;

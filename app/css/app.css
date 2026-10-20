@@ -993,3 +993,16 @@ header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box
 .btn.ghost{background:#D6F0DF;color:#14532D;}
 .btn.ghost:hover{background:#C8EAD4;}
 #homeAddModel{background:#CDEBD8;color:#14532D;box-shadow:inset 0 0 0 1.5px rgba(21,128,61,.35);}
+.over-warn{color:#B91C1C;font-weight:700;font-size:13px;}
+/* отступы: блоки внутри карточек и окон не слипаются (одно правило на всё приложение) */
+.rc-card, .modal{display:flex;flex-direction:column;gap:12px;}
+.rc-card > *, .modal > *, .rc-card .field, .modal .field{margin-top:0;margin-bottom:0;}
+.modal .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0;}
+.modal .btn-row .btn{min-width:0;white-space:normal;line-height:1.2;}
+.check-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--field);border-radius:14px;font-size:14.5px;}
+.check-row input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:0;}
+.rc-lines-title{font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:4px;}
+.rc-lines{background:var(--field);border-radius:14px;padding:6px 12px;}
+.rc-card > *, .modal > *{flex-shrink:0;}
+.modal > .pick-list{flex-shrink:1;min-height:0;}
+.rc-lines:empty{display:none;}

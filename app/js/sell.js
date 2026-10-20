@@ -270,7 +270,7 @@ async function sellRender(){
     for(const s of (await getAll('sizes')).filter(s=> s.modelId === sell.modelId && !s.deletedAt).sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel))){
       const inCart = sell.cart.filter(c=> c.sizeId === s.id).reduce((n, c)=> n + c.qty, 0);
       const free = Math.max(0, await freeQty(s.id) - inCart);
-      sz.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" class="${s.id === sell.sizeId ? 'on' : ''}"${free ? '' : ' disabled'} onclick="sellPickSize(${jsArg(s.id)})">${escapeHtml(s.sizeLabel)} · свободно ${free}</button>`);
+      sz.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" class="${s.id === sell.sizeId ? 'on' : ''}"${free ? '' : ' disabled'} onclick="sellPickSize(${jsArg(s.id)})">${escapeHtml(sizeText(s.sizeLabel))} · свободно ${free}</button>`);
     }
   }
   document.getElementById('sellSizes').innerHTML = sz.join('') || '<span class="hint">' + (sell.modelId ? 'Нет размеров' : 'Выберите товар') + '</span>';
@@ -294,7 +294,7 @@ async function sellPickModel(id){
   if(!sell.priceTouched) document.getElementById('sellPrice').value = m && m.price ? String(m.price) : '';
   await sellRender();
 }
-async function sellPickSize(id){ sell.sizeId = id; await sellRender(); }
+async function sellPickSize(id){ sell.sizeId = sell.sizeId === id ? '' : id; await sellRender(); }
 /* выбранный, но ещё не добавленный товар — тоже в заказ */
 function sellPending(){
   if(!sell.modelId || !sell.sizeId) return null;

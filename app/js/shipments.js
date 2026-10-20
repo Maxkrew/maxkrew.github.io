@@ -209,10 +209,12 @@ async function shipmentCard(s, editable){
   }
   const phRow = phs.length ? '<div class="ph-row">' + phs.join('') + '</div>' : '';
   const from = !sup && s.createdBy === 'supplier' ? ' · <span class="tag-sup">от поставщика</span>' : '';
+  // склад: собранную отправку можно вернуть в работу (ошиблись) и удалить свою
+  const doneTools = !sup && s.status === 'собрана' ? `<div class="sh-tools"><button type="button" class="icon-btn sh-edit-btn" data-reopen="${escapeAttr(s.id)}" onclick="shReopen(${jsArg(s.id)})" aria-label="Вернуть в работу"><svg class="icon"><use href="#i-edit"/></svg></button>${s.createdBy !== 'supplier' ? `<button type="button" class="icon-btn sh-del-btn" data-sh-del="${escapeAttr(s.id)}" onclick="shDeleteDone(${jsArg(s.id)})" aria-label="Удалить отправку"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div>` : '';
   const pencil = sup && typeof shipmentEditable === 'function' && await shipmentEditable(s)
     ? `<button type="button" class="icon-btn sh-edit" data-edit="${escapeAttr(s.id)}" onclick="sellEditStart(${jsArg(s.id)})" aria-label="Изменить заказ"><svg class="icon"><use href="#i-edit"/></svg></button>` : '';
   const meta = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', escapeHtml(s.comment || '')].filter(Boolean).join(' · ');
-  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${escapeHtml(s.status)}</span></div>
+  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${escapeHtml(s.status)}</span></div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
     ${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${add}</div>`;
 }
@@ -255,5 +257,21 @@ async function shDelLine(lineId){
   const sh = await get('shipments', l.shipmentId), rest = await shipmentLines(l.shipmentId);
   if(sh && rest.length && rest.every(x=> x.collected) && sh.status !== 'собрана'){ sh.status = 'собрана'; await put('shipments', sh); }
   toast('Строка убрана'); await renderShipments();
+}
+/* снять «Собрано» со всех строк: товар возвращается в ячейки, отправка снова «новая» */
+async function shUncollectAll(id){
+  for(const l of await shipmentLines(id)) if(l.collected){ const r = await tickCollected(l.id, false); if(!r.ok) return r; }
+  return {ok:true};
+}
+async function shReopen(id){
+  if(!confirm('Вернуть отправку в работу? Отметки «Собрано» снимутся, товар вернётся в ячейки — можно поправить и собрать заново.')) return;
+  const r = await shUncollectAll(id); if(!r.ok){ toast(r.error); return; }
+  toast('Отправка снова в работе'); await renderShipments();
+}
+async function shDeleteDone(id){
+  if(!confirm('Удалить отправку? Отметки «Собрано» снимутся, товар вернётся в ячейки.')) return;
+  const r = await shUncollectAll(id); if(!r.ok){ toast(r.error); return; }
+  const sh = await get('shipments', id); if(sh){ sh.status = 'отменена'; await put('shipments', sh); }
+  toast('Отправка удалена'); await renderShipments();
 }
 async function shTick(lineId, on){ const r = await tickCollected(lineId, on); if(!r.ok) toast(r.error); await renderShipments(); }

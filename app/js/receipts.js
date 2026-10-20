@@ -175,14 +175,18 @@ async function renderReceipts(){
     if(!(await receiptIsDone(r.id))) open.push(r);
   }
   if(rcCurrent && !(await get('receipts', rcCurrent))) rcCurrent = null;
-  const parts = [`<div class="card"><div class="field-row">
-      <select id="rcSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>
-      <button class="btn primary" style="width:auto;white-space:nowrap;" onclick="rcStart()"><svg class="icon"><use href="#i-plus"/></svg>Новая приёмка</button>
-      <button class="btn ghost" id="rcStartReturn" style="width:auto;white-space:nowrap;" onclick="rcStart('возврат')"><svg class="icon"><use href="#i-in"/></svg>Новый возврат</button>
-    </div></div>`];
+  // сверху: от какого поставщика, под ним — «Приёмка» (товар приехал) и «Возврат» (покупатель вернул)
+  const parts = [`<div class="card rc-start">
+      <div class="field"><label for="rcSupplier">Поставщик</label><select id="rcSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select></div>
+      <div class="rc-start-btns">
+        <button class="btn primary" id="rcStartBtn" onclick="rcStart()"><svg class="icon"><use href="#i-plus"/></svg>Приёмка</button>
+        <button class="btn ghost" id="rcStartReturn" onclick="rcStart('возврат')"><svg class="icon"><use href="#i-in"/></svg>Возврат</button>
+      </div>
+      <p class="hint rc-start-hint">«Приёмка» — товар приехал от поставщика. «Возврат» — покупатель вернул товар.</p>
+    </div>`];
   if(!sups.length) parts.push(emptyState('i-users', 'Нет поставщиков', 'Сначала добавьте поставщика в «Поставщиках».'));
   for(const r of open) parts.push(await receiptCard(r));
-  if(!open.length && sups.length) parts.push(emptyState('i-in', 'Открытых приёмок нет', 'Выберите поставщика и нажмите «Новая приёмка».'));
+  if(!open.length && sups.length) parts.push(emptyState('i-in', 'Открытых приёмок нет', 'Выберите поставщика и нажмите «Приёмка».'));
   box.innerHTML = parts.join('');
   wireFFScanInputs();
 }

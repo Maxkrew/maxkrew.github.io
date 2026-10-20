@@ -76,10 +76,11 @@ async function renderExpected(){
   const sups = await ffSuppliersMap(), parts = [];
   for(const r of await expectedList()){
     const n = (await receiptLines(r.id)).reduce((s, l)=> s + (Number(l.qty) || 0), 0);
-    parts.push(`<div class="row-item" data-expected="${escapeAttr(r.id)}"><div class="rmain">Ожидается поставка: ${escapeHtml((sups[r.supplierId] || {}).name || '')} — ${n} шт.</div>
+    parts.push(`<div class="row-item exp-row" data-expected="${escapeAttr(r.id)}"><div class="rmain"><span class="exp-sup">${escapeHtml((sups[r.supplierId] || {}).name || '')}</span> <span class="exp-qty">${n} шт.</span><div class="rmeta">${new Date(r.createdTs || Date.now()).toLocaleDateString('ru-RU', {day:'numeric', month:'long'})}</div></div>
       <div class="rside"><button class="btn primary sm" style="width:auto;" data-accept="${escapeAttr(r.id)}" onclick="rcAcceptExpected(${jsArg(r.id)})">Принять</button></div></div>`);
   }
-  box.innerHTML = parts.length ? `<div class="card"><div class="rname" style="margin-bottom:6px;">Ожидается поставка</div>${parts.join('')}</div>` : '';
+  // заголовок — над карточкой; в строке только поставщик и сколько штук
+  box.innerHTML = parts.length ? `<div class="exp-title">Ожидается поставка</div><div class="card">${parts.join('')}</div>` : '';
 }
 async function rcAcceptExpected(id){
   const rid = await acceptExpected(id);

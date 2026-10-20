@@ -975,3 +975,17 @@ header.top .pill,header.top #productCountPill{background:rgba(255,255,255,.14);c
 header.top .icon-btn-lg{background:rgba(255,255,255,.14);border:0;color:#fff;}
 .an-seg button.on,.size-pick button.on{background:#14432F;color:#fff;}
 header.top #productCountPill *{background:transparent !important;color:#fff;}
+/* шапка: счётчик — одна ровная плашка, без подложки под текстом */
+header.top #productCountPill{background:transparent !important;padding:0;border-radius:0;}
+header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box-shadow:none;}
+/* история: поиск во всю строку, «поставщики» и «операции» — пополам под ним, слова целиком */
+.hist-filters{flex-wrap:wrap;gap:8px;}
+.hist-filters #ffHistSearch{flex:1 1 100%;}
+.hist-filters select{flex:1 1 calc(50% - 4px);min-width:0;font-size:14px;}
+.rc-start-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.rc-start-hint{margin:10px 2px 0;font-size:12.5px;line-height:1.4;}
+/* «Ожидается поставка» у склада */
+.exp-title{font-size:18px;font-weight:800;color:var(--accent);margin:22px 4px 10px;}
+.exp-sup{font-size:16px;font-weight:700;color:var(--text);}
+.exp-qty{display:inline-block;margin-left:6px;font-size:16px;font-weight:800;color:var(--accent);}
+.exp-row .rmeta{white-space:normal;}

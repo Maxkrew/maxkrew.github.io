@@ -15,26 +15,29 @@ async function renderAdmin(){
   try{ list = await Sync.adminList(); }catch(e){ box.innerHTML = emptyState('i-alert', 'Не удалось загрузить склады', e.message); return; }
   try{ tariffs = await Sync.loadTariffs(); }catch(e){}
   const rows = list.map(w=> `<div class="card adm-card">
-      <div class="head-row"><div><div class="rname">${escapeHtml(w.title)}</div>
-        <div class="rmeta">${escapeHtml(w.email || '')}${w.phone ? ' · ' + escapeHtml(w.phone) : ''} · с ${new Date(w.created_at).toLocaleDateString('ru-RU')}</div></div>${admStatus(w)}</div>
-      <div class="rmeta">Поставщиков: ${Number(w.suppliers)||0} · моделей: ${Number(w.models)||0} · отправок за 30 дней: ${Number(w.shipments_30d)||0}</div>
-      <div class="btn-row sup-actions">
+      <div class="adm-head"><div class="adm-title">${escapeHtml(w.title)}</div>${admStatus(w)}</div>
+      <div class="adm-mail">${escapeHtml(w.email || '')}</div>
+      <div class="adm-meta">с ${new Date(w.created_at).toLocaleDateString('ru-RU')}${w.phone ? ' · ' + escapeHtml(w.phone) : ''}</div>
+      <div class="adm-stats"><span><b>${Number(w.suppliers)||0}</b> поставщ.</span><span><b>${Number(w.models)||0}</b> товаров</span><span><b>${Number(w.shipments_30d)||0}</b> отправок / 30 дн.</span></div>
+      <div class="adm-btns">
         <button class="btn ghost sm" data-adm-extend="${escapeAttr(w.owner_id)}" onclick="admExtend(${jsArg(w.owner_id)}, 30)">+ месяц</button>
         <button class="btn ghost sm" onclick="admExtendAsk(${jsArg(w.owner_id)})">+ N дней</button>
-        <button class="btn ghost sm" data-adm-unlimited="${escapeAttr(w.owner_id)}" onclick="admUnlimited(${jsArg(w.owner_id)})">Без срока</button>
+        <button class="btn alt sm" data-adm-unlimited="${escapeAttr(w.owner_id)}" onclick="admUnlimited(${jsArg(w.owner_id)})">Без срока</button>
         <button class="btn amber sm" data-adm-block="${escapeAttr(w.owner_id)}" onclick="admBlock(${jsArg(w.owner_id)}, ${w.blocked ? 'false' : 'true'})">${w.blocked ? 'Разблокировать' : 'Заблокировать'}</button>
-        ${w.owner_id === Sync.ownerId() ? '' : `<button class="btn danger sm" data-adm-del="${escapeAttr(w.owner_id)}" data-email="${escapeAttr(w.email || '')}" onclick="admDelete(${jsArg(w.owner_id)}, this.dataset.email)"><svg class="icon"><use href="#i-trash"/></svg>Удалить</button>`}
-      </div></div>`).join('');
+      </div>
+      ${w.owner_id === Sync.ownerId() ? '<div class="adm-own">Это ваш склад — удалить нельзя</div>' : `<button class="btn danger adm-del" data-adm-del="${escapeAttr(w.owner_id)}" data-email="${escapeAttr(w.email || '')}" data-title="${escapeAttr(w.title || '')}" onclick="admDelete(${jsArg(w.owner_id)}, this.dataset.email, this.dataset.title)"><svg class="icon"><use href="#i-trash"/></svg>Удалить склад</button>`}
+    </div>`).join('');
   const tf = (Array.isArray(tariffs) && tariffs.length ? tariffs : []).concat([{}, {}, {}, {}]).slice(0, Math.max(4, tariffs.length || 0));
-  const editor = `<div class="card"><div class="rname">Тарифы</div><p class="rmeta">Карточки на лендинге и в разделе «Тарифы» у складов. Пустая цена показывается как «Скоро».</p>
-    <div class="tf-edit">${tf.map((t, i)=> `<div class="tf-row">
-      <input data-tf="${i}" data-k="name" placeholder="Название, например «Старт»" value="${escapeAttr(t.name || '')}">
-      <input data-tf="${i}" data-k="condition" placeholder="Условие, например «до 300 отправок за 30 дней»" value="${escapeAttr(t.condition || '')}">
-      <input data-tf="${i}" data-k="price" inputmode="numeric" placeholder="Цена в месяц, ₽" value="${escapeAttr(t.price || '')}">
-      <input data-tf="${i}" data-k="features" placeholder="Что входит" value="${escapeAttr(t.features || '')}">
-    </div>`).join('')}</div>
-    <button class="btn primary" id="tfSave" onclick="admSaveTariffs()" style="margin-top:8px;">Сохранить тарифы</button></div>`;
-  box.innerHTML = `<div class="card"><b>Складов: ${list.length}</b></div>` + rows + editor;
+  const fld = (i, k, label, ph, v, attrs)=> `<div class="field"><label>${label}</label><input type="text" data-tf="${i}" data-k="${k}" placeholder="${ph}" value="${escapeAttr(v || '')}"${attrs || ''}></div>`;
+  const editor = `<div class="adm-sec-title">Тарифы</div><p class="adm-sec-note">Карточки на лендинге и в разделе «Тарифы» у складов. Пустая цена показывается как «Скоро».</p>
+    ${tf.map((t, i)=> `<div class="card tf-row"><div class="tf-num">Тариф ${i + 1}</div>
+      ${fld(i, 'name', 'Название', 'Старт', t.name)}
+      ${fld(i, 'condition', 'Условие', 'до 300 отправок за 30 дней', t.condition)}
+      ${fld(i, 'price', 'Цена в месяц, ₽', '2990', t.price, ' inputmode="numeric"')}
+      ${fld(i, 'features', 'Что входит', 'ячейки, приёмка, поставщики', t.features)}
+    </div>`).join('')}
+    <button class="btn primary" id="tfSave" onclick="admSaveTariffs()"><svg class="icon"><use href="#i-check"/></svg>Сохранить тарифы</button>`;
+  box.innerHTML = `<div class="adm-sec-title">Склады · ${list.length}</div>` + rows + editor;
 }
 async function admRun(p, okText){
   try{ await p; toast(okText); }catch(e){ toast('Не вышло: ' + e.message); }
@@ -54,11 +57,9 @@ async function admSaveTariffs(){
   return admRun(Sync.adminSetTariffs(cards), 'Тарифы сохранены');
 }
 
-/* удалить склад целиком — только вписав его почту (необратимо) */
-async function admDelete(id, email){
-  const typed = prompt('Удалить склад НАВСЕГДА — со всеми товарами, ячейками, поставщиками и историей? Это нельзя отменить.\n\nЧтобы подтвердить, впишите почту склада: ' + email);
-  if(typed === null) return;
-  if(String(typed).trim().toLowerCase() !== String(email).trim().toLowerCase()){ toast('Почта не совпала — склад не удалён'); return; }
-  try{ await Sync.adminDelete(id); toast('Склад удалён'); }catch(e){ toast('Не удалось: ' + e.message); }
+/* удалить склад целиком — простое «Да / Нет» с названием склада (необратимо) */
+async function admDelete(id, email, title){
+  if(!confirm('Удалить склад «' + (title || email) + '» (' + email + ')? Удалятся все его товары, ячейки, поставщики и история. Отменить нельзя.')) return;
+  try{ await Sync.adminDelete(id); toast('Склад удалён'); }catch(err){ toast('Не удалось: ' + err.message); }
   if(typeof renderAdmin === 'function') await renderAdmin();
 }

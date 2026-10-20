@@ -55,7 +55,11 @@ function authMode(mode){
   if(whNote) whNote.textContent = 'Я фулфилмент: храню и отправляю товар поставщиков.' + (ffSelfSignup() ? ' 14 дней бесплатно.' : '');
   bg.dataset.mode = mode;
   const tx = AUTH_TEXT[mode] || AUTH_TEXT.login;
-  document.getElementById('authTitle').textContent = tx.title;
+  // кто входит — склад или поставщик (выбрали на «Кто вы?»): видно в заголовке и значке
+  const who = mode === 'login' || mode === 'forgot' ? authWho : (mode === 'register' ? 'supplier' : (mode === 'regwarehouse' ? 'warehouse' : null));
+  document.getElementById('authTitle').textContent = mode === 'login' && who === 'warehouse' ? 'Вход для склада' : mode === 'login' && who === 'supplier' ? 'Вход для поставщика' : tx.title;
+  const wb = document.getElementById('authWho');
+  if(wb){ wb.hidden = !who; wb.className = 'auth-who ' + (who || ''); wb.innerHTML = who ? '<svg class="icon"><use href="#' + (who === 'warehouse' ? 'i-home' : 'i-box') + '"/></svg>' + (who === 'warehouse' ? 'Склад' : 'Поставщик') : ''; }
   document.getElementById('authHint').textContent = tx.hint;
   document.getElementById('authSubmitText').textContent = tx.submit;
   const show = (id, on)=>{ const el = document.getElementById(id); if(el) el.hidden = !on; };

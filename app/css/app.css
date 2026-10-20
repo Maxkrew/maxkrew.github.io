@@ -989,3 +989,7 @@ header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box
 .exp-sup{font-size:16px;font-weight:700;color:var(--text);}
 .exp-qty{display:inline-block;margin-left:6px;font-size:16px;font-weight:800;color:var(--accent);}
 .exp-row .rmeta{white-space:normal;}
+/* светлые кнопки — заметнее (владелец: «слишком прозрачная») */
+.btn.ghost{background:#D6F0DF;color:#14532D;}
+.btn.ghost:hover{background:#C8EAD4;}
+#homeAddModel{background:#CDEBD8;color:#14532D;box-shadow:inset 0 0 0 1.5px rgba(21,128,61,.35);}

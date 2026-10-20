@@ -44,7 +44,7 @@ async function finishReceipt(receiptId, weightKg){
   const confirm = [];
   for(const line of await receiptLines(receiptId)){
     if(line.defect){   // брак — одним шагом в ячейку брака, мест не считаем
-      line.plan = [{cell: await defectCellFor(r.supplierId), qty: line.qty, uid: line.id + ':0', done: false, defect: true}];
+      line.plan = [{cell: await defectCellFor(r.supplierId, line.qty), qty: line.qty, uid: line.id + ':0', done: false, defect: true}];
       await put('receiptLines', line);
       continue;
     }
@@ -129,7 +129,7 @@ async function tickReceiptStep(lineId, idx){
     const models = await modelsMap();
     const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
     const label = await sizeLabelOf(line.sizeId);
-    const res = step.defect ? {steps: [{cell: await defectCellFor(r.supplierId), qty: step.qty, defect: true}]}
+    const res = step.defect ? {steps: [{cell: await defectCellFor(r.supplierId, step.qty), qty: step.qty, defect: true}]}
       : planPlacement({supplierId: r.supplierId, modelId: line.modelId, sizeLabel: label, qty: step.qty}, cells, await cellStockByLabel(), models);
     const fresh = res.steps.map(s=> Object.assign({}, s, {uid: line.id + ':' + newUid(), done: false}));
     line.plan.splice(idx, 1, ...fresh);
@@ -233,10 +233,11 @@ async function receiptCard(r){
     const label = await sizeLabelOf(l.sizeId), name = modelName(models[l.modelId] || {});
     const doneArr = []; for(const s of (l.plan || [])) doneArr.push(await stepIsDone(s));
     const overArr = []; for(const s of (l.plan || [])) overArr.push(s.isNew ? 0 : (await cellOverflow(s.cell, s.qty)).over);
+    const defCells = (l.plan || []).some(s=> s.defect) ? (await getAll('cells')).filter(c=> !c.deletedAt && isDefectCell(c) && c.supplierId === r.supplierId).sort((x, y)=> cmpCellNumber(x.number, y.number)) : [];
     (l.plan || []).forEach((s0, i)=>{
       const s = Object.assign({}, s0, {done: doneArr[i]});
       tasks.push(`<label class="task${s.done ? ' done' : ''}"><input type="checkbox"${s.done ? ' checked disabled' : ''} onchange="rcTick(${jsArg(l.id)}, ${i})">
-        <span><b>${escapeHtml(name)} ${escapeHtml(label)}</b> — ${s.qty} шт.<br><span class="${s.isNew || s.defect ? 'warn' : 'go'}">➡ ${s.isNew ? 'создай ячейку ' + escapeHtml(s.cell) + ' и положи туда' : 'Ячейка ' + escapeHtml(s.cell) + (s.defect ? ' (брак)' : '')}</span>${!s.done && overArr[i] ? `<br><span class="over-warn">⚠ переполнит ячейку на ${overArr[i]} шт.</span>` : ''}</span></label>`);
+        <span><b>${escapeHtml(name)} ${escapeHtml(label)}</b> — ${s.qty} шт.<br><span class="${s.isNew || s.defect ? 'warn' : 'go'}">➡ ${s.isNew ? 'создай ячейку ' + escapeHtml(s.cell) + ' и положи туда' : (s.defect && !s.done && defCells.length > 1 ? 'Ячейка брака: <select data-step-cell="' + escapeAttr(l.id + ':' + i) + '" onclick="event.stopPropagation()" onchange="rcStepCell(' + jsArg(l.id) + ', ' + i + ', this.value)">' + defCells.map(c=> '<option value="' + escapeAttr(c.number) + '"' + (c.number === s.cell ? ' selected' : '') + '>' + escapeHtml(c.number) + '</option>').join('') + '</select>' : 'Ячейка ' + escapeHtml(s.cell) + (s.defect ? ' (брак)' : ''))}</span>${!s.done && overArr[i] ? `<br><span class="over-warn">⚠ переполнит ячейку на ${overArr[i]} шт.</span>` : ''}</span></label>`);
     });
   }
   return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}<div class="tasks">${tasks.join('')}</div></div>`;
@@ -303,6 +304,13 @@ async function rcFinish(rid){
   if(res.confirm.length) toast('Товар новый — подтвердите ячейки');
 }
 async function rcConfirm(rid){ await confirmReceiptPlan(rid); await renderReceipts(); }
+/* склад сам выбирает, в какую ячейку брака положить */
+async function rcStepCell(lineId, idx, cell){
+  const l = await get('receiptLines', lineId); if(!l || !l.plan || !l.plan[idx] || l.plan[idx].done) return;
+  const c = await get('cells', cell); if(!c || c.deletedAt || !isDefectCell(c)){ toast('Это не ячейка брака'); return; }
+  l.plan[idx].cell = cell; await put('receiptLines', l);
+  await renderReceipts();
+}
 async function rcTick(lineId, idx){
   const l = await get('receiptLines', lineId), st = l && l.plan && l.plan[idx];
   if(st && !st.done && !st.isNew && !(await okToOverfill(st.cell, st.qty))){ await renderReceipts(); return; }

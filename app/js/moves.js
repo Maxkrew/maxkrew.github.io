@@ -4,10 +4,16 @@
    в «Проверить» (действует сразу, пометка «на проверке»). */
 
 /* Номер ячейки брака поставщика; нет — заводит следующую свободную «Б<n>». */
-async function defectCellFor(supplierId){
+/* ячейка брака поставщика: первая, куда влезает qty; все полные — наименее заполненная; нет — создаём Б1 */
+async function defectCellFor(supplierId, qty){
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
   const mine = cells.filter(c=> isDefectCell(c) && c.supplierId === supplierId).sort((a, b)=> cmpCellNumber(a.number, b.number));
-  if(mine.length) return mine[0].number;
+  if(mine.length){
+    const stock = await cellStockByLabel(), models = await modelsMap();
+    const free = c=> cellCapacity(c, models) - cellTotal(stock[c.number]);
+    const fit = mine.find(c=> free(c) >= (Number(qty) || 1));
+    return (fit || mine.slice().sort((a, b)=> free(b) - free(a))[0]).number;
+  }
   const used = new Set((await getAll('cells')).map(c=> String(c.number)));   // и удалённые: номер мог быть занят
   let n = 1; while(used.has('Б' + n)) n++;
   const number = 'Б' + n;

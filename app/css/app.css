@@ -1017,3 +1017,4 @@ header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box
 #supAddForm .field{margin:0;}
 .rc-card .head-row{align-items:flex-start;}
 .rc-del{color:#C2283B;flex:none;}
+.task select[data-step-cell]{display:inline-block;width:auto;min-height:36px;padding:4px 34px 4px 12px;margin-left:4px;font-size:14px;font-weight:700;color:#B45309;background-color:#FFF1DE;}

@@ -22,7 +22,8 @@ async function renderAdmin(){
         <button class="btn ghost sm" data-adm-extend="${escapeAttr(w.owner_id)}" onclick="admExtend(${jsArg(w.owner_id)}, 30)">+ месяц</button>
         <button class="btn ghost sm" onclick="admExtendAsk(${jsArg(w.owner_id)})">+ N дней</button>
         <button class="btn ghost sm" data-adm-unlimited="${escapeAttr(w.owner_id)}" onclick="admUnlimited(${jsArg(w.owner_id)})">Без срока</button>
-        <button class="btn ghost sm" data-adm-block="${escapeAttr(w.owner_id)}" onclick="admBlock(${jsArg(w.owner_id)}, ${w.blocked ? 'false' : 'true'})">${w.blocked ? 'Разблокировать' : 'Заблокировать'}</button>
+        <button class="btn amber sm" data-adm-block="${escapeAttr(w.owner_id)}" onclick="admBlock(${jsArg(w.owner_id)}, ${w.blocked ? 'false' : 'true'})">${w.blocked ? 'Разблокировать' : 'Заблокировать'}</button>
+        ${w.owner_id === Sync.ownerId() ? '' : `<button class="btn danger sm" data-adm-del="${escapeAttr(w.owner_id)}" data-email="${escapeAttr(w.email || '')}" onclick="admDelete(${jsArg(w.owner_id)}, this.dataset.email)"><svg class="icon"><use href="#i-trash"/></svg>Удалить</button>`}
       </div></div>`).join('');
   const tf = (Array.isArray(tariffs) && tariffs.length ? tariffs : []).concat([{}, {}, {}, {}]).slice(0, Math.max(4, tariffs.length || 0));
   const editor = `<div class="card"><div class="rname">Тарифы</div><p class="rmeta">Карточки на лендинге и в разделе «Тарифы» у складов. Пустая цена показывается как «Скоро».</p>
@@ -51,4 +52,13 @@ async function admSaveTariffs(){
     cards.push(c);
   });
   return admRun(Sync.adminSetTariffs(cards), 'Тарифы сохранены');
+}
+
+/* удалить склад целиком — только вписав его почту (необратимо) */
+async function admDelete(id, email){
+  const typed = prompt('Удалить склад НАВСЕГДА — со всеми товарами, ячейками, поставщиками и историей? Это нельзя отменить.\n\nЧтобы подтвердить, впишите почту склада: ' + email);
+  if(typed === null) return;
+  if(String(typed).trim().toLowerCase() !== String(email).trim().toLowerCase()){ toast('Почта не совпала — склад не удалён'); return; }
+  try{ await Sync.adminDelete(id); toast('Склад удалён'); }catch(e){ toast('Не удалось: ' + e.message); }
+  if(typeof renderAdmin === 'function') await renderAdmin();
 }

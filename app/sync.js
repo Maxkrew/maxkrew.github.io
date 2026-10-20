@@ -833,6 +833,7 @@
     adminList: async ()=>{ const {data, error} = await client.rpc('admin_list_warehouses'); if(error) throw new Error(error.message); return data || []; },
     adminExtend: async (id, days)=>{ const {error} = await client.rpc('admin_extend', {p_owner: id, p_days: days}); if(error) throw new Error(error.message); },
     adminUnlimited: async id=>{ const {error} = await client.rpc('admin_set_unlimited', {p_owner: id}); if(error) throw new Error(error.message); },
+    adminDelete: async id=>{ const {error} = await client.rpc('admin_delete_warehouse', {p_owner: id}); if(error) throw new Error(error.message); },
     adminBlock: async (id, on)=>{ const {error} = await client.rpc('admin_block', {p_owner: id, p_blocked: !!on}); if(error) throw new Error(error.message); },
     adminSetTariffs: async list=>{ const {error} = await client.rpc('admin_set_tariffs', {p_value: list}); if(error) throw new Error(error.message); },
     takeSnapshot, listSnapshots, restoreSnapshot, startRealtime, stopRealtime,

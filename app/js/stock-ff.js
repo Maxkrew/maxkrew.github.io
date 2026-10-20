@@ -161,6 +161,7 @@ async function openModelModal(id){
   const sups = Object.values(await ffSuppliersMap()).filter(s=> !s.deletedAt && !s.archived);
   document.getElementById('mmTitleHead').textContent = m ? modelName(m) : 'Новый товар';
   document.getElementById('mmId').value = m ? m.id : '';
+  if(typeof mmRenderPhoto === 'function') mmRenderPhoto(m ? m.id : null);
   const supSel = document.getElementById('mmSupplier');
   supSel.innerHTML = sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('');
   if(m) supSel.value = m.supplierId;

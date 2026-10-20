@@ -196,7 +196,7 @@ async function receiptCard(r){
     const lineRows = [];
     for(const l of lines) lineRows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b>${l.defect ? ' · <span class="warn">брак</span>' : ''}</div><div class="rside">${l.expectedQty != null ? `<span class="rmeta">ждали ${l.expectedQty} · пришло</span> <input type="number" min="0" style="width:72px;" value="${l.qty}" data-rc-qty="${escapeAttr(l.id)}" onchange="rcSetQty(${jsArg(l.id)}, this.value)"> шт.` : `<b>${l.qty} шт.</b>`} <button class="icon-btn" onclick="rcRemoveLine(${jsArg(l.id)})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
     return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}
-      <div class="field-row scan-row"><input type="text" data-scan-receipt="${escapeAttr(r.id)}" placeholder="Скан штрихкода (сканер или камера)" autocomplete="off">
+      <div class="field-row scan-row"><input type="text" data-scan-receipt="${escapeAttr(r.id)}" placeholder="Скан штрихкода" autocomplete="off">
         <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanReceipt(${jsArg(r.id)}, c))">Камера</button></div>
       <div class="field"><label>Модель</label><select id="rcModel-${escapeAttr(r.id)}" onchange="rcFillSizes(${jsArg(r.id)})"><option value="">— выберите —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select>
         <button class="btn ghost sm" style="width:auto;margin-top:6px;" onclick="openModelModal()">+ Новая модель</button></div>
@@ -204,7 +204,7 @@ async function receiptCard(r){
       <div class="field-row"><input type="number" id="rcQty-${escapeAttr(r.id)}" min="1" placeholder="Сколько штук"><button class="btn ghost" style="width:auto;" onclick="rcAddLine(${jsArg(r.id)})">Добавить строку</button></div>
       ${r.kind === 'возврат' ? `<label class="check-row"><input type="checkbox" id="rcDefect-${escapeAttr(r.id)}" data-defect-toggle> Брак — положить в ячейку брака</label>` : ''}
       <div class="rc-lines">${lineRows.join('') || '<div class="hint">Строк пока нет</div>'}</div>
-      <div class="field-row" style="margin-top:8px;"><input type="text" inputmode="decimal" id="rcWeight-${escapeAttr(r.id)}" placeholder="Вес поставки, кг (если нужен)">
+      <div class="field-row" style="margin-top:8px;"><input type="text" inputmode="decimal" id="rcWeight-${escapeAttr(r.id)}" placeholder="Вес, кг">
         <button class="btn primary" style="width:auto;" onclick="rcFinish(${jsArg(r.id)})"${lines.length ? '' : ' disabled'}><svg class="icon"><use href="#i-check"/></svg>Готово — куда класть</button></div>
     </div>`;
   }

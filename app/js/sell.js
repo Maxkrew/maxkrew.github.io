@@ -104,8 +104,10 @@ async function fillPhotoThumbs(root){
     try{ const u = await photoUrl(id); if(u) img.src = u; }catch(e){}
   }
 }
-let pvLock = null;
+let pvLock = null, pvCurrent = null;
 async function openPhoto(id){
+  const ph = await get('photos', id); pvCurrent = ph || null;
+  document.getElementById('pvReplace').hidden = !(ph && ph.kind === 'товар');
   const v = document.getElementById('photoViewer');
   const img = document.getElementById('pvImg');
   img.removeAttribute('src');
@@ -114,6 +116,36 @@ async function openPhoto(id){
   if(u) img.src = u; else toast('Фото ещё не загрузилось');
   // экран не гаснет, пока показываем штрихкод (яркость браузер менять не умеет)
   try{ if(navigator.wakeLock) pvLock = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+async function pvReplacePick(input){
+  const f = input.files && input.files[0]; input.value = ''; if(!f || !pvCurrent || !pvCurrent.modelId) return;
+  try{ const id = await setModelPhoto(pvCurrent.modelId, f); toast('Фото заменено'); await openPhoto(id); }
+  catch(e){ toast('Не получилось: ' + e.message); }
+  if(typeof renderStockFF === 'function') renderStockFF();
+}
+async function deleteModelPhoto(modelId){
+  for(const p of (await getAll('photos')).filter(p=> !p.deletedAt && p.kind === 'товар' && p.modelId === modelId)){ p.deletedAt = Date.now(); await put('photos', p); }
+}
+/* блок «Фото товара» в карточке товара */
+async function mmRenderPhoto(modelId){
+  const box = document.getElementById('mmPhotoBox'); if(!box) return;
+  if(!modelId){ box.innerHTML = '<label>Фото товара</label><div class="hint">Фото можно добавить после сохранения товара</div>'; return; }
+  const p = await modelPhoto(modelId);
+  const pick = (t)=> `<label class="btn ghost sm" style="width:auto;cursor:pointer;"><svg class="icon"><use href="#i-camera"/></svg>${t}<input type="file" id="mmPhotoFile" accept="image/*" hidden onchange="mmPhotoPick(${jsArg(modelId)}, this)"></label>`;
+  box.innerHTML = '<label>Фото товара</label><div class="mm-photo">' + (p
+    ? photoThumb(p.id, 'Фото товара') + pick('Заменить') + `<button type="button" class="btn ghost sm" id="mmPhotoDel" style="width:auto;" onclick="mmPhotoDelete(${jsArg(modelId)})"><svg class="icon"><use href="#i-trash"/></svg>Удалить</button>`
+    : pick('Добавить фото')) + '</div>';
+  fillPhotoThumbs(box);
+}
+async function mmPhotoPick(modelId, input){
+  const f = input.files && input.files[0]; if(!f) return;
+  try{ await setModelPhoto(modelId, f); toast('Фото сохранено'); }catch(e){ toast('Не получилось: ' + e.message); }
+  await mmRenderPhoto(modelId); if(typeof renderStockFF === 'function') renderStockFF();
+}
+async function mmPhotoDelete(modelId){
+  if(!confirm('Удалить фото товара?')) return;
+  await deleteModelPhoto(modelId); toast('Фото удалено');
+  await mmRenderPhoto(modelId); if(typeof renderStockFF === 'function') renderStockFF();
 }
 function closePhoto(){
   document.getElementById('photoViewer').classList.remove('show');

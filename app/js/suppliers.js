@@ -47,17 +47,17 @@ async function renderSuppliers(){
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
   box.innerHTML = sups.map(s=>{
     const mine = cells.filter(c=> c.supplierId === s.id).map(c=> c.number).sort(cmpCellNumber);
-    const status = s.archived ? '<span class="pill g">в архиве</span>'
-      : (s.memberId ? '<span class="pill">вошёл</span>'
-                    : `<span class="pill w">ждёт входа</span> код <b class="sup-code" data-sup-code>${escapeHtml(s.inviteCode || '…')}</b>`);
+    const status = s.archived ? '<span class="pill g">в архиве</span>' : (s.memberId ? '<span class="pill">вошёл</span>' : '<span class="pill w">ждёт входа</span>');
+    const codeLine = !s.archived && !s.memberId ? `<div class="rmeta sup-line">Код для входа: <b class="sup-code" data-sup-code>${escapeHtml(s.inviteCode || '…')}</b></div>` : '';
     const temp = supTempPw[s.id] ? `<div class="alert">Временный пароль: <b data-sup-temp>${escapeHtml(supTempPw[s.id])}</b> — передайте поставщику, при входе он поставит свой.</div>` : '';
     return `<div class="card sup-card">
-      <div class="sup-head"><div><div class="rname">${escapeHtml(s.name || 'Поставщик')}</div><div class="rmeta">${status}</div></div></div>
-      <div class="rmeta">Ячейки: ${mine.length ? escapeHtml(cellRangeLabel(mine)) : 'не назначены'}</div>
+      <div class="sup-head"><div class="rname">${escapeHtml(s.name || 'Поставщик')}</div>${status}</div>
+      ${codeLine}
+      <div class="rmeta sup-line">Ячейки: ${mine.length ? escapeHtml(cellRangeLabel(mine)) : 'не назначены'}</div>
       ${temp}
       <div class="btn-row sup-actions">
-        <button class="btn ghost sm" onclick="assignCellsPrompt(${jsArg(s.id)})">Назначить ячейки</button>
-        ${s.memberId && !s.archived ? `<button class="btn ghost sm" data-sup-reset="${escapeAttr(s.id)}" onclick="resetSupplierPasswordUI(${jsArg(s.id)})">Сбросить пароль</button>` : ''}
+        <button class="btn ghost sm" onclick="assignCellsPrompt(${jsArg(s.id)})">Ячейки</button>
+        ${s.memberId && !s.archived ? `<button class="btn ghost sm" data-sup-reset="${escapeAttr(s.id)}" onclick="resetSupplierPasswordUI(${jsArg(s.id)})">Сброс пароля</button>` : ''}
         <button class="btn ghost sm" data-sup-archive="${escapeAttr(s.id)}" onclick="toggleSupplierArchive(${jsArg(s.id)})">${s.archived ? 'Вернуть из архива' : 'В архив'}</button>
       </div>
     </div>`;
@@ -75,6 +75,13 @@ function cellRangeLabel(nums){
   return out.join(', ');
 }
 
+function openSupAdd(){
+  document.getElementById('supNewName').value = '';
+  document.getElementById('supAddForm').hidden = false; document.getElementById('supAddDone').hidden = true;
+  document.getElementById('supAddModalBg').classList.add('show');
+  setTimeout(()=>{ try{ document.getElementById('supNewName').focus(); }catch(e){} }, 60);
+}
+function closeSupAdd(){ document.getElementById('supAddModalBg').classList.remove('show'); }
 async function addSupplier(){
   const input = document.getElementById('supNewName');
   const name = (input.value || '').trim();
@@ -84,9 +91,17 @@ async function addSupplier(){
     const r = await Sync.createSupplier(name);
     if(!r.ok){ toast('Не вышло: ' + r.error); return; }
     input.value = '';
-    toast('Поставщик добавлен. Код: ' + r.code);
+    // код — тут же, крупно, с кнопкой «Скопировать»
+    document.getElementById('supAddDoneText').textContent = 'Поставщик «' + name + '» добавлен.';
+    document.getElementById('supAddCode').textContent = r.code || '';
+    document.getElementById('supAddForm').hidden = true; document.getElementById('supAddDone').hidden = false;
     await renderSuppliers();
   }finally{ btn.disabled = false; }
+}
+async function copySupCode(){
+  const code = document.getElementById('supAddCode').textContent.trim();
+  try{ await navigator.clipboard.writeText(code); toast('Код скопирован'); }
+  catch(e){ toast('Код: ' + code); }
 }
 async function assignCellsPrompt(id){
   const spec = prompt('Какие ячейки закрепить за поставщиком? Например: 1-12 или 15, 16');

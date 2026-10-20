@@ -159,7 +159,7 @@ async function renderShipments(){
   else parts.push(`<div class="card">
       <div class="field-row">${sup ? '' : `<select id="shSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>`}
         <select id="shCarrier">${carrierList().map(c=> `<option>${escapeHtml(c)}</option>`).join('')}</select></div>
-      <div class="field-row" style="margin-top:8px;"><input type="text" id="shComment" placeholder="Комментарий: номер заказа, адрес">
+      <div class="field-row" style="margin-top:8px;"><input type="text" id="shComment" placeholder="Комментарий">
         <button class="btn primary" id="shStart" style="width:auto;white-space:nowrap;" onclick="shStart()"><svg class="icon"><use href="#i-plus"/></svg>${sup ? 'Новый заказ' : 'Новая отправка'}</button></div>
     </div>`);
   for(const s of open) parts.push(await shipmentCard(s, true));
@@ -179,19 +179,22 @@ async function shipmentCard(s, editable){
     if(sup && pr === null) for(const o of lines) if(o.id !== l.id && o.sizeId === l.sizeId){ const p = await linePrice(o.id); if(p !== null){ pr = p; break; } }   // кусок разделённой складом строки
     const name = `<b>${escapeHtml(modelName(models[l.modelId] || {}))} ${escapeHtml(await sizeLabelOf(l.sizeId))}</b> — ${l.qty} шт.${pr !== null ? ' · ' + fmtMoney(pr) : ''}`;
     if(sup){ rows.push(`<div class="row-item${l.collected ? ' done' : ''}"><div class="rmain">${name}${l.collected ? ' · <b>Собрано</b>' : ''}</div></div>`); continue; }
+    const del = editable && !l.collected && s.createdBy !== 'supplier'
+      ? `<button type="button" class="icon-btn sh-del" data-del-line="${escapeAttr(l.id)}" onclick="event.preventDefault();event.stopPropagation();shDelLine(${jsArg(l.id)})" aria-label="Убрать строку"><svg class="icon"><use href="#i-trash"/></svg></button>` : '';
     if(!l.cellNumber && !l.collected){
-      rows.push(`<div class="row-item"><div class="rmain">${name}<br><span class="warn">не хватает ${await lineShortage(l)} шт. — ждёт поставки</span></div></div>`);
+      rows.push(`<div class="row-item"><div class="rmain">${name}<br><span class="warn">не хватает ${await lineShortage(l)} шт. — ждёт поставки</span></div>${del}</div>`);
       continue;
     }
     rows.push(`<label class="task${l.collected ? ' done' : ''}"><input type="checkbox"${l.collected ? ' checked' : ''} onchange="shTick(${jsArg(l.id)}, this.checked)">
-      <span>${name}<br><span class="go">➡ возьми из Ячейки ${escapeHtml(l.cellNumber || '?')}</span>${l.collected ? ' · <b>Собрано</b>' : ''}</span></label>`);
+      <span>${name}<br><span class="go">➡ возьми из Ячейки ${escapeHtml(l.cellNumber || '?')}</span>${l.collected ? ' · <b>Собрано</b>' : ''}</span>${del}</label>`);
   }
   let add = '';
   if(editable){
     const mySup = sup ? Sync.mySupplierId() : s.supplierId;
     const ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === mySup).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
-    const canAdd = !sup;   // поставщик собирает заказ в «Продал» (со скриншотом), здесь строки не дописывает
-    add = (sup ? '' : `<div class="field-row scan-row" style="margin-top:8px;"><input type="text" data-scan-shipment="${escapeAttr(s.id)}" placeholder="Скан: отметить собранным" autocomplete="off">
+    // поставщик собирает заказ в «Продал» (со скриншотом); в заказ поставщика склад тоже ничего не дописывает
+    const canAdd = !sup && s.createdBy !== 'supplier';
+    add = (sup ? '' : `<div class="field-row scan-row" style="margin-top:8px;"><input type="text" data-scan-shipment="${escapeAttr(s.id)}" placeholder="Скан штрихкода" autocomplete="off">
       <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanShipment(${jsArg(s.id)}, c))">Камера</button></div>`) +
       (canAdd ? `<div class="field-row" style="margin-top:8px;"><select id="shModel-${escapeAttr(s.id)}" onchange="shFillSizes(${jsArg(s.id)})"><option value="">— модель —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select></div>
       <div class="size-pick" id="shSizes-${escapeAttr(s.id)}" style="margin-top:6px;"></div>
@@ -241,5 +244,15 @@ async function shCancel(sid){
   const r = await cancelShipment(sid);
   if(!r.ok){ toast(r.error); return; }
   toast('Отменено'); await renderShipments();
+}
+/* убрать несобранную строку своей отправки (ошиблись товаром) */
+async function shDelLine(lineId){
+  const l = await get('shipmentLines', lineId);
+  if(!l || l.deletedAt || l.collected) return;
+  if(!confirm('Убрать строку из отправки?')) return;
+  l.deletedAt = Date.now(); await put('shipmentLines', l);
+  const sh = await get('shipments', l.shipmentId), rest = await shipmentLines(l.shipmentId);
+  if(sh && rest.length && rest.every(x=> x.collected) && sh.status !== 'собрана'){ sh.status = 'собрана'; await put('shipments', sh); }
+  toast('Строка убрана'); await renderShipments();
 }
 async function shTick(lineId, on){ const r = await tickCollected(lineId, on); if(!r.ok) toast(r.error); await renderShipments(); }

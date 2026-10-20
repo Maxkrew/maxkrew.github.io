@@ -129,7 +129,7 @@ async function renderIncoming(){
     <div class="field"><label>Товар</label><select id="incModel" onchange="incFillSizes()"><option value="">— выберите —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select>
       <button class="btn ghost sm" style="width:auto;margin-top:6px;" onclick="openModelModal()">+ Новый товар</button></div>
     <div class="field"><label>Размер</label><div class="size-pick" id="incSizes"><span class="hint">Выберите товар</span></div></div>
-    <div class="field-row"><input type="number" id="incQty" min="1" placeholder="Сколько штук"><input type="text" inputmode="decimal" id="incPrice" placeholder="Цена закупки, ₽ (видите только вы)"></div>
+    <div class="field-row"><input type="number" id="incQty" min="1" placeholder="Сколько штук"><input type="text" inputmode="decimal" id="incPrice" placeholder="Цена закупки, ₽"></div>
     <button class="btn ghost" id="incAdd" onclick="incAdd()"><svg class="icon"><use href="#i-plus"/></svg>Добавить в приход</button>
     <div id="incDraft" class="rc-lines" style="margin-top:8px;">${draftRows.join('') || '<div class="hint">Пока пусто — добавьте товары или загрузите Excel</div>'}</div>
     <button class="btn primary" id="incSend" style="margin-top:10px;" onclick="incSend()"${draft.length ? '' : ' disabled'}><svg class="icon"><use href="#i-out"/></svg>Отправить на склад${total ? ' — ' + total + ' шт.' : ''}</button>

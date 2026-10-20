@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="css/app.css?v=9">
+<link rel="stylesheet" href="css/app.css?v=10">
 </head>
 <body>
 
@@ -209,7 +209,7 @@
       </div>
       <div class="card">
         <div class="field-row">
-          <input type="search" id="ffStockSearch" placeholder="Поиск: бренд, модель, цвет, SKU, штрихкод" oninput="renderStockFF()">
+          <input type="search" id="ffStockSearch" placeholder="Поиск товара" oninput="renderStockFF()">
           <select id="ffSupplierFilter" onchange="renderStockFF()" style="width:auto;"><option value="">Все поставщики</option></select>
         </div>
         <div class="abc" id="ffAbc"></div>
@@ -318,8 +318,7 @@
 
     <section id="sec-history">
       <div class="page-head"><h2>История</h2><p>Все операции, новые сверху — кто и что сделал</p></div>
-      <div class="card"><div class="field-row">
-        <input type="search" id="ffHistSearch" placeholder="Поиск: модель или размер" oninput="renderHistoryFF()">
+      <div class="card"><input type="search" id="ffHistSearch" placeholder="Поиск: товар или размер" oninput="renderHistoryFF()" style="margin-bottom:8px;"><div class="field-row">
         <select id="ffHistSupplier" onchange="renderHistoryFF()"><option value="">Все поставщики</option></select>
         <select id="ffHistType" onchange="renderHistoryFF()"><option value="">Все операции</option><option>Приход</option><option>Отправка</option><option>Возврат</option><option>Корректировка</option><option>Перекладка</option></select>
       </div></div>
@@ -369,8 +368,6 @@
           <button class="btn ghost" data-owner-only onclick="syncNowFromSettings()"><svg class="icon"><use href="#i-download"/></svg>Обновить</button>
           <button class="btn ghost" onclick="openPinModal('change')"><svg class="icon"><use href="#i-gear"/></svg>Сменить пароль</button>
         </div>
-        <button class="btn ghost" data-owner-only style="width:100%;margin-top:8px;" onclick="fullResyncFromSettings()"><svg class="icon"><use href="#i-inbox"/></svg>Полная пересинхронизация</button>
-        <div class="t-caption" data-owner-only style="margin:6px 0 0;color:var(--text-tertiary);">Если остатки на этом телефоне не совпадают с другим устройством — нажмите сюда: программа заново скачает всю историю операций и пересчитает остатки. Обычная «Обновить» подтягивает только новое, эта — перепроверяет всё.</div>
         <button class="btn danger" style="width:100%;margin-top:8px;" onclick="syncSignOut()"><svg class="icon"><use href="#i-x"/></svg>Выйти из аккаунта</button>
         <div class="t-caption" data-owner-only style="margin-top:var(--sp-3);color:var(--text-tertiary);">Данные хранятся и на устройстве, и на сервере. Без сети приложение работает как обычно, а накопленное уходит при первой связи.</div>
       </div>
@@ -681,12 +678,7 @@
 
     <section id="sec-suppliers">
       <div class="page-head"><h2>Поставщики</h2><p>Код приглашения, ячейки, архив, сброс пароля</p></div>
-      <div class="card">
-        <div class="field-row">
-          <input type="text" id="supNewName" placeholder="Имя поставщика, например «Иванов»">
-          <button class="btn primary" id="supAddBtn" style="width:auto;white-space:nowrap;" onclick="addSupplier()"><svg class="icon"><use href="#i-plus"/></svg>Добавить</button>
-        </div>
-      </div>
+      <button class="btn primary sh-sell" id="supOpenAdd" onclick="openSupAdd()"><svg class="icon"><use href="#i-plus"/></svg>Добавить поставщика</button>
       <div id="supList"></div>
     </section>
 
@@ -728,6 +720,26 @@
 </div>
 
 <!-- ===== «ФФ»: карточка модели ===== -->
+<!-- новый поставщик: имя → код для входа (передать поставщику) -->
+<div class="modal-bg" id="supAddModalBg" data-close="closeSupAdd">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <div class="head-row modal-head"><button type="button" class="icon-btn" data-back onclick="closeSupAdd()" aria-label="Назад"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
+      <h3 style="flex:1;margin:0 0 0 8px;">Новый поставщик</h3></div>
+    <div id="supAddForm">
+      <div class="field"><label for="supNewName">Имя поставщика</label><input type="text" id="supNewName" placeholder="Иванов" maxlength="80" onkeydown="if(event.key === 'Enter') addSupplier()"></div>
+      <button class="btn primary" id="supAddBtn" onclick="addSupplier()"><svg class="icon"><use href="#i-plus"/></svg>Добавить</button>
+    </div>
+    <div id="supAddDone" hidden>
+      <div class="alert" id="supAddDoneText"></div>
+      <div class="field"><label>Код для входа — передайте поставщику</label><div class="sup-code-big" id="supAddCode"></div></div>
+      <button class="btn ghost" id="supCopyCode" onclick="copySupCode()"><svg class="icon"><use href="#i-clipboard"/></svg>Скопировать код</button>
+      <p class="hint" style="margin:10px 2px;">Поставщик открывает приложение → «Я поставщик» → вводит этот код, свою почту и пароль.</p>
+      <button class="btn primary" id="supAddDoneBtn" onclick="closeSupAdd()"><svg class="icon"><use href="#i-check"/></svg>Готово</button>
+    </div>
+  </div>
+</div>
+
 <!-- «Продал» (этап 2б): заказ складу со скриншотом штрихкода Авито -->
 <div class="modal-bg" id="sellModalBg" data-close="closeSell">
   <div class="modal">
@@ -755,7 +767,8 @@
 <!-- просмотр фото во весь экран: штрихкод сканируют в пункте выдачи, можно распечатать -->
 <div class="photo-viewer" id="photoViewer">
   <div class="pv-bar"><button type="button" class="icon-btn" data-back onclick="closePhoto()" aria-label="Назад"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
-    <button type="button" class="btn ghost sm" id="pvPrint" style="width:auto;" onclick="window.print()">Печать</button></div>
+    <div style="display:flex;gap:8px;"><label class="btn ghost sm" id="pvReplace" style="width:auto;cursor:pointer;" hidden>Заменить фото<input type="file" accept="image/*" hidden onchange="pvReplacePick(this)"></label>
+    <button type="button" class="btn ghost sm" id="pvPrint" style="width:auto;" onclick="window.print()">Печать</button></div></div>
   <img id="pvImg" alt="Фото">
 </div>
 
@@ -791,9 +804,10 @@
     </div>
     <div class="field"><label>Размеры <span class="hint">— не выбрали: товар без размера («Единый»)</span></label>
       <div class="size-pick" id="mmSizePick"></div>
-      <div class="field-row" style="margin-top:6px;"><input type="text" id="mmSizeCustom" placeholder="Свой размер, например 42"><button class="btn ghost sm" style="width:auto;" onclick="mmAddCustomSize()">Добавить</button></div>
+      <div class="field-row" style="margin-top:6px;"><input type="text" id="mmSizeCustom" placeholder="Свой размер"><button class="btn ghost sm" style="width:auto;" onclick="mmAddCustomSize()">Добавить</button></div>
       <div id="mmSizeBarcodes"></div>
     </div>
+    <div class="field" id="mmPhotoBox"></div>
     <div class="field" id="mmStockBox" hidden></div>
     <div class="field"><label>Размер упаковки Д × Ш × В, см <span class="hint">— для тарифа «по коробке» и хранения в кубах</span></label>
       <div class="field-row"><input type="text" id="mmLen" inputmode="decimal" placeholder="Д"><input type="text" id="mmWid" inputmode="decimal" placeholder="Ш"><input type="text" id="mmHei" inputmode="decimal" placeholder="В"></div>
@@ -886,7 +900,7 @@
     <p id="authHint"></p>
 
     <div class="auth-choose" id="authChoose" hidden>
-      <button type="button" class="auth-choice" id="authChooseSupplier" onclick="authMode('register')">
+      <button type="button" class="auth-choice" id="authChooseSupplier" onclick="authPickSupplier()">
         <span class="auth-choice-ico"><svg class="icon"><use href="#i-box"/></svg></span>
         <span><b>Я поставщик</b><small>Мой товар хранится на складе. Склад дал мне код приглашения.</small></span>
       </button>
@@ -1089,43 +1103,43 @@
 <script src="vendor/zxing.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="sync-config.js?v=9"></script>
-<script src="js/db.js?v=9"></script>
-<script src="js/cells.js?v=9"></script>
-<script src="js/ff-data.js?v=9"></script>
-<script src="js/sync-ui.js?v=9"></script>
-<script src="js/input.js?v=9"></script>
-<script src="js/returns-scan.js?v=9"></script>
-<script src="js/sounds.js?v=9"></script>
-<script src="js/stock-history.js?v=9"></script>
-<script src="js/finance.js?v=9"></script>
-<script src="js/balance.js?v=9"></script>
-<script src="js/analytics.js?v=9"></script>
-<script src="js/settings-roles.js?v=9"></script>
-<script src="js/roles.js?v=9"></script>
-<script src="js/suppliers.js?v=9"></script>
-<script src="js/stock-ff.js?v=9"></script>
-<script src="js/cells-ui.js?v=9"></script>
-<script src="js/moves.js?v=9"></script>
-<script src="js/receipts.js?v=9"></script>
-<script src="js/shipments.js?v=9"></script>
-<script src="js/photos.js?v=9"></script>
-<script src="js/supplier-home.js?v=9"></script>
-<script src="js/incoming.js?v=9"></script>
-<script src="js/excel-import.js?v=9"></script>
-<script src="js/sell.js?v=9"></script>
-<script src="js/supplier-analysis.js?v=9"></script>
-<script src="js/review.js?v=9"></script>
-<script src="js/history-ff.js?v=9"></script>
-<script src="js/scan-ff.js?v=9"></script>
-<script src="js/demo.js?v=9"></script>
-<script src="js/subscription.js?v=9"></script>
-<script src="js/tariffs.js?v=9"></script>
-<script src="js/admin.js?v=9"></script>
-<script src="js/backup-labels.js?v=9"></script>
+<script src="sync-config.js?v=10"></script>
+<script src="js/db.js?v=10"></script>
+<script src="js/cells.js?v=10"></script>
+<script src="js/ff-data.js?v=10"></script>
+<script src="js/sync-ui.js?v=10"></script>
+<script src="js/input.js?v=10"></script>
+<script src="js/returns-scan.js?v=10"></script>
+<script src="js/sounds.js?v=10"></script>
+<script src="js/stock-history.js?v=10"></script>
+<script src="js/finance.js?v=10"></script>
+<script src="js/balance.js?v=10"></script>
+<script src="js/analytics.js?v=10"></script>
+<script src="js/settings-roles.js?v=10"></script>
+<script src="js/roles.js?v=10"></script>
+<script src="js/suppliers.js?v=10"></script>
+<script src="js/stock-ff.js?v=10"></script>
+<script src="js/cells-ui.js?v=10"></script>
+<script src="js/moves.js?v=10"></script>
+<script src="js/receipts.js?v=10"></script>
+<script src="js/shipments.js?v=10"></script>
+<script src="js/photos.js?v=10"></script>
+<script src="js/supplier-home.js?v=10"></script>
+<script src="js/incoming.js?v=10"></script>
+<script src="js/excel-import.js?v=10"></script>
+<script src="js/sell.js?v=10"></script>
+<script src="js/supplier-analysis.js?v=10"></script>
+<script src="js/review.js?v=10"></script>
+<script src="js/history-ff.js?v=10"></script>
+<script src="js/scan-ff.js?v=10"></script>
+<script src="js/demo.js?v=10"></script>
+<script src="js/subscription.js?v=10"></script>
+<script src="js/tariffs.js?v=10"></script>
+<script src="js/admin.js?v=10"></script>
+<script src="js/backup-labels.js?v=10"></script>
 <!-- после основного кода: синхронизация опирается на его функции -->
-<script src="sync.js?v=9"></script>
-<script src="js/layout.js?v=9"></script>
-<script src="js/nav-back.js?v=9"></script>
+<script src="sync.js?v=10"></script>
+<script src="js/layout.js?v=10"></script>
+<script src="js/nav-back.js?v=10"></script>
 </body>
 </html>

@@ -49,6 +49,7 @@ let authSignedNoAccess = false;   // вошёл, но ни склада, ни п
 function authMode(mode){
   const bg = document.getElementById('authModalBg');
   if(!bg) return;
+  if(mode === 'choose') authWho = null;
   if(!ffSelfSignup() && mode === 'regwarehouse') mode = 'login';   // склад заводит владелец сервиса — складу только вход
   const whNote = document.getElementById('authWhNote');
   if(whNote) whNote.textContent = 'Я фулфилмент: храню и отправляю товар поставщиков.' + (ffSelfSignup() ? ' 14 дней бесплатно.' : '');
@@ -101,7 +102,10 @@ function ffSelfSignup(){ return window.FF_SELF_SIGNUP === true || !!(window.SYNC
 function authStartMode(){ return (window.Sync && Sync.lastLogin && Sync.lastLogin()) ? 'login' : 'choose'; }
 /* #register с лендинга — регистрация склада, если она включена; иначе обычный вход */
 function authRegisterMode(){ return ffSelfSignup() ? 'regwarehouse' : authStartMode(); }
-function authPickWarehouse(){ authMode(ffSelfSignup() ? 'regwarehouse' : 'login'); }
+/* какую карточку выбрал человек на «Кто вы?» — чтобы не пустить молча не в тот кабинет */
+let authWho = null;
+function authPickWarehouse(){ authWho = 'warehouse'; authMode(ffSelfSignup() ? 'regwarehouse' : 'login'); }
+function authPickSupplier(){ authWho = 'supplier'; authMode('register'); }
 function openAuth(mode){
   const bg = document.getElementById('authModalBg');
   if(!bg) return;
@@ -186,6 +190,13 @@ async function authSubmit(){
       ? await Sync.registerWarehouse(email, pass, (document.getElementById('authWhTitle').value || '').trim(), (document.getElementById('authWhPhone').value || '').trim())
       : (mode === 'register' ? await Sync.signUp(email, pass, code) : await Sync.signIn(email, pass));
     if(!r.ok){ authError(r.error); setSyncLine(describeSync('signed-out')); return; }
+    if(mode === 'login' && authWho){
+      await Sync.resolveMembership();
+      const rl = Sync.role();
+      const wrong = authWho === 'warehouse' && rl === 'supplier' ? 'Это учётка поставщика. Вернитесь назад и нажмите «Я поставщик».'
+                  : authWho === 'supplier' && rl === 'owner' ? 'Это учётка склада. Вернитесь назад и нажмите «У меня склад».' : '';
+      if(wrong){ await Sync.signOut(); authError(wrong); setSyncLine(describeSync('signed-out')); return; }
+    }
     await afterLogin();
   }finally{
     btn.disabled = false;

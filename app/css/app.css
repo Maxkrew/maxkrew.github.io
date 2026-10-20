@@ -819,3 +819,13 @@ nav.bottom .side-only{display:none !important;}
 .modal-head{margin-bottom:var(--sp-3);}
 .is-supplier [data-owner-only]{display:none !important;}
 .no-billing [data-section="tariffs"]{display:none !important;}
+/* поставщики: ровная карточка, окно добавления */
+.sup-card .sup-head{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:4px;}
+.sup-card .sup-line{margin-top:4px;}
+.sup-card .sup-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:nowrap;}
+.sup-card .sup-actions .btn{flex:1;min-width:0;white-space:nowrap;padding:9px 6px;font-size:13px;}
+.sup-code-big{font:700 26px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-align:center;padding:14px;border:1px dashed var(--accent-border);border-radius:var(--r-md);background:var(--accent-soft);color:var(--accent-strong);user-select:all;}
+/* отправки: корзина у строки; фото в карточке товара */
+.task{position:relative;}
+.task .sh-del,.row-item .sh-del{margin-left:auto;flex:none;align-self:center;}
+.mm-photo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}

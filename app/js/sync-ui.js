@@ -299,7 +299,7 @@ function syncInvActionUI(){
 
 async function updateProductCountPill(){
   const n = (await getAll('models')).filter(m=> !m.deletedAt).length;
-  const word = n%10===1 && n%100!==11 ? 'модель' : (n%10>=2 && n%10<=4 && !(n%100>=12&&n%100<=14) ? 'модели' : 'моделей');
+  const word = n%10===1 && n%100!==11 ? 'товар' : (n%10>=2 && n%10<=4 && !(n%100>=12&&n%100<=14) ? 'товара' : 'товаров');
   const el = document.getElementById('productCountPill');
   if(el) el.textContent = n + ' ' + word;
 }

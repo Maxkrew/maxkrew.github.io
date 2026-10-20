@@ -177,8 +177,8 @@ async function shipmentCard(s, editable){
   for(const l of lines){
     let pr = sup && typeof linePrice === 'function' ? await linePrice(l.id) : null;
     if(sup && pr === null) for(const o of lines) if(o.id !== l.id && o.sizeId === l.sizeId){ const p = await linePrice(o.id); if(p !== null){ pr = p; break; } }   // кусок разделённой складом строки
-    const name = `<b>${escapeHtml(modelName(models[l.modelId] || {}))} ${escapeHtml(await sizeLabelOf(l.sizeId))}</b> — ${l.qty} шт.${pr !== null ? ' · ' + fmtMoney(pr) : ''}`;
-    if(sup){ rows.push(`<div class="row-item${l.collected ? ' done' : ''}"><div class="rmain">${name}${l.collected ? ' · <b>Собрано</b>' : ''}</div></div>`); continue; }
+    const name = `<span class="sh-item">${escapeHtml(modelName(models[l.modelId] || {}))} ${escapeHtml(await sizeLabelOf(l.sizeId))}</span> <span class="sh-qty">${l.qty} шт.</span>${pr !== null ? ' <span class="sh-price">' + fmtMoney(pr) + '</span>' : ''}`;
+    if(sup){ rows.push(`<div class="row-item${l.collected ? ' done' : ''}"><div class="rmain">${name}${l.collected ? ' <span class="sh-done">Собрано</span>' : ''}</div></div>`); continue; }
     const del = editable && !l.collected && s.createdBy !== 'supplier'
       ? `<button type="button" class="icon-btn sh-del" data-del-line="${escapeAttr(l.id)}" onclick="event.preventDefault();event.stopPropagation();shDelLine(${jsArg(l.id)})" aria-label="Убрать строку"><svg class="icon"><use href="#i-trash"/></svg></button>` : '';
     if(!l.cellNumber && !l.collected){
@@ -186,7 +186,7 @@ async function shipmentCard(s, editable){
       continue;
     }
     rows.push(`<label class="task${l.collected ? ' done' : ''}"><input type="checkbox"${l.collected ? ' checked' : ''} onchange="shTick(${jsArg(l.id)}, this.checked)">
-      <span>${name}<br><span class="go">➡ возьми из Ячейки ${escapeHtml(l.cellNumber || '?')}</span>${l.collected ? ' · <b>Собрано</b>' : ''}</span>${del}</label>`);
+      <span>${name}<br><span class="go">➡ возьми из Ячейки ${escapeHtml(l.cellNumber || '?')}</span>${l.collected ? ' <span class="sh-done">Собрано</span>' : ''}</span>${del}</label>`);
   }
   let add = '';
   if(editable){
@@ -211,8 +211,9 @@ async function shipmentCard(s, editable){
   const from = !sup && s.createdBy === 'supplier' ? ' · <span class="tag-sup">от поставщика</span>' : '';
   const pencil = sup && typeof shipmentEditable === 'function' && await shipmentEditable(s)
     ? `<button type="button" class="icon-btn sh-edit" data-edit="${escapeAttr(s.id)}" onclick="sellEditStart(${jsArg(s.id)})" aria-label="Изменить заказ"><svg class="icon"><use href="#i-edit"/></svg></button>` : '';
-  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}<div class="rname">${sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || '') + ' · '}${escapeHtml(s.carrier)}${from}</div>
-    <div class="rmeta">${escapeHtml(s.comment || '')}${s.comment ? ' · ' : ''}${escapeHtml(s.status)}</div>
+  const meta = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', escapeHtml(s.comment || '')].filter(Boolean).join(' · ');
+  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${escapeHtml(s.status)}</span></div>
+    ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
     ${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${add}</div>`;
 }
 async function shStart(){

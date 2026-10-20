@@ -138,15 +138,46 @@ function anBuckets(rows, from, to){
 }
 let anDays = 30, anRange = null, anPeriodOpen = false;   // anRange = {from, to} — свой период
 function anSetDays(d){ anDays = d; anRange = null; anPeriodOpen = false; renderSupplierAnalysis(); }
-function anTogglePeriod(){ anPeriodOpen = !anPeriodOpen; renderSupplierAnalysis(); }
+function anTogglePeriod(){
+  anPeriodOpen = !anPeriodOpen;
+  if(anPeriodOpen){ const r = anRange || {from: dayStart(Date.now()) - 29 * AN_DAY, to: Date.now()}; anCal = {month: anMonthStart(r.to), from: dayStart(r.from), to: dayStart(r.to)}; }
+  renderSupplierAnalysis();
+}
+/* календарь периода: первый тап — «с», второй — «по» (раньше «с» — меняются местами) */
+let anCal = {month: 0, from: null, to: null};
+const anMonthStart = ts=> { const d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); };
+function anCalMove(step){ const d = new Date(anCal.month); anCal.month = new Date(d.getFullYear(), d.getMonth() + step, 1).getTime(); anCalDraw(); }
+function anCalPick(ts){
+  if(!anCal.from || anCal.to){ anCal.from = ts; anCal.to = null; }
+  else if(ts < anCal.from){ anCal.to = anCal.from; anCal.from = ts; }
+  else anCal.to = ts;
+  anCalDraw();
+}
+function anCalHtml(){
+  const m = new Date(anCal.month), today = dayStart(Date.now());
+  const first = (m.getDay() + 6) % 7, days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+  const to = anCal.to || anCal.from;
+  const cells = [];
+  for(let i = 0; i < first; i++) cells.push('<span></span>');
+  for(let d = 1; d <= days; d++){
+    const ts = new Date(m.getFullYear(), m.getMonth(), d).getTime();
+    const cls = [ts > today ? 'off' : '', anCal.from && ts >= anCal.from && to && ts <= to ? 'in' : '', ts === anCal.from ? 'from' : '', ts === to ? 'to' : ''].filter(Boolean).join(' ');
+    cells.push(`<button type="button" data-day="${anIso(ts)}" class="${cls}"${ts > today ? ' disabled' : ''} onclick="anCalPick(${ts})">${d}</button>`);
+  }
+  const fmt = ts=> new Date(ts).toLocaleDateString('ru-RU', {day:'numeric', month:'long'});
+  const pick = anCal.from ? (anCal.to ? 'С ' + fmt(anCal.from) + ' по ' + fmt(anCal.to) : 'С ' + fmt(anCal.from) + ' — выберите последний день') : 'Выберите первый день';
+  return `<div class="an-cal-head"><button type="button" class="icon-btn" id="anCalPrev" onclick="anCalMove(-1)" aria-label="Прошлый месяц"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
+      <b>${m.toLocaleDateString('ru-RU', {month:'long', year:'numeric'})}</b>
+      <button type="button" class="icon-btn an-next" id="anCalNext" onclick="anCalMove(1)" aria-label="Следующий месяц"${anCal.month >= anMonthStart(Date.now()) ? ' disabled' : ''}><svg class="icon"><use href="#i-arrow-left"/></svg></button></div>
+    <div class="an-cal-grid">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(w=> '<i>' + w + '</i>').join('')}${cells.join('')}</div>
+    <div class="an-cal-pick" id="anCalPick">${pick}</div>
+    <button class="btn primary" id="anApply" onclick="anApplyPeriod()"${anCal.from ? '' : ' disabled'}><svg class="icon"><use href="#i-check"/></svg>Показать</button>`;
+}
+function anCalDraw(){ const el = document.getElementById('anCal'); if(el) el.innerHTML = anCalHtml(); }
 const anIso = ts=> { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 function anApplyPeriod(){
-  const f = document.getElementById('anFrom').value, t = document.getElementById('anTo').value;
-  const err = document.getElementById('anPeriodErr');
-  if(!f || !t){ err.textContent = 'Выберите обе даты'; return; }
-  const from = new Date(f + 'T00:00:00').getTime(), to = new Date(t + 'T00:00:00').getTime() + AN_DAY - 1;
-  if(from > to){ err.textContent = 'Дата «с» должна быть раньше даты «по»'; return; }
-  anRange = {from, to}; anPeriodOpen = false; renderSupplierAnalysis();
+  if(!anCal.from) return;
+  anRange = {from: anCal.from, to: (anCal.to || anCal.from) + AN_DAY - 1}; anPeriodOpen = false; renderSupplierAnalysis();
 }
 async function renderSupplierAnalysis(){
   const box = document.getElementById('analysisBox');
@@ -156,7 +187,8 @@ async function renderSupplierAnalysis(){
   const sum = await analysisSummary(anRange ? {from: anRange.from, to: anRange.to} : {days: anDays}), names = await anNames();
   const tile = (label, value, note)=> `<div class="an-tile"><div class="an-label">${label}</div><div class="an-value">${value}</div>${note ? `<div class="an-note">${note}</div>` : ''}</div>`;
   const hints = analysisHints(sum, names);
-  const list = (title, rows)=> rows.length ? `<div class="card"><div class="rname" style="margin-bottom:6px;">${title}</div>${rows.join('')}</div>` : '';
+  // отдельный блок: зелёный заголовок и пояснение, что это значит
+  const list = (title, note, rows)=> rows.length ? `<div class="card an-list"><div class="an-list-title">${title}</div><div class="an-list-note">${note}</div>${rows.join('')}</div>` : '';
   const row = (a, b)=> `<div class="row-item"><div class="rmain">${escapeHtml(a)}</div><div class="rside"><b>${escapeHtml(b)}</b></div></div>`;
   const buckets = anBuckets(sum.rows, range.from, range.to);
   const byWeek = buckets.length && buckets[0].end - buckets[0].start > 2 * AN_DAY;
@@ -164,13 +196,13 @@ async function renderSupplierAnalysis(){
   const fmtD = ts=> new Date(ts).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit', year:'numeric'});
   const seg = [7, 30].map(d=> `<button type="button" data-days="${d}" class="${!anRange && d === anDays ? 'on' : ''}" onclick="anSetDays(${d})">${d} дней</button>`).join('') +
     `<button type="button" data-period class="${anRange ? 'on' : ''}" onclick="anTogglePeriod()" aria-expanded="${anPeriodOpen}"><svg class="icon"><use href="#i-calendar"/></svg>Период</button>`;
-  const form = anPeriodOpen ? `<div class="card an-period"><div class="field-row">
-      <div class="field" style="margin:0;"><label for="anFrom">С</label><input type="date" id="anFrom" value="${anIso(range.from)}" max="${anIso(now)}"></div>
-      <div class="field" style="margin:0;"><label for="anTo">По</label><input type="date" id="anTo" value="${anIso(range.to)}" max="${anIso(now)}"></div></div>
-      <div class="xls-err" id="anPeriodErr" role="alert"></div>
-      <button class="btn primary" id="anApply" style="margin-top:8px;" onclick="anApplyPeriod()"><svg class="icon"><use href="#i-check"/></svg>Показать</button></div>` : '';
+  const form = anPeriodOpen ? `<div class="card an-period" id="anCal">${anCalHtml()}</div>` : '';
   box.innerHTML = `<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}
     ${anRange ? `<p class="hint an-range">Период: ${fmtD(anRange.from)} — ${fmtD(anRange.to)}</p>` : ''}
+    ${list('Заканчивается', 'Остатка хватит меньше чем на 2 недели при нынешних продажах', sum.runningOut.map(r=> row(names.sizes[r.sizeId] || '', r.daysLeft + ' ' + ruPlural(r.daysLeft, 'день', 'дня', 'дней'))))}
+    ${list('Довезти на месяц', 'Сколько везти, чтобы хватило на 30 дней: продажи за месяц − на складе − в пути', sum.restock.map(r=> row(names.sizes[r.sizeId] || '', r.qty + ' шт.')))}
+    ${list('Без движения 60 дней', 'Лежит на складе, но не продаётся больше 60 дней', sum.stale.map(r=> row(names.sizes[r.sizeId] || '', r.stock + ' шт.')))}
+    ${list('Лучшие товары', 'Больше всего продано за выбранный период', sum.top.map(t=> row(names.models[t.modelId] || '', t.qty + ' шт. · ' + fmtMoney(t.revenue))))}
     <div class="an-tiles">
       ${tile('Продано, шт.', fmtNum(sum.soldQty))}
       ${tile('Выручка', fmtMoney(sum.revenue))}
@@ -180,9 +212,5 @@ async function renderSupplierAnalysis(){
     </div>
     <div class="card"><div class="rname" style="margin-bottom:6px;">Продажи по ${byWeek ? 'неделям' : 'дням'}</div>${chart}</div>
     ${hints.length ? `<div class="card an-hints">${hints.map(h=> `<div class="an-hint">${escapeHtml(h)}</div>`).join('')}</div>` : ''}
-    ${list('Заканчивается', sum.runningOut.map(r=> row(names.sizes[r.sizeId] || '', r.daysLeft + ' ' + ruPlural(r.daysLeft, 'день', 'дня', 'дней'))))}
-    ${list('Довезти на месяц', sum.restock.map(r=> row(names.sizes[r.sizeId] || '', r.qty + ' шт.')))}
-    ${list('Без движения 60 дней', sum.stale.map(r=> row(names.sizes[r.sizeId] || '', r.stock + ' шт.')))}
-    ${list('Лучшие товары', sum.top.map(t=> row(names.models[t.modelId] || '', t.qty + ' шт. · ' + fmtMoney(t.revenue))))}
     <p class="hint" style="margin:10px 4px;">Советы ИИ — скоро.</p>`;
 }

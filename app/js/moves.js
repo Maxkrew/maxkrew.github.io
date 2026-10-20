@@ -120,7 +120,7 @@ async function mmMoveForm(modelId, fromCell){
       <b>Из ячейки ${escapeHtml(fromCell)}</b></div>
     <div class="field-row"><select id="moveSize">${sizes.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.label)} (${c.bySize[s.label]} шт.)</option>`).join('')}</select>
       <input type="number" id="moveQty" min="1" value="1"></div>
-    <div class="field-row"><select id="moveTo">${await mmCellOptions(modelId, fromCell)}</select>
+    <div class="field-row"><select id="moveTo">${(await mmCellOptions(modelId, fromCell)) || '<option value="">Нет другой ячейки</option>'}</select>
       <button type="button" class="btn primary" style="width:auto;" id="moveSave" onclick="mmMoveSave(${jsArg(modelId)}, ${jsArg(fromCell)})">Переложить</button></div></div>`;
 }
 async function mmMoveSave(modelId, fromCell){

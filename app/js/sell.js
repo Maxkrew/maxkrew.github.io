@@ -129,7 +129,12 @@ async function deleteModelPhoto(modelId){
 /* блок «Фото товара» в карточке товара */
 async function mmRenderPhoto(modelId){
   const box = document.getElementById('mmPhotoBox'); if(!box) return;
-  if(!modelId){ box.innerHTML = '<label>Фото товара</label><div class="hint">Фото можно добавить после сохранения товара</div>'; return; }
+  if(!modelId){
+    const prev = mmPendingPhoto ? `<span class="ph-thumb"><img alt="Фото товара" src="${escapeAttr(URL.createObjectURL(mmPendingPhoto))}"></span>` : '';
+    box.innerHTML = '<label>Фото товара</label><div class="mm-photo">' + prev + `<label class="btn ghost sm" style="width:auto;"><svg class="icon"><use href="#i-camera"/></svg>${mmPendingPhoto ? 'Заменить' : 'Добавить фото'}<input type="file" id="mmPhotoFile" accept="image/*" hidden onchange="mmPendingPick(this)"></label>` +
+      (mmPendingPhoto ? '<button type="button" class="btn ghost sm" id="mmPhotoDel" style="width:auto;" onclick="mmPendingPhoto = null; mmRenderPhoto(null)"><svg class="icon"><use href="#i-trash"/></svg>Убрать</button>' : '') + '</div>';
+    return;
+  }
   const p = await modelPhoto(modelId);
   const pick = (t)=> `<label class="btn ghost sm" style="width:auto;cursor:pointer;"><svg class="icon"><use href="#i-camera"/></svg>${t}<input type="file" id="mmPhotoFile" accept="image/*" hidden onchange="mmPhotoPick(${jsArg(modelId)}, this)"></label>`;
   box.innerHTML = '<label>Фото товара</label><div class="mm-photo">' + (p
@@ -137,6 +142,9 @@ async function mmRenderPhoto(modelId){
     : pick('Добавить фото')) + '</div>';
   fillPhotoThumbs(box);
 }
+/* фото нового товара: держим до «Сохранить» */
+let mmPendingPhoto = null;
+function mmPendingPick(input){ const f = input.files && input.files[0]; if(f){ mmPendingPhoto = f; mmRenderPhoto(null); } }
 async function mmPhotoPick(modelId, input){
   const f = input.files && input.files[0]; if(!f) return;
   try{ await setModelPhoto(modelId, f); toast('Фото сохранено'); }catch(e){ toast('Не получилось: ' + e.message); }

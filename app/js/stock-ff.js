@@ -36,7 +36,7 @@ async function renderStockFF(){
   const owner = isOwnerRole();
   // у поставщика — «Мои товары» с кнопками «Приход» и «Продал» (этап 2б)
   document.getElementById('ffStockTitle').textContent = owner ? 'Склад' : 'Мои товары';
-  document.getElementById('ffStockSub').textContent = owner ? 'Модели, размеры и остатки' : 'Что на складе, что едет и что ждёт отправки';
+  document.getElementById('ffStockSub').textContent = owner ? 'Товары, размеры и остатки' : 'Что на складе, что едет и что ждёт отправки';
   document.getElementById('homeActions').hidden = owner;
   const sups = await ffSuppliersMap();
   // фильтр поставщиков — только складу
@@ -57,14 +57,15 @@ async function renderStockFF(){
     const codeHit = new Set(allSizes.filter(s=> (s.barcode || '').toLowerCase().includes(q)).map(s=> s.modelId));
     models = models.filter(m=> codeHit.has(m.id) || (modelName(m) + ' ' + (m.sku || '')).toLowerCase().includes(q));
   }
-  // шпаргалка: первые буквы брендов
-  const letters = [...new Set(models.map(m=> (m.brand || modelName(m)).trim().charAt(0).toUpperCase()).filter(Boolean))].sort((a, b)=> a.localeCompare(b, 'ru'));
-  if(ffAbcLetter && !letters.includes(ffAbcLetter)) ffAbcLetter = '';
-  document.getElementById('ffAbc').innerHTML = letters.length
-    ? ['<button type="button" data-letter=""' + (ffAbcLetter ? '' : ' class="a"') + ' onclick="ffSetLetter(\'\')">Все</button>']
-        .concat(letters.map(l=> `<button type="button" data-letter="${escapeAttr(l)}"${l === ffAbcLetter ? ' class="a"' : ''} onclick="ffSetLetter(${jsArg(l)})">${escapeHtml(l)}</button>`)).join('')
-    : '';
-  if(ffAbcLetter) models = models.filter(m=> (m.brand || modelName(m)).trim().charAt(0).toUpperCase() === ffAbcLetter);
+  // фильтр по категории (вместо букв: «П», «Х» были непонятны — владелец, 20.10.2026)
+  const cats = [...new Set(models.map(m=> String(m.category || '').trim()).filter(Boolean))].sort((a, b)=> a.localeCompare(b, 'ru'));
+  if(ffAbcLetter && !cats.includes(ffAbcLetter)) ffAbcLetter = '';
+  const catSel = document.getElementById('ffCategoryFilter');
+  if(catSel){
+    catSel.innerHTML = '<option value="">Все категории</option>' + cats.map(c=> `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+    catSel.value = ffAbcLetter;
+  }
+  if(ffAbcLetter) models = models.filter(m=> String(m.category || '').trim() === ffAbcLetter);
   const phByModel = new Map();   // последнее фото товара
   for(const p of (await getAll('photos')).filter(p=> !p.deletedAt && p.kind === 'товар').sort((a, b)=> (a.createdTs || 0) - (b.createdTs || 0))) phByModel.set(p.modelId, p);
   const collator = new Intl.Collator('ru');
@@ -72,7 +73,7 @@ async function renderStockFF(){
   models.sort((a, b)=> collator.compare(names.get(a.id), names.get(b.id)));
 
   if(!models.length){
-    list.innerHTML = emptyState('i-box', q || ffAbcLetter ? 'Ничего не найдено' : 'Моделей пока нет', owner ? 'Добавьте модель кнопкой «Модель» или через приёмку.' : 'Добавьте свою модель кнопкой «Модель».');
+    list.innerHTML = emptyState('i-box', q || ffAbcLetter ? 'Ничего не найдено' : 'Товаров пока нет', owner ? 'Добавьте товар кнопкой «Товар» или через приёмку.' : 'Добавьте товар кнопкой «+ Товар».');
     if(typeof renderExpected === 'function') await renderExpected();
     return;
   }
@@ -126,7 +127,7 @@ async function ffModelPhotoPick(modelId, input){
   await renderStockFF();
 }
 let ffStockLimit = 200;
-function ffSetLetter(l){ ffAbcLetter = l; ffStockLimit = 200; renderStockFF(); }
+function ffSetCategory(c){ ffAbcLetter = c; ffStockLimit = 200; renderStockFF(); }
 
 /* ---------------- карточка модели ---------------- */
 let mmPicked = [];          // выбранные размеры (подписи)
@@ -161,6 +162,7 @@ async function openModelModal(id){
   const sups = Object.values(await ffSuppliersMap()).filter(s=> !s.deletedAt && !s.archived);
   document.getElementById('mmTitleHead').textContent = m ? modelName(m) : 'Новый товар';
   document.getElementById('mmId').value = m ? m.id : '';
+  if(typeof mmPendingPhoto !== 'undefined') mmPendingPhoto = null;
   if(typeof mmRenderPhoto === 'function') mmRenderPhoto(m ? m.id : null);
   const supSel = document.getElementById('mmSupplier');
   supSel.innerHTML = sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('');
@@ -242,7 +244,7 @@ async function saveModelFromForm(){
   const g = id=> (document.getElementById(id) || {}).value;
   if(g('mmCategory') === '__own' && !String(g('mmCategoryOwn') || '').trim()){ const err = document.getElementById('mmError'); err.textContent = 'Напишите свою категорию'; err.classList.add('show'); return; }
   try{
-    await saveModel({
+    const savedId = await saveModel({
       id: g('mmId') || null, supplierId: g('mmSupplier'), brand: g('mmBrand'), title: g('mmTitle'), color: g('mmColor'),
       category: g('mmCategory') === '__own' ? String(g('mmCategoryOwn') || '').trim() : g('mmCategory'), capacity: g('mmCapacity'), lenCm: g('mmLen'), widCm: g('mmWid'), heiCm: g('mmHei'),
       sku: g('mmSku'), price: g('mmPrice'), calcPrice: g('mmCalcPrice'), buyFrom: g('mmBuyFrom'), cost: g('mmCost'),
@@ -250,6 +252,7 @@ async function saveModelFromForm(){
       sizes: mmPicked.length ? mmPicked.slice() : ['Единый'],   // товар без размеров (пылесос) — один вариант
       barcodes: Object.assign({}, mmBarcodes)
     });
+    if(typeof mmPendingPhoto !== 'undefined' && mmPendingPhoto){ const f = mmPendingPhoto; mmPendingPhoto = null; try{ await setModelPhoto(savedId, f); }catch(e){ toast('Фото не сохранилось: ' + e.message); } }
   }catch(e){
     const err = document.getElementById('mmError'); err.textContent = e.message; err.classList.add('show');
     return;
@@ -267,7 +270,7 @@ async function deleteModelFF(id){
   const sizes = (await getAll('sizes')).filter(s=> s.modelId === id && !s.deletedAt);
   const idx = await ffStockIndex();
   const left = sizes.reduce((n, s)=> n + (idx.bySize[s.id] || 0), 0);
-  if(left) return {ok:false, error:'На складе ещё ' + left + ' шт. этой модели'};
+  if(left) return {ok:false, error:'На складе ещё ' + left + ' шт. этого товара'};
   for(const c of (await getAll('cells')).filter(c=> c.modelId === id && !c.deletedAt)){ c.modelId = null; c.reserved = false; c.allowedSizes = null; await put('cells', c); }
   for(const s of sizes){ s.deletedAt = Date.now(); await put('sizes', s); }
   m.deletedAt = Date.now(); await put('models', m);
@@ -275,7 +278,7 @@ async function deleteModelFF(id){
 }
 async function deleteModelUI(){
   const id = document.getElementById('mmId').value;
-  if(!id || !confirm('Удалить модель? Восстановить будет нельзя.')) return;
+  if(!id || !confirm('Удалить товар? Восстановить будет нельзя.')) return;
   const r = await deleteModelFF(id);
   if(!r.ok){ toast(r.error); return; }
   closeModelModal(); toast('Модель удалена'); await renderStockFF(); await updateProductCountPill();

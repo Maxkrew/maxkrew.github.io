@@ -92,13 +92,14 @@ async function modelView(modelId){
     const cs = idx.byCell;
     const labelOf = Object.fromEntries(sizes.map(s=> [s.id, s.sizeLabel]));
     view.cells = (await getAll('cells'))
-      .filter(c=> !c.deletedAt && (c.modelId === modelId || (isDefectCell(c) && c.supplierId === model.supplierId && Object.keys(cs[c.number] || {}).some(sid=> labelOf[sid] && cs[c.number][sid]))))
+      // свои ячейки модели, а ещё брак, пол и ячейки другого цвета — где лежат её размеры
+      .filter(c=> !c.deletedAt && (c.modelId === modelId || (c.supplierId === model.supplierId && Object.keys(cs[c.number] || {}).some(sid=> labelOf[sid] && cs[c.number][sid]))))
       .sort((a, b)=> cmpCellNumber(a.number, b.number))
       .map(c=>{
         const bySize = {};
         let total = 0;
         for(const [sid, q] of Object.entries(cs[c.number] || {})){ if(q){ bySize[labelOf[sid] || sid] = q; total += q; } }
-        return {number: c.number, allowedSizes: c.allowedSizes || null, capacity: c.capacity || model.capacity || 7, reserved: !!c.reserved, stock: total, bySize, defect: isDefectCell(c)};
+        return {number: c.number, allowedSizes: c.allowedSizes || null, capacity: c.capacity || model.capacity || 7, reserved: !!c.reserved, stock: total, bySize, defect: isDefectCell(c), floor: isFloorCell(c)};
       });
   }
   return view;

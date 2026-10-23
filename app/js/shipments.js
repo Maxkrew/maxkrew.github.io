@@ -20,15 +20,13 @@ async function shipmentLines(shipmentId){
   return (await new Promise((res, rej)=>{ const r = tx('shipmentLines').index('byShipment').getAll(shipmentId); r.onsuccess = ()=> res(r.result || []); r.onerror = rej; }))
     .filter(l=> !l.deletedAt);
 }
-/* Несобранные строки живых отправок: {ячейка: {подпись: штук}} и по размеру (с ячейкой и без). */
+/* Несобранные строки живых отправок: {ячейка: {sizeId: штук}} и по размеру (с ячейкой и без). */
 async function reservedMaps(){
   const live = new Set((await getAll('shipments')).filter(s=> !s.deletedAt && s.status !== 'отменена').map(s=> s.id));
-  const labels = Object.fromEntries((await getAll('sizes')).map(s=> [s.id, s.sizeLabel]));
   const byCell = {}, bySize = {};
   for(const l of await getAll('shipmentLines')){
     if(l.deletedAt || l.collected || !live.has(l.shipmentId)) continue;
-    const lab = labels[l.sizeId] || l.sizeId;
-    if(l.cellNumber) (byCell[l.cellNumber] || (byCell[l.cellNumber] = {}))[lab] = ((byCell[l.cellNumber] || {})[lab] || 0) + l.qty;
+    if(l.cellNumber) (byCell[l.cellNumber] || (byCell[l.cellNumber] = {}))[l.sizeId] = ((byCell[l.cellNumber] || {})[l.sizeId] || 0) + l.qty;
     bySize[l.sizeId] = (bySize[l.sizeId] || 0) + l.qty;
   }
   return {byCell, bySize};
@@ -38,12 +36,24 @@ async function reservedQty(sizeId){ return (await reservedMaps()).bySize[sizeId]
 async function freeQty(sizeId){
   return ((await ffStockIndex()).sellableBySize[sizeId] || 0) - await reservedQty(sizeId);
 }
-/* Остаток по ячейкам за вычетом резерва (для «откуда взять»). */
+/* Остаток по ячейкам за вычетом резерва (для «откуда взять»): {ячейка: {sizeId: штук}}. */
 async function freeCellStock(){
-  const stock = JSON.parse(JSON.stringify(await cellStockByLabel()));
+  const stock = await ffCellStockMap();
   const res = await reservedMaps();
-  for(const [cell, by] of Object.entries(res.byCell)) for(const [lab, q] of Object.entries(by)) if(stock[cell]) stock[cell][lab] = (stock[cell][lab] || 0) - q;
+  for(const [cell, by] of Object.entries(res.byCell)) for(const [sid, q] of Object.entries(by)) (stock[cell] || (stock[cell] = {}))[sid] = ((stock[cell] || {})[sid] || 0) - q;
   return stock;
+}
+/* Откуда взять строку; allowMinus — чего нет на складе, «возьми с пола» в минус (склад так решил). */
+async function pickForLine(supplierId, sizeId, qty, allowMinus){
+  const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
+  const pick = planPick({sizeId, qty}, cells, await freeCellStock());
+  const short = pick.find(p=> p.cell === null);
+  if(short && allowMinus){
+    const floor = await floorCellFor(supplierId);
+    const same = pick.find(p=> p.cell === floor);
+    if(same){ same.qty += short.qty; pick.splice(pick.indexOf(short), 1); } else short.cell = floor;
+  }
+  return pick;
 }
 const sanitizeQty = qty=>{
   const n = Math.max(0, parseInt(qty, 10) || 0);
@@ -52,14 +62,13 @@ const sanitizeQty = qty=>{
   return {n};
 };
 
-async function addShipmentLine(shipmentId, modelId, sizeId, qty){
+async function addShipmentLine(shipmentId, modelId, sizeId, qty, allowMinus){
   const q = sanitizeQty(qty); if(q.error) return {ok:false, error:q.error};
-  const n = q.n;
-  const label = await sizeLabelOf(sizeId);
-  const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
-  const pick = planPick({modelId, sizeLabel: label, qty: n}, cells, await freeCellStock());
+  const sh = await get('shipments', shipmentId);
+  if(!sh) return {ok:false, error:'Нет такой отправки'};
+  const pick = await pickForLine(sh.supplierId, sizeId, q.n, allowMinus);
   const short = pick.find(p=> p.cell === null);
-  if(short) return {ok:false, error:'Не хватает ' + short.qty + ' шт. на складе (с учётом резерва)'};
+  if(short) return {ok:false, short: short.qty, error:'Не хватает ' + short.qty + ' шт. на складе (с учётом резерва)'};
   const ids = [];
   for(const p of pick){
     const id = newUid();
@@ -88,24 +97,34 @@ async function cancelShipment(shipmentId){
 }
 /* Склад: строкам заказов поставщика без ячейки — «откуда взять». Хватает — строка делится
    по ячейкам; не хватает — остаётся без ячейки (на экране «не хватает N шт.»). */
+async function assignLineCells(l, sh, allowMinus){
+  const pick = await pickForLine(sh.supplierId, l.sizeId, l.qty, allowMinus);
+  if(pick.some(p=> p.cell === null)) return false;
+  l.cellNumber = pick[0].cell; l.qty = pick[0].qty; await put('shipmentLines', l);
+  for(const p of pick.slice(1)) await put('shipmentLines', {id: newUid(), shipmentId: l.shipmentId, modelId: l.modelId, sizeId: l.sizeId, qty: p.qty, cellNumber: p.cell, collected: false});
+  return true;
+}
 async function assignCellsForOrders(){
   if(shIsSupplier()) return 0;
   const live = new Map((await getAll('shipments')).filter(s=> !s.deletedAt && s.status === 'новая').map(s=> [s.id, s]));
-  const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
   let done = 0;
   for(const l of (await getAll('shipmentLines')).filter(l=> !l.deletedAt && !l.collected && !l.cellNumber && live.has(l.shipmentId))){
-    const pick = planPick({modelId: l.modelId, sizeLabel: await sizeLabelOf(l.sizeId), qty: l.qty}, cells, await freeCellStock());
-    if(pick.some(p=> p.cell === null)) continue;
-    l.cellNumber = pick[0].cell; l.qty = pick[0].qty; await put('shipmentLines', l);
-    for(const p of pick.slice(1)) await put('shipmentLines', {id: newUid(), shipmentId: l.shipmentId, modelId: l.modelId, sizeId: l.sizeId, qty: p.qty, cellNumber: p.cell, collected: false});
-    done++;
+    if(await assignLineCells(l, live.get(l.shipmentId), false)) done++;
   }
   return done;
+}
+/* Склад: строку заказа поставщика, которой не хватает товара, — всё равно отправить (в минус). */
+async function shipLineMinus(lineId){
+  if(shIsSupplier()) return {ok:false, error:'Решает склад'};
+  const l = await get('shipmentLines', lineId), sh = l && await get('shipments', l.shipmentId);
+  if(!l || l.deletedAt || l.collected || l.cellNumber || !sh) return {ok:false, error:'Строка уже в работе'};
+  await assignLineCells(l, sh, true);
+  return {ok:true};
 }
 /* Недостача строки без ячейки: сколько не покрывает свободный остаток по ячейкам. */
 async function lineShortage(l){
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
-  const pick = planPick({modelId: l.modelId, sizeLabel: await sizeLabelOf(l.sizeId), qty: l.qty}, cells, await freeCellStock());
+  const pick = planPick({sizeId: l.sizeId, qty: l.qty}, cells, await freeCellStock());
   return (pick.find(p=> p.cell === null) || {}).qty || 0;
 }
 
@@ -182,11 +201,12 @@ async function shipmentCard(s, editable){
     const del = editable && !l.collected && s.createdBy !== 'supplier'
       ? `<button type="button" class="icon-btn sh-del" data-del-line="${escapeAttr(l.id)}" onclick="event.preventDefault();event.stopPropagation();shDelLine(${jsArg(l.id)})" aria-label="Убрать строку"><svg class="icon"><use href="#i-trash"/></svg></button>` : '';
     if(!l.cellNumber && !l.collected){
-      rows.push(`<div class="row-item"><div class="rmain">${name}<br><span class="warn">не хватает ${await lineShortage(l)} шт. — ждёт поставки</span></div>${del}</div>`);
+      rows.push(`<div class="row-item"><div class="rmain">${name}<br><span class="warn">не хватает ${await lineShortage(l)} шт. — ждёт поставки</span></div>
+        <div class="rside"><button type="button" class="btn ghost sm" style="width:auto;" data-minus="${escapeAttr(l.id)}" onclick="shMinus(${jsArg(l.id)})">Отправить в минус</button>${del}</div></div>`);
       continue;
     }
     rows.push(`<label class="task${l.collected ? ' done' : ''}"><input type="checkbox"${l.collected ? ' checked' : ''} onchange="shTick(${jsArg(l.id)}, this.checked)">
-      <span>${name}<br><span class="go">➡ возьми из Ячейки ${escapeHtml(l.cellNumber || '?')}</span>${l.collected ? ' <span class="sh-done">Собрано</span>' : ''}</span>${del}</label>`);
+      <span>${name}<br><span class="go">➡ ${/^П/.test(l.cellNumber || '') ? 'возьми с пола' : 'возьми из Ячейки ' + escapeHtml(l.cellNumber || '?')}</span>${!l.collected && /^П/.test(l.cellNumber || '') && await cellSizeQty(l.cellNumber, l.sizeId) < l.qty ? ' <span class="over-warn">на складе нет — уйдёт в минус</span>' : ''}${l.collected ? ' <span class="sh-done">Собрано</span>' : ''}</span>${del}</label>`);
   }
   let add = '';
   if(editable){
@@ -238,8 +258,10 @@ async function shAddLine(sid){
   const sz = document.querySelector('#shSizes-' + CSS.escape(sid) + ' button.on');
   if(!mid || !sz){ toast('Выберите модель и размер'); return; }
   const qty = document.getElementById('shQty-' + sid).value;
-  const r = shIsSupplier() ? await addSupplierOrderLine(sid, mid, sz.dataset.sizeId, qty) : await addShipmentLine(sid, mid, sz.dataset.sizeId, qty);
-  if(!r.ok){ toast(r.error); return; }
+  let r = shIsSupplier() ? await addSupplierOrderLine(sid, mid, sz.dataset.sizeId, qty) : await addShipmentLine(sid, mid, sz.dataset.sizeId, qty);
+  if(!r.ok && r.short && confirm('Товара нет на складе: не хватает ' + r.short + ' шт. Всё равно отправить? Остаток уйдёт в минус, следующая приёмка его закроет.'))
+    r = await addShipmentLine(sid, mid, sz.dataset.sizeId, qty, true);
+  if(!r.ok){ if(!r.short) toast(r.error); return; }
   await renderShipments();
 }
 async function shCancel(sid){
@@ -273,5 +295,10 @@ async function shDeleteDone(id){
   const r = await shUncollectAll(id); if(!r.ok){ toast(r.error); return; }
   const sh = await get('shipments', id); if(sh){ sh.status = 'отменена'; await put('shipments', sh); }
   toast('Отправка удалена'); await renderShipments();
+}
+async function shMinus(lineId){
+  if(!confirm('Отправить без товара на складе? Остаток уйдёт в минус, следующая приёмка его закроет.')) return;
+  const r = await shipLineMinus(lineId); if(!r.ok){ toast(r.error); return; }
+  await renderShipments();
 }
 async function shTick(lineId, on){ const r = await tickCollected(lineId, on); if(!r.ok) toast(r.error); await renderShipments(); }

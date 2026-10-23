@@ -4,18 +4,28 @@
    Остаток ячейки: {sizeLabel: qty}. Правила — ОПИСАНИЕ §5. */
 
 /* Номер «4.10» — это не «4.1»: сравниваем по частям как числа (1 < 1.1 < 1.2 < 1.10 < 2).
-   Ячейки брака «Б1», «Б2»… (этап 2) — после всех числовых, между собой по номеру. */
+   Пол «П1» — первым (отправки берут с него), ячейки брака «Б1», «Б2»… (этап 2) — после всех числовых. */
 const isDefectCell = c => !!c && (c.kind === 'брак' || /^Б/.test(String(c.number || '')));
+/* Пол поставщика: сюда принимают всю поставку разом; любые модели, мест не считаем. */
+const isFloorCell = c => !!c && (c.kind === 'пол' || /^П/.test(String(c.number || '')));
+const cellRank = n => /^П/.test(String(n)) ? 0 : (/^Б/.test(String(n)) ? 2 : 1);
 function cmpCellNumber(a, b){
-  const da = /^Б/.test(String(a)), db = /^Б/.test(String(b));
-  if(da !== db) return da ? 1 : -1;
-  if(da){ a = String(a).slice(1); b = String(b).slice(1); }
+  const ra = cellRank(a), rb = cellRank(b);
+  if(ra !== rb) return ra < rb ? -1 : 1;
+  if(ra !== 1){ a = String(a).slice(1); b = String(b).slice(1); }
   const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
   for(let i = 0; i < Math.max(pa.length, pb.length); i++){
     const x = pa[i] === undefined ? -1 : pa[i], y = pb[i] === undefined ? -1 : pb[i];
     if(x !== y) return x < y ? -1 : 1;
   }
   return 0;
+}
+/* Цвета одного товара (тот же поставщик, бренд и название) могут лежать в одной ячейке. */
+const itemKey = m => [m.supplierId, String(m.brand || '').trim().toLowerCase(), String(m.title || '').trim().toLowerCase()].join('|');
+function sameItem(a, b){
+  if(!a || !b) return false;
+  if(a.id === b.id) return true;
+  return !!(String(a.brand || '').trim() || String(a.title || '').trim()) && itemKey(a) === itemKey(b);
 }
 
 /* Под-ячейка рядом: у «4» и у «4.1» соседняя — следующая свободная «4.N». */
@@ -66,6 +76,7 @@ function sizeAllowed(cell, sizeLabel){
 
 /* Куда положить строку «модель + размер + N шт.»:
    1) ячейки этой модели (в т.ч. её бронь), где размер разрешён и есть место — по номеру;
+      потом ячейки других цветов этого товара, где есть место;
    2) у модели уже есть ячейки — излишек в новую под-ячейку рядом с ними (4 → 4.1):
       так владелец и раскладывает («не помещается — создавай 4.1»);
    3) модель новая — пустые ячейки поставщика без брони по номеру, с привязкой к модели,
@@ -73,13 +84,14 @@ function sizeAllowed(cell, sizeLabel){
 function planPlacement(line, cells, cellStock, models){
   const stock = cellStock || {};
   // ячейка брака — не для годного товара (ни своя, ни пустая, ни как соседняя для под-ячейки)
-  const own = cells.filter(c=> c.supplierId === line.supplierId && !isDefectCell(c)).sort((a,b)=> cmpCellNumber(a.number, b.number));
+  const own = cells.filter(c=> c.supplierId === line.supplierId && !isDefectCell(c) && !isFloorCell(c)).sort((a,b)=> cmpCellNumber(a.number, b.number));
   const ofModel = own.filter(c=> c.modelId === line.modelId);
+  const ofColors = own.filter(c=> c.modelId && c.modelId !== line.modelId && sameItem(models[line.modelId], models[c.modelId]));
   const empty = own.filter(c=> !c.modelId && !c.reserved && cellTotal(stock[c.number]) === 0);
   const steps = [];
   let left = Number(line.qty) || 0;
 
-  for(const c of ofModel){
+  for(const c of ofModel.concat(ofColors)){
     if(left <= 0) break;
     if(!sizeAllowed(c, line.sizeLabel)) continue;
     const n = Math.min(left, cellFree(c, stock[c.number], models).free);
@@ -107,18 +119,15 @@ function planPlacement(line, cells, cellStock, models){
   return {steps, needsConfirm};
 }
 
-/* Откуда взять: из ячеек модели, где лежит этот размер; сначала менее заполненная (быстрее
-   освободится), при равенстве — меньший номер. Не хватило — {cell:null, qty:недостача}. */
+/* Откуда взять: сначала с пола, потом из менее заполненной ячейки (быстрее освободится),
+   при равенстве — меньший номер. Остаток — по размеру {ячейка: {sizeId: штук}}: в одной
+   ячейке бывают разные цвета, на полу — разные товары. Не хватило — {cell:null, qty:недостача}. */
 function planPick(line, cells, cellStock){
   const stock = cellStock || {};
-  const key = sizeKey(line.sizeLabel);
-  const qtyOf = num=>{
-    let q = 0; const s = stock[num] || {};
-    for(const k in s) if(sizeKey(k) === key) q += Number(s[k]) || 0;
-    return q;
-  };
-  const src = cells.filter(c=> c.modelId === line.modelId && !isDefectCell(c) && qtyOf(c.number) > 0)
-    .sort((a,b)=> (cellTotal(stock[a.number]) - cellTotal(stock[b.number])) || cmpCellNumber(a.number, b.number));
+  const key = line.sizeId != null ? line.sizeId : line.sizeLabel;
+  const qtyOf = num=> Number((stock[num] || {})[key]) || 0;
+  const src = cells.filter(c=> !isDefectCell(c) && qtyOf(c.number) > 0)
+    .sort((a,b)=> (isFloorCell(b) - isFloorCell(a)) || (cellTotal(stock[a.number]) - cellTotal(stock[b.number])) || cmpCellNumber(a.number, b.number));
   const out = [];
   let left = Number(line.qty) || 0;
   for(const c of src){

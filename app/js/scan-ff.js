@@ -56,7 +56,7 @@ async function ffScanReceipt(receiptId, code){
 }
 async function ffScanShipment(shipmentId, code){
   const r = await scanIntoShipment(shipmentId, code);
-  if(r.ok){ try{ playSound('Приход'); }catch(e){} toast('Собрано · ячейка ' + r.cell); }
+  if(r.ok){ try{ playSound('Приход'); }catch(e){} toast('Собрано · ' + (/^П/.test(String(r.cell)) ? 'с пола' : 'ячейка ' + r.cell)); }
   else { try{ playErrorSound(); }catch(e){} toast(r.error); }
   await renderShipments();
   const el = document.querySelector('input[data-scan-shipment="' + CSS.escape(shipmentId) + '"]'); if(el) el.focus();

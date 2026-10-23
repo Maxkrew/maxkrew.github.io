@@ -245,7 +245,7 @@
       table:'cells', key:'number', push:['owner'], pull:['owner'],
       toRow: (x, ws)=> Object.assign({number:String(x.number), supplier_id:x.supplierId || null, model_id:x.modelId || null,
         allowed_sizes:(x.allowedSizes && x.allowedSizes.length) ? x.allowedSizes : null, capacity:x.capacity ? num(x.capacity) : null, reserved:!!x.reserved,
-        kind:x.kind === 'брак' ? 'брак' : 'обычная'}, tail(x, ws)),
+        kind:(x.kind === 'брак' || x.kind === 'пол') ? x.kind : 'обычная'}, tail(x, ws)),
       toLocal: r=> Object.assign({number:r.number, supplierId:r.supplier_id || null, modelId:r.model_id || null,
         allowedSizes:r.allowed_sizes || null, capacity:r.capacity || null, reserved:!!r.reserved, kind:r.kind || 'обычная'}, base(r))
     },

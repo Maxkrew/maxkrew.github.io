@@ -1054,3 +1054,5 @@ header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box
 .tf-row .field label{margin:0 0 6px 16px;}
 .tf-num{font-size:20px;font-weight:800;letter-spacing:0;text-transform:none;color:var(--text);display:flex;align-items:center;gap:10px;}
 .tf-num::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--accent);}
+.neg{color:var(--danger);font-weight:600;}
+.cell-tile.floor{border-style:dashed;}

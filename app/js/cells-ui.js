@@ -21,6 +21,7 @@ async function renderCells(){
   if(!box) return;
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt).sort((a, b)=> cmpCellNumber(a.number, b.number));
   const models = await modelsMap(), sups = await ffSuppliersMap(), stock = await cellStockByLabel();
+  const bySizeId = await ffCellStockMap(), modelOf = Object.fromEntries((await getAll('sizes')).map(z=> [z.id, z.modelId]));
   const head = `<div class="card head-row"><span class="rmeta">Ячеек: ${cells.length} · пустых: ${cells.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length}</span>
     <button class="btn primary sm" style="width:auto;" onclick="openCellModal()"><svg class="icon"><use href="#i-plus"/></svg>Ячейка</button></div>`;
   if(!cells.length){
@@ -29,6 +30,15 @@ async function renderCells(){
   }
   box.innerHTML = head + '<div class="cell-grid">' + cells.map(c=>{
     const m = c.modelId ? models[c.modelId] : null;
+    // что лежит кроме модели ячейки: другие цвета (на полу — что угодно)
+    const inside = [...new Set(Object.entries(bySizeId[c.number] || {}).filter(([, q])=> q).map(([sid])=> modelOf[sid]).filter(id=> id && id !== c.modelId))];
+    if(isFloorCell(c)){
+      const lyingF = cellTotal(stock[c.number]);
+      return `<button type="button" class="cell-tile floor${lyingF < 0 ? ' over' : ''}" data-cell="${escapeAttr(c.number)}" onclick="openCellModal(${jsArg(c.number)})">
+      <b>Пол</b><span class="ct-sup">${escapeHtml((sups[c.supplierId] || {}).name || '')}</span>
+      <span class="ct-model">${inside.length ? 'товаров: ' + inside.length : '—'}</span>
+      <span class="ct-qty">${lyingF} шт.${lyingF < 0 ? ' · в минусе' : ''}</span></button>`;
+    }
     const free = cellFree(c, stock[c.number], models);
     const lying = cellTotal(stock[c.number]);
     const cap = cellCapacity(c, models);
@@ -38,7 +48,7 @@ async function renderCells(){
     return `<button type="button" class="cell-tile ${state}" data-cell="${escapeAttr(c.number)}" onclick="openCellModal(${jsArg(c.number)})">
       <b>Ячейка ${escapeHtml(c.number)}</b>
       <span class="ct-sup">${escapeHtml((sups[c.supplierId] || {}).name || 'без поставщика')}</span>
-      <span class="ct-model">${m ? escapeHtml(modelName(m)) + ' · ' + escapeHtml(sizesLabel(c.allowedSizes)) : '—'}</span>
+      <span class="ct-model">${m ? escapeHtml(modelName(m)) + ' · ' + escapeHtml(sizesLabel(c.allowedSizes)) : '—'}${inside.length ? ' + ' + inside.map(id=> escapeHtml((models[id] || {}).color || modelName(models[id] || {}))).join(', ') : ''}</span>
       <span class="ct-qty">${lying} / ${cap} · ${label}</span>
       <span class="bar"><i style="width:${pct}%"></i></span>
     </button>`;
@@ -48,7 +58,7 @@ async function renderCells(){
 /* Разметить ячейку. Возвращает {ok, warning?} или {ok:false, error}. */
 async function saveCell(form){
   const number = String(form.number || '').trim();
-  if(!/^Б?\d+(\.\d+)?$/.test(number)) return {ok:false, error:'Номер — число, например 4 или 4.1'};
+  if(!/^[БП]?\d+(\.\d+)?$/.test(number)) return {ok:false, error:'Номер — число, например 4 или 4.1'};
   const models = await modelsMap(), sups = await ffSuppliersMap();
   const m = form.modelId ? models[form.modelId] : null;
   if(form.modelId && !m) return {ok:false, error:'Модель не найдена'};
@@ -59,12 +69,13 @@ async function saveCell(form){
   const cur = await get('cells', number);
   if(cur && !cur.deletedAt && lying){
     if(cur.supplierId && supplierId !== cur.supplierId) return {ok:false, error:'В ячейке ' + number + ' лежит товар ' + ((sups[cur.supplierId] || {}).name || 'другого поставщика')};
-    if(cur.modelId && form.modelId !== cur.modelId) return {ok:false, error:'В ячейке ' + number + ' лежит другая модель — сначала переложите'};
+    if(cur.modelId && form.modelId !== cur.modelId && !sameItem(models[cur.modelId], m)) return {ok:false, error:'В ячейке ' + number + ' лежит другая модель — сначала переложите'};
   }
   const allowed = (form.allowedSizes && form.allowedSizes.length) ? form.allowedSizes.slice() : null;
   const cell = Object.assign({}, cur || {}, {number, supplierId, modelId: form.modelId || null, allowedSizes: allowed,
     capacity: form.capacity ? Math.min(1000, Math.max(1, parseInt(form.capacity, 10) || 1)) : null, reserved: cur ? !!cur.reserved : false, deletedAt: undefined});
-  if(form.defect !== undefined){ cell.kind = form.defect ? 'брак' : 'обычная'; if(form.defect){ cell.modelId = null; cell.allowedSizes = null; } }
+  if(cur && isFloorCell(cur)){ cell.kind = 'пол'; cell.modelId = null; cell.allowedSizes = null; }   // пол остаётся полом
+  else if(form.defect !== undefined){ cell.kind = form.defect ? 'брак' : 'обычная'; if(form.defect){ cell.modelId = null; cell.allowedSizes = null; } }
   await put('cells', cell);
   const wrong = sizesConflict(cell, stock);
   const warning = wrong.length ? 'В ячейке ' + number + ' лежат ' + wrong.map(w=> w.sizeLabel + ' — ' + w.qty + ' шт.').join(', ') + ', переложите' : '';

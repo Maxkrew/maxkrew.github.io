@@ -88,11 +88,14 @@ async function renderStockFF(){
   for(const s of allSizes) (sizesByModel[s.modelId] || (sizesByModel[s.modelId] = [])).push(s);
   const cellsByModel = {};
   if(owner){
-    const labelOf = Object.fromEntries(allSizes.map(s=> [s.id, s.sizeLabel]));
-    for(const c of (await getAll('cells')).filter(c=> !c.deletedAt && c.modelId)){
-      let stock = 0;
-      for(const [sid, qn] of Object.entries(idx.byCell[c.number] || {})) if(labelOf[sid] !== undefined) stock += qn;
-      (cellsByModel[c.modelId] || (cellsByModel[c.modelId] = [])).push({number: c.number, allowedSizes: c.allowedSizes, reserved: c.reserved, stock});
+    // у модели — её ячейки, а ещё пол и ячейки другого цвета, где лежат её штуки
+    const modelOf = Object.fromEntries(allSizes.map(s=> [s.id, s.modelId]));
+    for(const c of (await getAll('cells')).filter(c=> !c.deletedAt && !isDefectCell(c))){
+      const per = {};
+      if(c.modelId) per[c.modelId] = 0;
+      for(const [sid, qn] of Object.entries(idx.byCell[c.number] || {})) if(modelOf[sid] && qn) per[modelOf[sid]] = (per[modelOf[sid]] || 0) + qn;
+      for(const [mid, stock] of Object.entries(per))
+        (cellsByModel[mid] || (cellsByModel[mid] = [])).push({number: c.number, allowedSizes: c.modelId === mid ? c.allowedSizes : null, reserved: c.reserved, stock, floor: isFloorCell(c)});
     }
   }
   const shown = models.slice(0, ffStockLimit);
@@ -107,7 +110,7 @@ async function renderStockFF(){
       : !owner ? sz.map(s=> supplierSizeLine(s.sizeLabel, counts.get(s.id))).join('<br>')
       : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b>${s.stock}</b>${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
     const cellsLine = (owner && v.cells.length)
-      ? '<div class="cells-line">' + v.cells.map(c=> `Ячейка ${escapeHtml(c.number)} (${escapeHtml(sizesLabel(c.allowedSizes))}) — ${c.stock} шт.${c.reserved && !c.stock ? ' · бронь' : ''}`).join(' · ') + '</div>'
+      ? '<div class="cells-line">' + v.cells.map(c=> `${c.floor ? 'Пол' : 'Ячейка ' + escapeHtml(c.number) + ' (' + escapeHtml(sizesLabel(c.allowedSizes)) + ')'} — <span class="${c.stock < 0 ? 'neg' : ''}">${c.stock} шт.</span>${c.reserved && !c.stock ? ' · бронь' : ''}`).join(' · ') + '</div>'
       : '';
     const sup = owner ? `<span class="rmeta">${escapeHtml((sups[m.supplierId] || {}).name || '')}${m.sku ? ' · ' + escapeHtml(m.sku) : ''} · ${escapeHtml(m.category || '')}</span>` : (m.sku ? `<span class="rmeta">${escapeHtml(m.sku)}</span>` : '');
     parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">

@@ -301,7 +301,7 @@ function sellPending(){
   const q = sanitizeQty(document.getElementById('sellQty').value || 1);
   if(q.error) return {error: q.error};
   const pr = String(document.getElementById('sellPrice').value || '').replace(/\s/g, '').replace(',', '.');
-  const price = pr === '' ? null : Number(pr);
+  const price = pr === '' || (Sync.isStaff && Sync.isStaff()) ? null : Number(pr);   // сотрудник цен не видит
   if(price !== null && (!isFinite(price) || price < 0)) return {error: 'Цена — число'};
   return {modelId: sell.modelId, sizeId: sell.sizeId, qty: q.n, price};
 }

@@ -168,14 +168,25 @@
       } else {
         const s = await client.from('suppliers').select('owner_id,id,name').eq('member_id', user.id);
         if(s.error) throw s.error;
-        const list = (s.data || []).slice().sort((a, b)=> String(a.owner_id).localeCompare(String(b.owner_id)));   // порядок постоянный
+        /* сотрудник поставщика: работает как поставщик, но без денег и правок товаров */
+        const st = await client.from('supplier_staff').select('owner_id,supplier_id,name').eq('member_id', user.id).is('deleted_at', null);
+        const staffRows = st.error ? [] : (st.data || []);
+        let staffSup = [];
+        if(staffRows.length){
+          const ss = await client.from('suppliers').select('owner_id,id,name').in('id', staffRows.map(x=> x.supplier_id));
+          staffSup = ss.error ? [] : (ss.data || []);
+        }
+        const list = (s.data || []).map(x=> Object.assign({}, x, {staff: false}))
+          .concat(staffRows.map(x=>{ const sp = staffSup.find(y=> y.id === x.supplier_id && y.owner_id === x.owner_id); return sp ? Object.assign({}, sp, {staff: true, staffName: x.name}) : null; }).filter(Boolean))
+          .sort((a, b)=> String(a.owner_id).localeCompare(String(b.owner_id)));   // порядок постоянный
         if(list.length){
           let pick = null;
           try{ const saved = localStorage.getItem(WAREHOUSE_KEY); pick = list.find(x=> x.owner_id === saved) || null; }catch(e){}
           pick = pick || list[0];
           const ww = await client.from('warehouses').select('owner_id,title,paid_until,blocked,trial').eq('owner_id', pick.owner_id).limit(1);
           membership = Object.assign({role:'supplier', ownerId:pick.owner_id, supplierId:pick.id, name:pick.name, email:user.email || '',
-                        warehouses: list.map(x=> ({ownerId:x.owner_id, supplierId:x.id, name:x.name}))}, whStatus((ww.data || [])[0] || {}));
+                        staff: !!pick.staff, staffName: pick.staffName || '',
+                        warehouses: list.map(x=> ({ownerId:x.owner_id, supplierId:x.id, name:x.name, staff: !!x.staff}))}, whStatus((ww.data || [])[0] || {}));
         } else {
           membership = {role:'none', email:user.email || ''};
         }
@@ -201,7 +212,13 @@
   function ownerId(){ return membership ? (membership.ownerId || null) : null; }
   function mySupplierId(){ return membership && membership.role === 'supplier' ? membership.supplierId : null; }
   function memberName(){ return membership && membership.role === 'supplier' ? (membership.name || 'Поставщик') : ''; }
-  function authorName(){ return membership ? (membership.role === 'supplier' ? (membership.name || '') : (membership.email || '')) : ''; }
+  function authorName(){
+    if(!membership) return '';
+    if(membership.role !== 'supplier') return membership.email || '';
+    return (membership.name || '') + (membership.staff && membership.staffName ? ' · ' + membership.staffName : '');
+  }
+  /* сотрудник поставщика (не сам поставщик) */
+  function isStaff(){ return !!(membership && membership.role === 'supplier' && membership.staff); }
 
   // ------------------------------------------------------------------
   // ТАБЛИЦЫ: на телефоне camelCase, на сервере snake_case
@@ -230,7 +247,7 @@
         sku:r.sku || '', price:num(r.price), calcPrice:r.calc_price == null ? null : num(r.calc_price), stopped:!!r.stopped}, base(r))
     },
     privates: {
-      table:'model_private', key:'model_id', localKey:'modelId', push:['supplier'], pull:['supplier'],
+      table:'model_private', key:'model_id', localKey:'modelId', push:['supplier'], pull:['supplier'], bossOnly:true,
       toRow: (x, ws)=> Object.assign({model_id:x.modelId, supplier_id:x.supplierId, buy_from:x.buyFrom || '', cost:num(x.cost),
         commission_percent:num(x.commissionPercent), tax_percent:num(x.taxPercent), packaging:num(x.packaging), delivery_discount:num(x.deliveryDiscount)}, tail(x, ws)),
       toLocal: r=> Object.assign({modelId:r.model_id, supplierId:r.supplier_id, buyFrom:r.buy_from || '', cost:num(r.cost),
@@ -296,7 +313,7 @@
     },
     /* этап 2б: цены закупки/продажи по строке — только поставщик (склад их не видит) */
     linePrices: {
-      table:'line_prices', key:'line_id', localKey:'lineId', push:['supplier'], pull:['supplier'],
+      table:'line_prices', key:'line_id', localKey:'lineId', push:['supplier'], pull:['supplier'], bossOnly:true,
       toRow: (x, ws)=> Object.assign({line_id:x.lineId, supplier_id:x.supplierId, doc:x.doc, price:num(x.price)}, tail(x, ws)),
       toLocal: r=> Object.assign({lineId:r.line_id, supplierId:r.supplier_id, doc:r.doc, price:num(r.price)}, base(r))
     },
@@ -617,7 +634,7 @@
          теряются — уйдут после продления. */
       if(active) try{
         const photoErr = await uploadPhotos();
-        for(const s of ORDER) if(MAP[s].push.includes(rl)) sent += await pushStore(s, ws, rl);
+        for(const s of ORDER) if(MAP[s].push.includes(rl) && !(MAP[s].bossOnly && isStaff())) sent += await pushStore(s, ws, rl);
         if(rl === 'owner') sent += await pushSettings(ws);
         if(photoErr) throw photoErr;
       }catch(e){ if(e instanceof AccessClosed) throw e; pushErr = e; }
@@ -629,7 +646,7 @@
       const legacy = await window.get('settings', 'ffSeq:' + ws);
       let received = 0;
       for(const s of ORDER){
-        if(!MAP[s].pull.includes(rl)) continue;
+        if(!MAP[s].pull.includes(rl) || (MAP[s].bossOnly && isStaff())) continue;   // цены — не сотруднику
         const key = 'ffSeq:' + ws + ':' + s;
         const cur = await window.get('settings', key);
         const since = cur ? num(cur.value) : (legacy ? num(legacy.value) : 0);
@@ -824,7 +841,10 @@
     init, start, signIn, signUp, joinByCode, requestPasswordReset, setNewPassword, mustChangePassword, signOut,
     changePassword: setNewPassword, syncNow, currentUser, ready, lastLogin, onStatus,
     isConfigured: ()=> Boolean(CFG.url && CFG.key), busy: ()=> !!currentRun, refetch, photoSignedUrl, removePhotoFiles,
-    resolveMembership, role, ownerId, mySupplierId, memberName, authorName,
+    resolveMembership, role, ownerId, mySupplierId, memberName, authorName, isStaff,
+    inviteStaff: async name=>{ const {data, error} = await client.rpc('invite_staff', {p_ws: ownerId(), p_name: String(name || '')}); if(error) throw new Error(error.message); return (data || [])[0] || null; },
+    removeStaff: async id=>{ const {error} = await client.rpc('remove_staff', {p_ws: ownerId(), p_id: id}); if(error) throw new Error(error.message); return true; },
+    staffList: async ()=>{ const {data, error} = await client.from('supplier_staff').select('id,name,member_id,invite_code,created_at').eq('owner_id', ownerId()).eq('supplier_id', mySupplierId()).is('deleted_at', null).order('created_at'); if(error) throw new Error(error.message); return data || []; },
     warehouses: ()=> (membership && membership.warehouses) || [],
     chooseWarehouse: async ownerIdToUse=>{ try{ localStorage.setItem(WAREHOUSE_KEY, ownerIdToUse); }catch(e){} await resolveMembership(); return syncNow('другой склад'); },
     createSupplier, resetSupplierPassword, pendingCount, wipeLocalData, registerWarehouse, subscription,

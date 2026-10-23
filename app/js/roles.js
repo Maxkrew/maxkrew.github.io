@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   {id:'receipts',  label:'Приёмка',    icon:'i-in',    group:'Склад',  roles:['owner']},
   {id:'incoming',  label:'Приход',     icon:'i-in',    group:'Склад',  roles:['supplier']},
   {id:'shipments', label:'Отправки',   icon:'i-out',   group:'Склад',  roles:['owner','supplier'], labels:{supplier:'Продажи'}},
-  {id:'analysis',  label:'Анализ',     icon:'i-chart', group:'Склад',  roles:['supplier']},
+  {id:'analysis',  label:'Анализ',     icon:'i-chart', group:'Склад',  roles:['supplier'], noStaff:true},   // деньги — не сотруднику
   {id:'cells',     label:'Ячейки',     icon:'i-grid',  group:'Склад',  roles:['owner']},
   {id:'suppliers', label:'Поставщики', icon:'i-users', group:'Деньги', roles:['owner']},
   {id:'history',   label:'История',    icon:'i-clock', group:'Склад',  roles:['owner','supplier']},
@@ -16,7 +16,8 @@ const NAV_ITEMS = [
   {id:'admin',     label:'Сервис',     icon:'i-gear',  group:'Аккаунт', roles:['admin'], sideOnly:true}
 ];
 function itemLabel(i){ return (i.labels && i.labels[currentRole()]) || i.label; }
-function itemAllowed(i){ return i.roles.includes(currentRole()) || (i.roles.includes('admin') && window.Sync && Sync.isAdmin && Sync.isAdmin()); }
+const isStaffRole = ()=> !!(window.Sync && Sync.isStaff && Sync.isStaff());
+function itemAllowed(i){ if(i.noStaff && isStaffRole()) return false; return i.roles.includes(currentRole()) || (i.roles.includes('admin') && window.Sync && Sync.isAdmin && Sync.isAdmin()); }
 
 function currentRole(){ return (window.Sync && Sync.role) ? Sync.role() : 'none'; }
 function isOwnerRole(){ return currentRole() === 'owner'; }
@@ -44,10 +45,12 @@ async function applyRoleUI(){
   document.body.classList.toggle('is-employee', rl === 'supplier');
   document.body.classList.toggle('is-supplier', rl === 'supplier');
   document.body.classList.toggle('is-owner', rl === 'owner');
+  document.body.classList.toggle('is-staff', isStaffRole());
   buildBottomNav();
   // Настройки: поставщику — только карточка входа и синхронизации
   // старые карточки «Склада» (data-legacy) скрыты всегда; «Пример» показывает свой код (data-self)
-  document.querySelectorAll('#sec-settings .card:not([data-self])').forEach(c=>{ c.hidden = c.hasAttribute('data-legacy') || (rl !== 'owner' && !c.hasAttribute('data-emp')); });
+  document.querySelectorAll('#sec-settings .card:not([data-self])').forEach(c=>{ c.hidden = c.hasAttribute('data-legacy') || (rl !== 'owner' && !c.hasAttribute('data-emp')) || (rl !== 'supplier' && c.hasAttribute('data-sup-only')); });
+  if(rl === 'supplier' && !isStaffRole() && typeof renderStaff === 'function') renderStaff();
   // с закрытого раздела — на «Склад»
   const active = document.querySelector('main section.active');
   const name = active ? active.id.replace('sec-', '') : '';

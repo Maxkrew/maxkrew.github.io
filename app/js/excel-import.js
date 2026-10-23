@@ -154,6 +154,11 @@ async function matchImportLines(lines, supplierId){
 }
 /* новые модели и размеры, затем одна поставка «ожидается» с ценами */
 async function importToIncoming(matched){
+  // сотрудник новые товары не заводит — их добавляет поставщик
+  if(Sync.isStaff && Sync.isStaff()){
+    const fresh = matched.filter(l=> !l.modelId || !l.sizeId);
+    if(fresh.length) throw new Error('Новых товаров в таблице: ' + fresh.length + ' (например, «' + fresh[0].name + (fresh[0].size ? ' ' + fresh[0].size : '') + '»). Их добавляет поставщик — попросите его, потом загрузите снова.');
+  }
   const made = new Map();   // одна новая модель на название+цвет+артикул
   const out = [];
   for(const l of matched){

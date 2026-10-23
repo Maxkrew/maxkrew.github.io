@@ -4,6 +4,7 @@
 
 /* --- цены строк: видит только поставщик (у склада их нет вовсе) --- */
 async function setLinePrice(lineId, doc, price){
+  if(Sync.isStaff && Sync.isStaff()) return;   // цены — только у поставщика
   const n = Number(String(price).replace(',', '.'));
   if(!isFinite(n) || n < 0) return;
   await put('linePrices', {lineId, supplierId: Sync.mySupplierId(), doc, price: Math.round(n * 100) / 100});

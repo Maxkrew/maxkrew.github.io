@@ -45,7 +45,9 @@ async function renderSuppliers(){
   const sups = (await getAll('suppliers')).filter(s=> !s.deletedAt).sort((a, b)=> (a.archived - b.archived) || String(a.name).localeCompare(String(b.name), 'ru'));
   if(!sups.length){ box.innerHTML = emptyState('i-users', 'Поставщиков пока нет', 'Добавьте первого — он получит код приглашения для входа.'); return; }
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
-  box.innerHTML = sups.map(s=>{
+  const bills = {};
+  for(const s of sups) if(!s.archived) bills[s.id] = await billingSupplierBlock(s);
+  box.innerHTML = billingTariffCard() + sups.map(s=>{
     const mine = cells.filter(c=> c.supplierId === s.id).map(c=> c.number).sort(cmpCellNumber);
     const status = s.archived ? '<span class="pill g">в архиве</span>' : (s.memberId ? '<span class="pill">вошёл</span>' : '<span class="pill w">ждёт входа</span>');
     const codeLine = !s.archived && !s.memberId ? `<div class="rmeta sup-line">Код для входа: <b class="sup-code" data-sup-code>${escapeHtml(s.inviteCode || '…')}</b></div>` : '';
@@ -55,6 +57,7 @@ async function renderSuppliers(){
       ${codeLine}
       <div class="rmeta sup-line">Ячейки: ${mine.length ? escapeHtml(cellRangeLabel(mine)) : 'не назначены'}</div>
       ${temp}
+      ${bills[s.id] || ''}
       <div class="btn-row sup-actions">
         <button class="btn ghost sm" onclick="assignCellsPrompt(${jsArg(s.id)})">Ячейки</button>
         ${s.memberId && !s.archived ? `<button class="btn alt sm" data-sup-reset="${escapeAttr(s.id)}" onclick="resetSupplierPasswordUI(${jsArg(s.id)})">Сброс пароля</button>` : ''}

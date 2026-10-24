@@ -110,8 +110,9 @@ function setupSheetGestures(){
 
     sheet.addEventListener('touchstart', (e)=>{
       /* тянуть можно только от верха: иначе жест перехватит прокрутку
-         длинной формы, и до нижних полей будет не добраться */
-      if(sheet.scrollTop > 0) return;
+         длинной формы, и до нижних полей будет не добраться. Прокрутку может держать
+         и список внутри окна (выбор товара) — тогда смотрим и на него. */
+      for(let el = e.target; el && el !== bg; el = el.parentElement) if(el.scrollTop > 0) return;
       dragging = true;
       startY = e.touches[0].clientY;
       shift = 0;

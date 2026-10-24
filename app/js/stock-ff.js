@@ -270,13 +270,30 @@ async function saveModelFromForm(){
 }
 
 /* Удалить модель можно, только когда её нет на складе. Ячейки освобождаются. */
-async function deleteModelFF(id){
+/* Удалить модель. Остался товар — склад может списать его (writeOff): остаток каждой ячейки
+   и без ячейки уходит в ноль корректировкой. Поставщик товар со склада не списывает. */
+async function deleteModelFF(id, writeOff){
   const m = await get('models', id);
   if(!m || m.deletedAt) return {ok:false, error:'Модель не найдена'};
   const sizes = (await getAll('sizes')).filter(s=> s.modelId === id && !s.deletedAt);
   const idx = await ffStockIndex();
   const left = sizes.reduce((n, s)=> n + (idx.bySize[s.id] || 0), 0);
-  if(left) return {ok:false, error:'На складе ещё ' + left + ' шт. этого товара'};
+  if(left && !(writeOff && ffRole() === 'owner'))
+    return {ok:false, left, error: ffRole() === 'owner' ? 'На складе ещё ' + left + ' шт. этого товара'
+      : 'На складе ещё ' + left + ' шт. этого товара — удалить можно, когда склад их отправит или спишет'};
+  if(left){
+    const cellsMap = Object.fromEntries((await getAll('cells')).map(c=> [c.number, c]));
+    for(const s of sizes){
+      let rest = idx.bySize[s.id] || 0;
+      for(const [num, by] of Object.entries(idx.byCell)){
+        const q = Number(by[s.id]) || 0;
+        if(!q) continue;
+        await ffLogOp({supplierId: m.supplierId, modelId: id, sizeId: s.id, cellNumber: num, type: 'Корректировка', qty: Math.abs(q), delta: -q, defect: isDefectCell(cellsMap[num])});
+        rest -= q;
+      }
+      if(rest) await ffLogOp({supplierId: m.supplierId, modelId: id, sizeId: s.id, cellNumber: null, type: 'Корректировка', qty: Math.abs(rest), delta: -rest});
+    }
+  }
   for(const c of (await getAll('cells')).filter(c=> c.modelId === id && !c.deletedAt)){ c.modelId = null; c.reserved = false; c.allowedSizes = null; await put('cells', c); }
   for(const s of sizes){ s.deletedAt = Date.now(); await put('sizes', s); }
   m.deletedAt = Date.now(); await put('models', m);
@@ -285,8 +302,10 @@ async function deleteModelFF(id){
 async function deleteModelUI(){
   const id = document.getElementById('mmId').value;
   if(!id || !confirm('Удалить товар? Восстановить будет нельзя.')) return;
-  const r = await deleteModelFF(id);
-  if(!r.ok){ toast(r.error); return; }
+  let r = await deleteModelFF(id);
+  if(!r.ok && r.left && ffRole() === 'owner' && confirm('На складе ещё ' + r.left + ' шт. этого товара. Удалить товар и списать этот остаток со склада?'))
+    r = await deleteModelFF(id, true);
+  if(!r.ok){ if(!r.left || ffRole() !== 'owner') toast(r.error); return; }
   closeModelModal(); toast('Модель удалена'); await renderStockFF(); await updateProductCountPill();
 }
 

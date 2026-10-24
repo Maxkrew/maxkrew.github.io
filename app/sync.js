@@ -278,8 +278,9 @@
     },
     receipts: {
       table:'receipts', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
-      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind || 'приёмка', weight_kg:x.weightKg == null ? null : num(x.weightKg), status:x.status || 'черновик', created_ts:num(x.createdTs)}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, weightKg:r.weight_kg, status:r.status, createdTs:num(r.created_ts)}, base(r))
+      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind || 'приёмка', weight_kg:x.weightKg == null ? null : num(x.weightKg), status:x.status || 'черновик', created_ts:num(x.createdTs),
+        fee:x.fee == null ? null : num(x.fee)}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, weightKg:r.weight_kg, status:r.status, createdTs:num(r.created_ts), fee:r.fee == null ? null : num(r.fee)}, base(r))
     },
     receiptLines: {
       /* поставщик читает строки через представление без плана раскладки и не шлёт план (этап 2) */
@@ -296,8 +297,10 @@
       table:'shipments', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
       /* заказ «Продал» уходит складу только вместе со своим скриншотом */
       ready: x=> (typeof window.shipmentReady === 'function') ? window.shipmentReady(x.id) : true,
-      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, carrier:x.carrier || '', comment:x.comment || '', status:x.status || 'новая', created_by:x.createdBy || 'owner', created_ts:num(x.createdTs)}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, carrier:r.carrier || '', comment:r.comment || '', status:r.status, createdBy:r.created_by, createdTs:num(r.created_ts)}, base(r))
+      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, carrier:x.carrier || '', comment:x.comment || '', status:x.status || 'новая', created_by:x.createdBy || 'owner', created_ts:num(x.createdTs),
+        track:x.track || '', fee:x.fee == null ? null : num(x.fee)}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, carrier:r.carrier || '', comment:r.comment || '', status:r.status, createdBy:r.created_by, createdTs:num(r.created_ts),
+        track:r.track || '', fee:r.fee == null ? null : num(r.fee)}, base(r))
     },
     shipmentLines: {
       /* поставщик читает строки без ячейки и не шлёт ни ячейку, ни «Собрано» (этап 2) */
@@ -310,6 +313,12 @@
       },
       toLocal: r=> Object.assign({id:r.id, shipmentId:r.shipment_id, supplierId:r.supplier_id || null, modelId:r.model_id, sizeId:r.size_id, qty:num(r.qty), cellNumber:r.cell_number || null, collected:!!r.collected,
         collectedTs:r.collected_ts == null ? null : num(r.collected_ts)}, base(r))
+    },
+    /* оплаты поставщика складу (биллинг) — только склад */
+    payments: {
+      table:'payments', key:'id', push:['owner'], pull:['owner'],
+      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, amount:num(x.amount), ts:num(x.ts), note:x.note || ''}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, amount:num(r.amount), ts:num(r.ts), note:r.note || ''}, base(r))
     },
     /* этап 2б: цены закупки/продажи по строке — только поставщик (склад их не видит) */
     linePrices: {
@@ -327,7 +336,7 @@
   };
   /* Порядок важен: сначала модель, потом её размеры и личные цифры, потом ячейки и операции —
      иначе сервер не пустит строку, ссылающуюся на ещё не известную ему модель. */
-  const ORDER = ['suppliers','models','privates','sizes','cells','receipts','receiptLines','photos','shipments','shipmentLines','linePrices','ops'];
+  const ORDER = ['suppliers','models','privates','sizes','cells','receipts','receiptLines','photos','shipments','shipmentLines','linePrices','payments','ops'];
   const localKeyOf = (store, x)=> x[MAP[store].localKey || MAP[store].key];
 
   class AccessClosed extends Error {}
@@ -812,7 +821,7 @@
   function startRealtime(){
     if(!ready() || channel) return;
     channel = client.channel('ff-sync');
-    ['suppliers','models','model_private','sizes','cells','operations','receipts','receipt_lines','shipments','shipment_lines','app_settings']
+    ['suppliers','models','model_private','sizes','cells','operations','receipts','receipt_lines','shipments','shipment_lines','app_settings','payments']
       .forEach(t=> channel.on('postgres_changes', {event:'*', schema:'public', table:t}, ()=> syncNow('чужая правка: ' + t)));
     channel.subscribe();
   }

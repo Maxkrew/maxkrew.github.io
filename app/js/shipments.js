@@ -13,6 +13,7 @@ const CANCEL_LATE = 'Склад уже начал собирать — отме�
 async function newShipment(o){
   const id = newUid(), sup = shIsSupplier();
   await put('shipments', {id, supplierId: sup ? Sync.mySupplierId() : o.supplierId, carrier: o.carrier || carrierList()[0], comment: o.comment || '',
+    track: sup ? '' : String(o.track || '').trim().slice(0, 60),
     status: 'новая', createdBy: sup ? 'supplier' : 'owner', createdTs: Date.now()});
   return id;
 }
@@ -146,7 +147,7 @@ async function tickCollected(lineId, on){
   await put('shipmentLines', l);
   const all = await shipmentLines(sh.id);
   const status = all.length && all.every(x=> x.collected) ? 'собрана' : 'новая';
-  if(sh.status !== status){ sh.status = status; await put('shipments', sh); }
+  if(sh.status !== status){ shipmentSetStatus(sh, status); await put('shipments', sh); }
   return {ok:true};
 }
 
@@ -178,6 +179,7 @@ async function renderShipments(){
   else parts.push(`<div class="card">
       <div class="field-row">${sup ? '' : `<select id="shSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>`}
         <select id="shCarrier">${carrierList().map(c=> `<option>${escapeHtml(c)}</option>`).join('')}</select></div>
+      <div class="field-row" style="margin-top:8px;"><input type="text" id="shTrack" maxlength="60" placeholder="Трек-номер" autocomplete="off"></div>
       <div class="field-row" style="margin-top:8px;"><input type="text" id="shComment" placeholder="Комментарий">
         <button class="btn primary" id="shStart" style="width:auto;white-space:nowrap;" onclick="shStart()"><svg class="icon"><use href="#i-plus"/></svg>${sup ? 'Новый заказ' : 'Новая отправка'}</button></div>
     </div>`);
@@ -236,6 +238,7 @@ async function shipmentCard(s, editable){
   const meta = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', escapeHtml(s.comment || '')].filter(Boolean).join(' · ');
   return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${escapeHtml(s.status)}</span></div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
+    ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + escapeHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>`}</div>` : ''}
     ${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${add}</div>`;
 }
 async function shStart(){
@@ -243,7 +246,8 @@ async function shStart(){
   if(shIsSupplier() && typeof sellStart === 'function'){ await sellStart(); return; }
   const supEl = document.getElementById('shSupplier');
   if(!shIsSupplier() && !(supEl && supEl.value)){ toast('Выберите поставщика'); return; }
-  await newShipment({supplierId: supEl ? supEl.value : null, carrier: document.getElementById('shCarrier').value, comment: document.getElementById('shComment').value});
+  await newShipment({supplierId: supEl ? supEl.value : null, carrier: document.getElementById('shCarrier').value, comment: document.getElementById('shComment').value,
+    track: (document.getElementById('shTrack') || {}).value || ''});
   await renderShipments();
 }
 async function shFillSizes(sid){
@@ -277,7 +281,7 @@ async function shDelLine(lineId){
   if(!confirm('Убрать строку из отправки?')) return;
   l.deletedAt = Date.now(); await put('shipmentLines', l);
   const sh = await get('shipments', l.shipmentId), rest = await shipmentLines(l.shipmentId);
-  if(sh && rest.length && rest.every(x=> x.collected) && sh.status !== 'собрана'){ sh.status = 'собрана'; await put('shipments', sh); }
+  if(sh && rest.length && rest.every(x=> x.collected) && sh.status !== 'собрана'){ shipmentSetStatus(sh, 'собрана'); await put('shipments', sh); }
   toast('Строка убрана'); await renderShipments();
 }
 /* снять «Собрано» со всех строк: товар возвращается в ячейки, отправка снова «новая» */
@@ -293,12 +297,20 @@ async function shReopen(id){
 async function shDeleteDone(id){
   if(!confirm('Удалить отправку? Отметки «Собрано» снимутся, товар вернётся в ячейки.')) return;
   const r = await shUncollectAll(id); if(!r.ok){ toast(r.error); return; }
-  const sh = await get('shipments', id); if(sh){ sh.status = 'отменена'; await put('shipments', sh); }
+  const sh = await get('shipments', id); if(sh){ shipmentSetStatus(sh, 'отменена'); await put('shipments', sh); }
   toast('Отправка удалена'); await renderShipments();
 }
 async function shMinus(lineId){
   if(!confirm('Отправить без товара на складе? Остаток уйдёт в минус, следующая приёмка его закроет.')) return;
   const r = await shipLineMinus(lineId); if(!r.ok){ toast(r.error); return; }
   await renderShipments();
+}
+/* трек-номер можно вписать и поменять и после создания (склад) */
+async function shTrackEdit(id){
+  const sh = await get('shipments', id); if(!sh) return;
+  const v = prompt('Трек-номер отправки', sh.track || '');
+  if(v === null) return;
+  sh.track = String(v).trim().slice(0, 60); await put('shipments', sh);
+  toast(sh.track ? 'Трек-номер сохранён' : 'Трек-номер убран'); await renderShipments();
 }
 async function shTick(lineId, on){ const r = await tickCollected(lineId, on); if(!r.ok) toast(r.error); await renderShipments(); }

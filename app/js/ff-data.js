@@ -98,7 +98,8 @@ async function modelView(modelId){
       .map(c=>{
         const bySize = {};
         let total = 0;
-        for(const [sid, q] of Object.entries(cs[c.number] || {})){ if(q){ bySize[labelOf[sid] || sid] = q; total += q; } }
+        // только размеры этой модели: в ячейке может лежать и другой цвет
+        for(const [sid, q] of Object.entries(cs[c.number] || {})){ if(q && labelOf[sid]){ bySize[labelOf[sid]] = (bySize[labelOf[sid]] || 0) + q; total += q; } }
         return {number: c.number, allowedSizes: c.allowedSizes || null, capacity: c.capacity || model.capacity || 7, reserved: !!c.reserved, stock: total, bySize, defect: isDefectCell(c), floor: isFloorCell(c)};
       });
   }

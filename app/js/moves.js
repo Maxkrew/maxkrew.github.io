@@ -58,7 +58,9 @@ async function cellSizeQty(cellNumber, sizeId){
 }
 
 /* Новый остаток «можно продать» размера. Склад: изменение ложится в ячейку cellNumber
-   (обязательна, если у модели есть ячейки). Поставщик: без ячейки, «на проверке». */
+   (обязательна, если у модели есть ячейки). Поставщик: без ячейки, «на проверке».
+   Склад, inCell — newQty значит «сколько теперь в этой ячейке»; cellNumber '*' — «все
+   ячейки»: newQty — новый общий остаток, лишнее снимается из ячеек, где лежит размер. */
 async function correctStock(o){
   const size = await get('sizes', o.sizeId);
   if(!size || size.deletedAt) return {ok:false, error:'Нет такого размера'};
@@ -66,9 +68,10 @@ async function correctStock(o){
   if(isNaN(want) || want < 0) return {ok:false, error:'Укажите новый остаток — 0 или больше'};
   if(want > 10000) return {ok:false, error:'Слишком много — не больше 10 000'};
   const idx = await ffStockIndex();
-  const delta = want - (idx.sellableBySize[size.id] || 0);
-  if(!delta) return {ok:true, unchanged:true};
   const owner = ffRole() === 'owner';
+  if(owner && o.cellNumber === '*') return correctAllCells(size, want, idx.sellableBySize[size.id] || 0);
+  const delta = want - (owner && o.inCell && o.cellNumber ? await cellSizeQty(o.cellNumber, size.id) : (idx.sellableBySize[size.id] || 0));
+  if(!delta) return {ok:true, unchanged:true};
   let cellNumber = null;
   if(owner){
     const modelCells = (await getAll('cells')).filter(c=> !c.deletedAt && !isDefectCell(c) && c.modelId === size.modelId);
@@ -85,6 +88,22 @@ async function correctStock(o){
   const op = await ffLogOp({supplierId: size.supplierId, modelId: size.modelId, sizeId: size.id, cellNumber: cellNumber || null,
     type: 'Корректировка', qty: Math.abs(delta), delta});
   return {ok:true, uid: op.uid, delta};
+}
+/* «Все ячейки»: уменьшить — снимаем из ячеек, где лежит размер (сначала пол, потом менее
+   заполненные); чего нет ни в одной ячейке — без ячейки. Добавить — только в выбранную ячейку. */
+async function correctAllCells(size, want, now){
+  const delta = want - now;
+  if(!delta) return {ok:true, unchanged:true};
+  const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
+  if(delta > 0){
+    if(cells.some(c=> !isDefectCell(c) && c.modelId === size.modelId)) return {ok:false, error:'Чтобы добавить штуки, выберите ячейку, куда их положили'};
+    await ffLogOp({supplierId: size.supplierId, modelId: size.modelId, sizeId: size.id, cellNumber: null, type: 'Корректировка', qty: delta, delta});
+    return {ok:true, delta};
+  }
+  const common = {supplierId: size.supplierId, modelId: size.modelId, sizeId: size.id, type: 'Корректировка'};
+  for(const p of planPick({sizeId: size.id, qty: -delta}, cells, await ffCellStockMap()))
+    await ffLogOp(Object.assign({cellNumber: p.cell, qty: p.qty, delta: -p.qty}, common));
+  return {ok:true, delta};
 }
 
 /* Переложить qty шт. размера из ячейки в ячейку (только склад). Из ячейки брака в обычную —
@@ -126,28 +145,48 @@ async function renderModelStockBox(modelId){
   box.innerHTML = `<div class="grp-title">Остатки</div>${rows.join('')}${cells.length ? '<div class="grp-title">По ячейкам</div>' + cells.join('') : ''}<div id="mmStockForm"></div>`;
 }
 /* поля ячеек для формы: пол, ячейки модели и других её цветов, пустые ячейки поставщика */
-async function mmCellOptions(modelId, exceptCell){
+async function mmCellList(modelId, exceptCell){
   const m = await get('models', modelId), ms = await modelsMap();
   return (await getAll('cells')).filter(c=> !c.deletedAt && c.number !== exceptCell && c.supplierId === m.supplierId && !isDefectCell(c) && (isFloorCell(c) || !c.modelId || sameItem(ms[c.modelId], m)))
-    .sort((a, b)=> cmpCellNumber(a.number, b.number)).map(c=> `<option value="${escapeAttr(c.number)}">${isFloorCell(c) ? 'Пол' : 'Ячейка ' + escapeHtml(c.number)}${c.modelId || isFloorCell(c) ? '' : ' (пустая)'}</option>`).join('');
+    .sort((a, b)=> cmpCellNumber(a.number, b.number));
+}
+const mmCellText = c=> (isFloorCell(c) ? 'Пол' : 'Ячейка ' + escapeHtml(c.number)) + (c.modelId || isFloorCell(c) ? '' : ' (пустая)');
+async function mmCellOptions(modelId, exceptCell){
+  return (await mmCellList(modelId, exceptCell)).map(c=> `<option value="${escapeAttr(c.number)}">${mmCellText(c)}</option>`).join('');
 }
 async function mmCorrectForm(modelId, sizeId){
   const owner = ffRole() === 'owner';
   const s = (await modelView(modelId)).sizes.find(x=> x.id === sizeId);
-  const cellSel = owner ? `<select id="corrCell"><option value="">— ячейка —</option>${await mmCellOptions(modelId)}</select>` : '';
+  // склад: «все ячейки» — новый общий остаток; ячейка — сколько теперь в ней (рядом — сколько там сейчас)
+  let cellSel = '';
+  if(owner){
+    const opts = [];
+    for(const c of await mmCellList(modelId)){
+      const q = await cellSizeQty(c.number, sizeId);
+      opts.push(`<option value="${escapeAttr(c.number)}" data-now="${q}">${mmCellText(c)} — сейчас ${q}</option>`);
+    }
+    cellSel = `<select id="corrCell" onchange="mmCorrectHint()"><option value="*" data-now="${s.stock}">Все ячейки — всего ${s.stock}</option>${opts.join('')}</select>`;
+  }
   document.getElementById('mmStockForm').innerHTML = `<div class="card inline-form"><div class="head-row"><button type="button" class="icon-btn" onclick="mmCloseStockForm()" aria-label="Назад"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
       <b>${escapeHtml(s.label)}: сейчас ${s.stock} шт.</b></div>
     <div class="field-row"><input type="number" id="corrQty" min="0" placeholder="Новый остаток">${cellSel}
       <button type="button" class="btn primary" style="width:auto;" id="corrSave" onclick="mmCorrectSave(${jsArg(modelId)}, ${jsArg(sizeId)})">Сохранить</button></div>
-    ${owner ? '' : '<div class="hint">Склад проверит правку. Пока проверяет — она уже действует.</div>'}</div>`;
+    <div class="hint" id="corrHint">${owner ? 'Сколько всего должно остаться. Лишнее уберётся из ячеек само.' : 'Склад проверит правку. Пока проверяет — она уже действует.'}</div></div>`;
+}
+function mmCorrectHint(){
+  const sel = document.getElementById('corrCell'), h = document.getElementById('corrHint'), o = sel.options[sel.selectedIndex];
+  h.textContent = sel.value === '*' ? 'Сколько всего должно остаться. Лишнее уберётся из ячеек само.'
+    : 'Сколько теперь лежит в этой ячейке (сейчас ' + o.dataset.now + ' шт.).';
+  document.getElementById('corrQty').placeholder = sel.value === '*' ? 'Новый остаток' : 'Сколько в ячейке';
 }
 async function mmCorrectSave(modelId, sizeId){
   const cellEl = document.getElementById('corrCell');
-  if(cellEl && cellEl.value){
-    const want = parseInt(document.getElementById('corrQty').value, 10), now = (await ffStockIndex()).sellableBySize[sizeId] || 0;
+  const inCell = !!(cellEl && cellEl.value && cellEl.value !== '*');
+  if(inCell){
+    const want = parseInt(document.getElementById('corrQty').value, 10), now = await cellSizeQty(cellEl.value, sizeId);
     if(want > now && !(await okToOverfill(cellEl.value, want - now))) return;
   }
-  const r = await correctStock({sizeId, newQty: document.getElementById('corrQty').value, cellNumber: cellEl ? cellEl.value : undefined});
+  const r = await correctStock({sizeId, newQty: document.getElementById('corrQty').value, cellNumber: cellEl ? cellEl.value : undefined, inCell});
   if(!r.ok){ toast(r.error); return; }
   toast(ffRole() === 'owner' ? 'Остаток изменён' : 'Остаток изменён — склад проверит');
   await renderModelStockBox(modelId);

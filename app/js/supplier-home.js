@@ -22,7 +22,7 @@ function supplierSizeLine(label, c){
   if(c.incoming) flow.push('едет ' + c.incoming);
   if(c.waiting) flow.push('ждёт отправки ' + c.waiting);
   if(c.defect) flow.push('<span class="warn">брак ' + c.defect + '</span>');
-  return `<span class="sz">${escapeHtml(label)}: на складе <b>${c.stock}</b>${flow.length ? ' <span class="flow">· ' + flow.join(' · ') + '</span>' : ''}</span>`;
+  return `<span class="sz">${escapeHtml(label)}: на складе <b class="${stockTone(c.stock)}">${c.stock}</b>${flow.length ? ' <span class="flow">· ' + flow.join(' · ') + '</span>' : ''}</span>`;
 }
 
 /* Кнопки «Приход» и «Продал» с главного экрана. */

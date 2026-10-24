@@ -108,7 +108,7 @@ async function renderStockFF(){
     const total = v.sizes.reduce((s, x)=> s + x.stock, 0);
     const sizesLine = !v.sizes.length ? '<span class="hint">размеров нет</span>'
       : !owner ? sz.map(s=> supplierSizeLine(s.sizeLabel, counts.get(s.id))).join('<br>')
-      : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b>${s.stock}</b>${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
+      : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b class="${stockTone(s.stock)}">${s.stock}</b>${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
     const cellsLine = (owner && v.cells.length)
       ? '<div class="cells-line">' + v.cells.map(c=> `${c.floor ? 'Пол' : 'Ячейка ' + escapeHtml(c.number) + ' (' + escapeHtml(sizesLabel(c.allowedSizes)) + ')'} — <span class="${c.stock < 0 ? 'neg' : ''}">${c.stock} шт.</span>${c.reserved && !c.stock ? ' · бронь' : ''}`).join(' · ') + '</div>'
       : '';

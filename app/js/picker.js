@@ -14,6 +14,8 @@
     return sel.getAttribute('aria-label') || 'Выберите';
   }
   function open(sel){
+    // товар в отправке и приёмке — своё окно: фото, название, размеры (js/product-pick.js)
+    if(sel.dataset.products && typeof openProductPick === 'function'){ current = null; openProductPick(sel); return; }
     current = sel;
     const opts = [...sel.options];
     document.getElementById('pickTitle').textContent = titleOf(sel);

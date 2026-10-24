@@ -218,7 +218,7 @@ async function shipmentCard(s, editable){
     const canAdd = !sup && s.createdBy !== 'supplier';
     add = (sup ? '' : `<div class="field-row scan-row" style="margin-top:8px;"><input type="text" data-scan-shipment="${escapeAttr(s.id)}" placeholder="Скан штрихкода" autocomplete="off">
       <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanShipment(${jsArg(s.id)}, c))">Камера</button></div>`) +
-      (canAdd ? `<div class="field-row" style="margin-top:8px;"><select id="shModel-${escapeAttr(s.id)}" onchange="shFillSizes(${jsArg(s.id)})"><option value="">— модель —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select></div>
+      (canAdd ? `<div class="field-row" style="margin-top:8px;"><select id="shModel-${escapeAttr(s.id)}" data-products="ship" data-sizes="shSizes-${escapeAttr(s.id)}" onchange="shFillSizes(${jsArg(s.id)})"><option value="">— модель —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select></div>
       <div class="size-pick" id="shSizes-${escapeAttr(s.id)}" style="margin-top:6px;"></div>
       <div class="field-row" style="margin-top:6px;"><input type="number" id="shQty-${escapeAttr(s.id)}" min="1" value="1"><button class="btn ghost" style="width:auto;" onclick="shAddLine(${jsArg(s.id)})">Добавить</button></div>` : '') +
       ((sup && s.createdBy === 'supplier') || (!sup && s.createdBy !== 'supplier') ? `<button class="btn ghost danger-text" style="margin-top:8px;" data-cancel="${escapeAttr(s.id)}" onclick="shCancel(${jsArg(s.id)})"${lines.some(l=> l.collected) ? ' disabled' : ''}>Отменить ${sup ? 'заказ' : 'отправку'}</button>` : '');

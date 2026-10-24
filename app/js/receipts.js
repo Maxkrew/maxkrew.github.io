@@ -302,7 +302,7 @@ async function receiptCard(r){
     return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}
       <div class="field-row scan-row"><input type="text" data-scan-receipt="${escapeAttr(r.id)}" placeholder="Скан штрихкода" autocomplete="off">
         <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanReceipt(${jsArg(r.id)}, c))">Камера</button></div>
-      <div class="field"><label>Товар</label><select id="rcModel-${escapeAttr(r.id)}" onchange="rcFillSizes(${jsArg(r.id)})"><option value="">— выберите —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select>
+      <div class="field"><label>Товар</label><select id="rcModel-${escapeAttr(r.id)}" data-products="receipt" data-sizes="rcSizes-${escapeAttr(r.id)}" onchange="rcFillSizes(${jsArg(r.id)})"><option value="">— выберите —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select>
         <button class="btn ghost sm" style="width:auto;margin-top:6px;" onclick="openModelModal()">+ Новый товар</button></div>
       <div class="field"><label>Размер</label><div class="size-pick" id="rcSizes-${escapeAttr(r.id)}"><span class="hint">Выберите товар</span></div></div>
       <div class="field"><label for="rcQty-${escapeAttr(r.id)}">Сколько штук</label><input type="number" id="rcQty-${escapeAttr(r.id)}" min="1" placeholder="0"></div>

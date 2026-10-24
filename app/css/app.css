@@ -1057,3 +1057,19 @@ header.top .status-pill{background:rgba(255,255,255,.14);border:0;color:#fff;box
 .neg{color:var(--danger);font-weight:600;}
 .cell-tile.floor{border-style:dashed;}
 body.is-staff .no-staff{display:none !important;}
+/* выбор товара: фото, название, размеры с остатком */
+.pp-item{border-radius:var(--r-md);background:var(--field);padding:10px 12px;margin-bottom:8px;}
+.pp-item.on{box-shadow:inset 0 0 0 1.5px var(--accent);background:var(--accent-soft);}
+.pp-head{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;padding:0;font:inherit;color:var(--text);text-align:left;cursor:pointer;}
+.pp-photo{width:48px;height:48px;border-radius:var(--r-sm);background:var(--surface-2);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);}
+.pp-photo img{width:48px;height:48px;object-fit:cover;display:block;}
+.pp-name{font-size:16px;font-weight:600;}
+.pp-sizes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.pp-size{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;color:var(--text);cursor:pointer;}
+.pp-size b{color:var(--accent-strong);margin-left:2px;}
+.pp-size.none{opacity:.5;}
+.pp-size.none b{color:var(--text-tertiary);}
+/* остаток размера: мало — жёлтый, норма — зелёный, много — красный */
+b.lvl-low{background:#FFF1B8;color:#7A5A00;border-radius:6px;padding:0 6px;}
+b.lvl-ok{background:#D9F5E3;color:#17643A;border-radius:6px;padding:0 6px;}
+b.lvl-high{background:#FFE0DE;color:#A3261C;border-radius:6px;padding:0 6px;}

@@ -3,6 +3,7 @@
    склад товаров и историю, без ячеек, приёмки и поставщиков (ОПИСАНИЕ §3, §9). */
 const NAV_ITEMS = [
   /* labels — подпись для роли: у поставщика учёт своего товара (этап 2б, ОПИСАНИЕ §11в) */
+  {id:'today',     label:'Сегодня',    icon:'i-home', group:'Склад',  roles:['owner']},   // плитки «что ждёт работы»
   {id:'stock',     label:'Склад',      icon:'i-box',   group:'Склад',  roles:['owner','supplier'], labels:{supplier:'Товары'}},
   {id:'receipts',  label:'Приёмка',    icon:'i-in',    group:'Склад',  roles:['owner']},
   {id:'incoming',  label:'Приход',     icon:'i-in',    group:'Склад',  roles:['supplier']},
@@ -10,7 +11,8 @@ const NAV_ITEMS = [
   {id:'analysis',  label:'Анализ',     icon:'i-chart', group:'Склад',  roles:['supplier'], noStaff:true},   // деньги — не сотруднику
   {id:'cells',     label:'Ячейки',     icon:'i-grid',  group:'Склад',  roles:['owner']},
   {id:'suppliers', label:'Поставщики', icon:'i-users', group:'Деньги', roles:['owner']},
-  {id:'history',   label:'История',    icon:'i-clock', group:'Склад',  roles:['owner','supplier']},
+  /* у склада на телефоне — из Настроек (в нижнем меню 7 вкладок не помещаются), у поставщика — внизу */
+  {id:'history',   label:'История',    icon:'i-clock', group:'Склад',  roles:['owner','supplier'], sideOnlyFor:['owner']},
   /* только в боковом меню (на телефоне — из Настроек), чтобы нижнее меню не переполнялось */
   {id:'tariffs',   label:'Тарифы',     icon:'i-coins', group:'Аккаунт', roles:['owner'], sideOnly:true},
   {id:'admin',     label:'Сервис',     icon:'i-gear',  group:'Аккаунт', roles:['admin'], sideOnly:true}
@@ -37,7 +39,7 @@ function buildBottomNav(){
   const active = (document.querySelector('main section.active') || {id:''}).id.replace('sec-', '');
   nav.innerHTML = NAV_ITEMS.map(i=>
     `<button type="button" data-section="${i.id}" onclick="showSection('${i.id}',this)"${itemAllowed(i) ? '' : ' hidden'}` +
-    ` class="${i.sideOnly ? 'side-only' : ''}${i.id === active ? ' active' : ''}"><svg class="icon"><use href="#${i.icon}"/></svg>${itemLabel(i)}</button>`).join('');
+    ` class="${i.sideOnly || (i.sideOnlyFor || []).includes(rl) ? 'side-only' : ''}${i.id === active ? ' active' : ''}"><svg class="icon"><use href="#${i.icon}"/></svg>${itemLabel(i)}</button>`).join('');
 }
 
 async function applyRoleUI(){
@@ -61,6 +63,7 @@ async function applyRoleUI(){
   const sb = document.getElementById('setAdminBtn'); if(sb) sb.hidden = !(Sync.isAdmin && Sync.isAdmin());
   const billing = typeof ffSelfSignup === 'function' ? ffSelfSignup() : true;
   document.body.classList.toggle('no-billing', !billing);   // тарифы — когда включат регистрацию складов
+  const sh = document.getElementById('setHistoryBtn'); if(sh) sh.hidden = rl !== 'owner';
   const st = document.getElementById('setTariffsBtn'); if(st) st.hidden = rl !== 'owner' || !billing;
   // демо-учётки: пример не удаляем (иначе демо-поставщик теряет вход)
   const demoBtn = document.getElementById('demoRemoveBtn'); if(demoBtn) demoBtn.hidden = /@fulbro.test$/i.test((Sync.lastLogin && Sync.lastLogin()) || '');

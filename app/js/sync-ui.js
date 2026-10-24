@@ -22,6 +22,7 @@ function describeSync(state, detail){
 
 /* Синхронизация привезла чужие правки — перерисовать открытый раздел. */
 async function refreshAfterSync(){
+  if(typeof checkNewOrders === 'function') try{ await checkNewOrders(); }catch(e){}   // звук нового заказа (склад)
   const active = document.querySelector('main section.active');
   /* Человек сейчас что-то вводит в этом разделе — не перерисовываем у него под руками. */
   const f = document.activeElement;
@@ -311,6 +312,7 @@ async function updateProductCountPill(){
 /* Отрисовка раздела: новые разделы «ФФ» и оставшиеся от «Склада». */
 async function renderSection(name){
   const call = fn=> (typeof window[fn] === 'function') ? window[fn]() : null;
+  if(name === 'today') await call('renderToday');
   if(name === 'stock') await (typeof renderStockFF === 'function' ? renderStockFF() : call('renderStock'));
   if(name === 'receipts') await call('renderReceipts');
   if(name === 'incoming') await call('renderIncoming');
@@ -321,7 +323,7 @@ async function renderSection(name){
   if(name === 'tariffs') await call('renderTariffs');
   if(name === 'admin') await call('renderAdmin');
   if(name === 'history') await (typeof renderHistoryFF === 'function' ? renderHistoryFF() : call('renderHistory'));
-  if(name === 'settings'){ renderStorageStatus(); renderSyncStatusBox(); renderSoundRows(); renderSnapshots(); if(typeof renderDemoCard === 'function') renderDemoCard(); }
+  if(name === 'settings'){ const os = document.getElementById('setOrderSound'); if(os) os.checked = !!settings.orderSound; renderStorageStatus(); renderSyncStatusBox(); renderSoundRows(); renderSnapshots(); if(typeof renderDemoCard === 'function') renderDemoCard(); }
 }
 
 function showSection(name, btn){

@@ -1073,3 +1073,32 @@ body.is-staff .no-staff{display:none !important;}
 b.lvl-low{background:#FFF1B8;color:#7A5A00;border-radius:6px;padding:0 6px;}
 b.lvl-ok{background:#D9F5E3;color:#17643A;border-radius:6px;padding:0 6px;}
 b.lvl-high{background:#FFE0DE;color:#A3261C;border-radius:6px;padding:0 6px;}
+/* сборка: фильтр, счётчик, «Собран», выбор */
+.as-chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px;}
+.as-chip{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:8px 14px;font:inherit;font-size:15px;font-weight:600;color:var(--text);cursor:pointer;}
+.as-chip b{background:var(--field);border-radius:999px;padding:1px 8px;margin-left:4px;font-size:13px;}
+.as-chip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.as-chip.on b{background:rgba(255,255,255,.25);color:#fff;}
+.as-tools{margin-bottom:10px;}
+.as-tools .btn.on{background:var(--accent-soft);color:var(--accent-strong);}
+.as-progress{display:flex;align-items:center;gap:14px;}
+.as-progress .as-count{font-size:26px;font-weight:800;white-space:nowrap;}
+.as-progress .bar{flex:1;height:8px;border-radius:99px;background:var(--field);overflow:hidden;}
+.as-progress .bar i{display:block;height:100%;background:var(--accent);}
+.as-selbar{position:sticky;top:8px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--accent);border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px;}
+.as-collect{width:100%;margin-top:10px;font-size:17px;padding:14px;}
+.as-select{display:flex;align-items:center;gap:8px;font-weight:600;margin:6px 0;}
+.as-select input{width:22px;height:22px;}
+/* экран «Сегодня» */
+.td-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+@media (min-width:900px){.td-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+.td-tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:var(--r-lg,18px);padding:14px;font:inherit;color:var(--text);cursor:pointer;min-height:118px;}
+.td-tile .icon{width:24px;height:24px;color:var(--accent);margin-bottom:6px;}
+.td-tile b{font-size:28px;font-weight:800;line-height:1.1;}
+.td-tile span{font-size:14px;color:var(--text-secondary,#5b6170);}
+.td-tile em{font-style:normal;font-size:12px;font-weight:600;color:var(--accent-strong);margin-top:4px;}
+.td-tile.warn{border-color:#F3C969;}
+.td-tile.warn em{color:#9A6B00;}
+/* «Кончаются размеры» у поставщика */
+.ro-tag{background:#FFE0DE;color:#A3261C;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:700;white-space:nowrap;}
+.ro-tag.one{background:#FFF1B8;color:#7A5A00;}

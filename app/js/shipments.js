@@ -183,9 +183,15 @@ async function renderShipments(){
       <div class="field-row" style="margin-top:8px;"><input type="text" id="shComment" placeholder="Комментарий">
         <button class="btn primary" id="shStart" style="width:auto;white-space:nowrap;" onclick="shStart()"><svg class="icon"><use href="#i-plus"/></svg>${sup ? 'Новый заказ' : 'Новая отправка'}</button></div>
     </div>`);
-  for(const s of open) parts.push(await shipmentCard(s, true));
-  if(!open.length) parts.push(emptyState('i-out', sup ? 'Заказов в работе нет' : 'Несобранных отправок нет', sup ? 'Выберите службу доставки и нажмите «Новый заказ» — склад соберёт.' : 'Выберите поставщика и службу, нажмите «Новая отправка».'));
-  if(done.length){ parts.push('<div class="grp-title">Собраны недавно</div>'); for(const s of done) parts.push(await shipmentCard(s, false)); }
+  // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
+  if(!sup) parts.push(await assemblyHeader(open, list));
+  const shown = !sup && shFilter ? open.filter(s=> s.supplierId === shFilter) : open;
+  for(const s of shown) parts.push(await shipmentCard(s, true));
+  if(!shown.length) parts.push(emptyState('i-out', sup ? 'Заказов в работе нет' : 'Несобранных отправок нет', sup ? 'Выберите службу доставки и нажмите «Новый заказ» — склад соберёт.' : 'Выберите поставщика и службу, нажмите «Новая отправка».'));
+  // склад: «Собранные сегодня» (нет сегодняшних — последние собранные)
+  const today = sup ? [] : await shCollectedToday(list.filter(s=> !shFilter || s.supplierId === shFilter));
+  const recent = today.length ? today : done.filter(s=> sup || !shFilter || s.supplierId === shFilter);
+  if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + today.length : 'Собраны недавно') + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
   box.innerHTML = parts.join('');
   wireFFScanInputs();
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);
@@ -235,11 +241,16 @@ async function shipmentCard(s, editable){
   const doneTools = !sup && s.status === 'собрана' ? `<div class="sh-tools"><button type="button" class="icon-btn sh-edit-btn" data-reopen="${escapeAttr(s.id)}" onclick="shReopen(${jsArg(s.id)})" aria-label="Вернуть в работу"><svg class="icon"><use href="#i-edit"/></svg></button>${s.createdBy !== 'supplier' ? `<button type="button" class="icon-btn sh-del-btn" data-sh-del="${escapeAttr(s.id)}" onclick="shDeleteDone(${jsArg(s.id)})" aria-label="Удалить отправку"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div>` : '';
   const pencil = sup && typeof shipmentEditable === 'function' && await shipmentEditable(s)
     ? `<button type="button" class="icon-btn sh-edit" data-edit="${escapeAttr(s.id)}" onclick="sellEditStart(${jsArg(s.id)})" aria-label="Изменить заказ"><svg class="icon"><use href="#i-edit"/></svg></button>` : '';
-  const meta = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', escapeHtml(s.comment || '')].filter(Boolean).join(' · ');
+  const time = s.createdTs ? new Date(s.createdTs).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}) : '';
+  const meta = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', time ? '🕒 ' + time : '', escapeHtml(s.comment || '')].filter(Boolean).join(' · ');
+  // склад: большая кнопка «Собран» и галочка выбора (сборка)
+  const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);
+  const bigBtn = canCollect && !shSelectMode ? `<button class="btn primary as-collect" data-collect="${escapeAttr(s.id)}" onclick="shCollect(${jsArg(s.id)})"><svg class="icon"><use href="#i-check"/></svg>Собран</button>` : '';
+  const selBox = !sup && editable && shSelectMode && canCollect ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
   return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${escapeHtml(s.status)}</span></div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
     ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + escapeHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>`}</div>` : ''}
-    ${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${add}</div>`;
+    ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;
 }
 async function shStart(){
   // поставщик заказывает только через «Продал»: там скриншот штрихкода Авито обязателен

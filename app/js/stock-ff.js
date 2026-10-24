@@ -38,6 +38,7 @@ async function renderStockFF(){
   document.getElementById('ffStockTitle').textContent = owner ? 'Склад' : 'Мои товары';
   document.getElementById('ffStockSub').textContent = owner ? 'Товары, размеры и остатки' : 'Что на складе, что едет и что ждёт отправки';
   document.getElementById('homeActions').hidden = owner;
+  if(typeof renderRunningOut === 'function') renderRunningOut();   // «Кончаются размеры» (поставщик)
   const sups = await ffSuppliersMap();
   // фильтр поставщиков — только складу
   const sel = document.getElementById('ffSupplierFilter');

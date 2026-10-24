@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="css/app.css?v=24">
+<link rel="stylesheet" href="css/app.css?v=25">
 </head>
 <body>
 
@@ -199,6 +199,11 @@
       </div>
     </section>
 
+    <section id="sec-today">
+      <div class="page-head"><h2>Сегодня</h2><p id="todayDate">Что ждёт работы на складе</p></div>
+      <div id="todayBox"></div>
+    </section>
+
     <section id="sec-stock" class="active">
       <div class="page-head head-row"><div><h2 id="ffStockTitle">Склад</h2><p id="ffStockSub">Товары, размеры и остатки</p></div>
         <button class="btn primary sm no-staff" id="ffAddModelBtn" style="width:auto;" onclick="openModelModal()"><svg class="icon"><use href="#i-plus"/></svg>Товар</button></div>
@@ -208,6 +213,7 @@
         <button class="btn primary" id="homeSell" onclick="homeGo('sell')"><svg class="icon"><use href="#i-out"/></svg>Продал</button>
         <button class="btn ghost no-staff" id="homeAddModel" onclick="openModelModal()"><svg class="icon"><use href="#i-plus"/></svg>Товар</button>
       </div>
+      <div id="runningOut"></div>
       <div class="card stock-filters">
         <input type="search" id="ffStockSearch" placeholder="Поиск товара" oninput="renderStockFF()">
         <div class="field-row">
@@ -356,7 +362,10 @@
 
     <section id="sec-settings">
       <div class="page-head"><h2>Настройки</h2><p>Параметры системы и резервные копии</p></div>
+      <div class="card" id="orderSoundCard"><label class="check-row" style="justify-content:space-between;"><span><b>Звук новых заказов</b><br><span class="hint">Сигнал и вибрация, когда поставщик оформил заказ</span></span>
+        <input type="checkbox" id="setOrderSound" onchange="setOrderSound(this.checked)"></label></div>
       <div class="card" id="setLinksCard"><div class="btn-row sup-actions">
+        <button class="btn ghost sm" id="setHistoryBtn" onclick="showSection('history')" hidden>История</button>
         <button class="btn ghost sm" id="setTariffsBtn" onclick="showSection('tariffs')" hidden>Тарифы</button>
         <button class="btn ghost sm" id="setAdminBtn" onclick="showSection('admin')" hidden>Панель сервиса</button></div></div>
       <div class="card" id="demoCard" data-self hidden><div class="head-row"><div><div class="rname">Демо-поставщик «Пример»</div><div class="rmeta">Показывает, как работают ячейки и раскладка. Когда придут настоящие поставщики — удалите.</div></div>
@@ -1128,47 +1137,49 @@
 <script src="vendor/zxing.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="sync-config.js?v=24"></script>
-<script src="js/db.js?v=24"></script>
-<script src="js/cells.js?v=24"></script>
-<script src="js/ff-data.js?v=24"></script>
-<script src="js/sync-ui.js?v=24"></script>
-<script src="js/input.js?v=24"></script>
-<script src="js/returns-scan.js?v=24"></script>
-<script src="js/sounds.js?v=24"></script>
-<script src="js/stock-history.js?v=24"></script>
-<script src="js/finance.js?v=24"></script>
-<script src="js/balance.js?v=24"></script>
-<script src="js/analytics.js?v=24"></script>
-<script src="js/settings-roles.js?v=24"></script>
-<script src="js/roles.js?v=24"></script>
-<script src="js/suppliers.js?v=24"></script>
-<script src="js/stock-ff.js?v=24"></script>
-<script src="js/cells-ui.js?v=24"></script>
-<script src="js/moves.js?v=24"></script>
-<script src="js/receipts.js?v=24"></script>
-<script src="js/shipments.js?v=24"></script>
-<script src="js/photos.js?v=24"></script>
-<script src="js/staff.js?v=24"></script>
-<script src="js/billing.js?v=24"></script>
-<script src="js/product-pick.js?v=24"></script>
-<script src="js/supplier-home.js?v=24"></script>
-<script src="js/incoming.js?v=24"></script>
-<script src="js/excel-import.js?v=24"></script>
-<script src="js/sell.js?v=24"></script>
-<script src="js/supplier-analysis.js?v=24"></script>
-<script src="js/review.js?v=24"></script>
-<script src="js/history-ff.js?v=24"></script>
-<script src="js/scan-ff.js?v=24"></script>
-<script src="js/demo.js?v=24"></script>
-<script src="js/subscription.js?v=24"></script>
-<script src="js/tariffs.js?v=24"></script>
-<script src="js/admin.js?v=24"></script>
-<script src="js/backup-labels.js?v=24"></script>
+<script src="sync-config.js?v=25"></script>
+<script src="js/db.js?v=25"></script>
+<script src="js/cells.js?v=25"></script>
+<script src="js/ff-data.js?v=25"></script>
+<script src="js/sync-ui.js?v=25"></script>
+<script src="js/input.js?v=25"></script>
+<script src="js/returns-scan.js?v=25"></script>
+<script src="js/sounds.js?v=25"></script>
+<script src="js/stock-history.js?v=25"></script>
+<script src="js/finance.js?v=25"></script>
+<script src="js/balance.js?v=25"></script>
+<script src="js/analytics.js?v=25"></script>
+<script src="js/settings-roles.js?v=25"></script>
+<script src="js/roles.js?v=25"></script>
+<script src="js/suppliers.js?v=25"></script>
+<script src="js/stock-ff.js?v=25"></script>
+<script src="js/cells-ui.js?v=25"></script>
+<script src="js/moves.js?v=25"></script>
+<script src="js/receipts.js?v=25"></script>
+<script src="js/shipments.js?v=25"></script>
+<script src="js/photos.js?v=25"></script>
+<script src="js/staff.js?v=25"></script>
+<script src="js/billing.js?v=25"></script>
+<script src="js/product-pick.js?v=25"></script>
+<script src="js/assembly.js?v=25"></script>
+<script src="js/today.js?v=25"></script>
+<script src="js/supplier-home.js?v=25"></script>
+<script src="js/incoming.js?v=25"></script>
+<script src="js/excel-import.js?v=25"></script>
+<script src="js/sell.js?v=25"></script>
+<script src="js/supplier-analysis.js?v=25"></script>
+<script src="js/review.js?v=25"></script>
+<script src="js/history-ff.js?v=25"></script>
+<script src="js/scan-ff.js?v=25"></script>
+<script src="js/demo.js?v=25"></script>
+<script src="js/subscription.js?v=25"></script>
+<script src="js/tariffs.js?v=25"></script>
+<script src="js/admin.js?v=25"></script>
+<script src="js/backup-labels.js?v=25"></script>
 <!-- после основного кода: синхронизация опирается на его функции -->
-<script src="sync.js?v=24"></script>
-<script src="js/layout.js?v=24"></script>
-<script src="js/nav-back.js?v=24"></script>
-<script src="js/picker.js?v=24"></script>
+<script src="sync.js?v=25"></script>
+<script src="js/layout.js?v=25"></script>
+<script src="js/nav-back.js?v=25"></script>
+<script src="js/picker.js?v=25"></script>
 </body>
 </html>

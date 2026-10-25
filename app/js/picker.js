@@ -22,10 +22,10 @@
     document.getElementById('pickList').innerHTML = opts.map((o, i)=>
       `<button type="button" class="pick-item${o.selected ? ' on' : ''}" data-pick="${escapeAttr(o.value)}" data-i="${i}"${o.disabled ? ' disabled' : ''}>
         <span>${escapeHtml(o.textContent)}</span>${o.selected ? '<svg class="icon"><use href="#i-check"/></svg>' : ''}</button>`).join('') || '<div class="hint">Выбирать пока нечего</div>';
-    bg().classList.add('show');
+    bg().classList.add('show'); document.documentElement.classList.add('sheet-open');
     const on = document.querySelector('#pickList .pick-item.on'); if(on) try{ on.scrollIntoView({block: 'center'}); }catch(e){}
   }
-  function close(){ const b = bg(); if(b) b.classList.remove('show'); current = null; }
+  function close(){ const b = bg(); if(b) b.classList.remove('show'); document.documentElement.classList.remove('sheet-open'); current = null; }
   window.closePickSheet = close;
   function pick(i){
     const sel = current; if(!sel) return;

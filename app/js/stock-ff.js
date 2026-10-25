@@ -85,6 +85,7 @@ async function renderStockFF(){
      остатки из общего индекса, ячейки по моделям. Показываем порциями. */
   const idx = await ffStockIndex();
   const counts = owner ? null : await supplierCounts();
+  const booked = typeof reservedMaps === 'function' ? (await reservedMaps()).bySize : {};   // забронировано в отправках
   const sizesByModel = {};
   for(const s of allSizes) (sizesByModel[s.modelId] || (sizesByModel[s.modelId] = [])).push(s);
   const cellsByModel = {};
@@ -104,12 +105,12 @@ async function renderStockFF(){
   for(const m of shown){
     const sz = (sizesByModel[m.id] || []).slice().sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel));
     // в остатке — «можно продать»; брак отдельно (этап 2)
-    const v = {sizes: sz.map(s=> ({label: s.sizeLabel, stock: idx.sellableBySize[s.id] || 0, defect: idx.defectBySize[s.id] || 0})),
+    const v = {sizes: sz.map(s=> ({label: s.sizeLabel, stock: (idx.sellableBySize[s.id] || 0) - (booked[s.id] || 0), booked: booked[s.id] || 0, defect: idx.defectBySize[s.id] || 0})),
                cells: (cellsByModel[m.id] || []).sort((a, b)=> cmpCellNumber(a.number, b.number))};
     const total = v.sizes.reduce((s, x)=> s + x.stock, 0);
     const sizesLine = !v.sizes.length ? '<span class="hint">размеров нет</span>'
       : !owner ? sz.map(s=> supplierSizeLine(s.sizeLabel, counts.get(s.id))).join('<br>')
-      : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b class="${stockTone(s.stock)}">${s.stock}</b>${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
+      : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b class="${stockTone(s.stock)}">${s.stock}</b>${s.booked ? ` <span class="hint">+${s.booked} брон.</span>` : ''}${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
     const cellsLine = (owner && v.cells.length)
       ? '<div class="cells-line">' + v.cells.map(c=> `${c.floor ? 'Пол' : 'Ячейка ' + escapeHtml(c.number) + ' (' + escapeHtml(sizesLabel(c.allowedSizes)) + ')'} — <span class="${c.stock < 0 ? 'neg' : ''}">${c.stock} шт.</span>${c.reserved && !c.stock ? ' · бронь' : ''}`).join(' · ') + '</div>'
       : '';

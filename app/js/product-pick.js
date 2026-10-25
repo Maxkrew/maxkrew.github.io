@@ -30,6 +30,7 @@ async function openProductPick(sel){
   const list = document.getElementById('pickList');
   list.innerHTML = rows.join('') || '<div class="hint">Товаров пока нет</div>';
   document.getElementById('pickSheetBg').classList.add('show');
+  document.documentElement.classList.add('sheet-open');   // страница позади не прокручивается
   list.scrollTop = 0;
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(list);
 }

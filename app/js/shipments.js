@@ -185,6 +185,7 @@ async function renderShipments(){
     </div>`);
   // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
   if(!sup) parts.push(await assemblyHeader(open, list));
+  if(!sup && typeof statsCard === 'function') parts.push(await statsCard(shFilter));   // статистика и начисления за период
   const shown = !sup && shFilter ? open.filter(s=> s.supplierId === shFilter) : open;
   for(const s of shown) parts.push(await shipmentCard(s, true));
   if(!shown.length) parts.push(emptyState('i-out', sup ? 'Заказов в работе нет' : 'Несобранных отправок нет', sup ? 'Выберите службу доставки и нажмите «Новый заказ» — склад соберёт.' : 'Выберите поставщика и службу, нажмите «Новая отправка».'));
@@ -247,7 +248,7 @@ async function shipmentCard(s, editable){
   const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);
   const bigBtn = canCollect && !shSelectMode ? `<button class="btn primary as-collect" data-collect="${escapeAttr(s.id)}" onclick="shCollect(${jsArg(s.id)})"><svg class="icon"><use href="#i-check"/></svg>Собран</button>` : '';
   const selBox = !sup && editable && shSelectMode && canCollect ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
-  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${escapeHtml(s.status)}</span></div>
+  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${s.status === 'новая' ? 'забронировано' : escapeHtml(s.status)}</span></div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
     ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + escapeHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>`}</div>` : ''}
     ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;

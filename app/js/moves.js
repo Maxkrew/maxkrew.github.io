@@ -138,7 +138,8 @@ async function renderModelStockBox(modelId){
   if(!v || !v.sizes.length){ box.innerHTML = ''; box.hidden = true; return; }
   box.hidden = false;
   const owner = ffRole() === 'owner';
-  const rows = v.sizes.map(s=> `<div class="row-item"><div class="rmain"><b>${escapeHtml(s.label)}</b> — <span class="${s.stock < 0 ? 'neg' : ''}">${s.stock} шт.</span>${s.defect ? ` · <span class="warn">брак ${s.defect}</span>` : ''}${s.pending ? ' · <span class="hint">на проверке</span>' : ''}</div>
+  const booked = typeof reservedMaps === 'function' ? (await reservedMaps()).bySize : {};
+  const rows = v.sizes.map(s=> `<div class="row-item"><div class="rmain"><b>${escapeHtml(s.label)}</b> — <span class="${s.stock - (booked[s.id] || 0) < 0 ? 'neg' : ''}">${s.stock - (booked[s.id] || 0)} шт.</span>${booked[s.id] ? ` <span class="hint">(ещё ${booked[s.id]} забронировано)</span>` : ''}${s.defect ? ` · <span class="warn">брак ${s.defect}</span>` : ''}${s.pending ? ' · <span class="hint">на проверке</span>' : ''}</div>
       <div class="rside"><button type="button" class="btn ghost sm no-staff" style="width:auto;" data-act="correct" data-size="${escapeAttr(s.id)}" onclick="mmCorrectForm(${jsArg(modelId)}, ${jsArg(s.id)})">Изменить остаток</button></div></div>`);
   const cells = owner ? (v.cells || []).filter(c=> c.stock > 0).map(c=> `<div class="row-item"><div class="rmain">${c.floor ? 'Пол' : (c.defect ? 'Брак · ' : '') + 'Ячейка ' + escapeHtml(c.number)} — ${Object.entries(c.bySize).map(([l, q])=> escapeHtml(l) + ' ' + q).join(', ')}</div>
       <div class="rside"><button type="button" class="btn ghost sm" style="width:auto;" data-act="move" data-cell="${escapeAttr(c.number)}" onclick="mmMoveForm(${jsArg(modelId)}, ${jsArg(c.number)})">${c.defect ? 'Вернуть из брака' : 'Переложить'}</button></div></div>`) : [];

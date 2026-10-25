@@ -1102,3 +1102,19 @@ b.lvl-high{background:#FFE0DE;color:#A3261C;border-radius:6px;padding:0 6px;}
 /* «Кончаются размеры» у поставщика */
 .ro-tag{background:#FFE0DE;color:#A3261C;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:700;white-space:nowrap;}
 .ro-tag.one{background:#FFF1B8;color:#7A5A00;}
+/* статистика отправок и начисления */
+.st-card summary{cursor:pointer;list-style:none;}
+.st-card summary::after{content:" ▾";color:var(--text-tertiary);}
+.st-card[open] summary::after{content:" ▴";}
+.st-total{margin:10px 0 6px;font-size:16px;}
+.st-total b{font-size:20px;}
+.st-row{padding:4px 0;font-size:15px;}
+/* Окно выбора (iPhone): высота шторки — по видимой части экрана (dvh), прокручивается только
+   список внутри. Раньше список растягивался во всю длину, шторка уходила за край экрана,
+   и iPhone прокручивал страницу позади вместо списка. */
+.modal.pick-sheet{max-height:85vh;max-height:85dvh;overflow:hidden;display:flex;flex-direction:column;}
+.modal.pick-sheet > .pick-list{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;}
+/* пока открыто окно — страница позади не прокручивается */
+html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
+/* все шторки: высота по видимой части экрана iPhone (vh там больше видимого) */
+.modal{max-height:88dvh;}

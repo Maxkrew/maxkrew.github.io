@@ -99,6 +99,23 @@ function closeSheet(bg){
 }
 
 function setupSheetGestures(){
+  /* Любое открытое окно — страница позади не прокручивается (iPhone прокручивал её вместо окна). */
+  /* На iPhone overflow:hidden страницу не держит — закрепляем её (position:fixed) там же, где
+     она была, а при закрытии окна возвращаем прокрутку на место. */
+  let lockedY = null;
+  const lock = ()=>{
+    const open = !!document.querySelector('.modal-bg.show'), b = document.body;
+    document.documentElement.classList.toggle('sheet-open', open);
+    if(open && lockedY === null){
+      lockedY = window.scrollY || 0;
+      Object.assign(b.style, {position: 'fixed', top: -lockedY + 'px', left: '0', right: '0', width: '100%'});
+    } else if(!open && lockedY !== null){
+      const y = lockedY; lockedY = null;
+      Object.assign(b.style, {position: '', top: '', left: '', right: '', width: ''});
+      window.scrollTo(0, y);
+    }
+  };
+  try{ new MutationObserver(lock).observe(document.body, {subtree: true, attributes: true, attributeFilter: ['class']}); }catch(e){}
   document.querySelectorAll('.modal-bg').forEach(bg=>{
     const sheet = bg.querySelector('.modal');
     if(!sheet) return;
@@ -106,30 +123,46 @@ function setupSheetGestures(){
     // касание по затемнению — мимо самой шторки
     bg.addEventListener('click', (e)=>{ if(e.target === bg) closeSheet(bg); });
 
-    let startY = 0, shift = 0, dragging = false;
+    let startY = 0, shift = 0, dragging = false, armed = false;
 
     sheet.addEventListener('touchstart', (e)=>{
       /* тянуть можно только от верха: иначе жест перехватит прокрутку
          длинной формы, и до нижних полей будет не добраться. Прокрутку может держать
          и список внутри окна (выбор товара) — тогда смотрим и на него. */
-      for(let el = e.target; el && el !== bg; el = el.parentElement) if(el.scrollTop > 0) return;
-      dragging = true;
+      armed = false; dragging = false;
+      /* Внутри прокручиваемого списка (выбор товара) — всегда обычная прокрутка: на iPhone
+         любой перехват жеста в начале отключает прокрутку до конца касания. Закрыть окно
+         свайпом — за полоску и заголовок. */
+      for(let el = e.target; el && el !== sheet; el = el.parentElement){
+        const oy = getComputedStyle(el).overflowY;
+        if((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1) return;
+      }
+      if(sheet.scrollTop > 0) return;
+      armed = true;
       startY = e.touches[0].clientY;
       shift = 0;
-      sheet.style.transition = 'none';
     }, {passive:true});
 
     /* Слушатель не passive: пока тянем шторку, нужно запретить браузеру
-       трактовать тот же жест как «потянуть страницу для обновления». */
+       трактовать тот же жест как «потянуть страницу для обновления».
+       Шторку тянем, только когда палец уверенно пошёл вниз (больше 10 точек): иначе
+       дрожание пальца в начале прокрутки на iPhone глушило прокрутку списка целиком. */
     sheet.addEventListener('touchmove', (e)=>{
-      if(!dragging) return;
-      shift = Math.max(0, e.touches[0].clientY - startY);
+      if(!armed) return;
+      const dy = e.touches[0].clientY - startY;
+      if(!dragging){
+        if(dy < -4){ armed = false; return; }   // палец пошёл вверх — это прокрутка
+        if(dy <= 10) return;
+        dragging = true; sheet.style.transition = 'none';
+      }
+      shift = Math.max(0, dy);
       if(shift > 0 && e.cancelable) e.preventDefault();
       sheet.style.transform = 'translateY(' + shift + 'px)';
       bg.style.background = 'rgba(40,44,64,' + Math.max(0.12, 0.4 - shift/700) + ')';
     }, {passive:false});
 
     const finish = ()=>{
+      armed = false;
       if(!dragging) return;
       dragging = false;
       sheet.style.transition = '';

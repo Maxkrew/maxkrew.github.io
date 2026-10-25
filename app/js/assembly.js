@@ -21,8 +21,10 @@ async function shCollectedToday(list){
 async function assemblyHeader(open, all){
   const sups = await ffSuppliersMap();
   const count = {}; for(const s of open) count[s.supplierId] = (count[s.supplierId] || 0) + 1;
-  const ids = Object.keys(count).sort((a, b)=> String((sups[a] || {}).name).localeCompare(String((sups[b] || {}).name), 'ru'));
-  if(shFilter && !count[shFilter]) ids.push(shFilter);
+  // все действующие поставщики (и без открытых заказов — для статистики); сначала те, у кого есть заказы
+  const ids = Object.values(sups).filter(s=> !s.deletedAt && !s.archived).map(s=> s.id)
+    .sort((a, b)=> ((count[b] || 0) > 0) - ((count[a] || 0) > 0) || String((sups[a] || {}).name).localeCompare(String((sups[b] || {}).name), 'ru'));
+  if(shFilter && !ids.includes(shFilter)) ids.push(shFilter);
   const chip = (id, label, n)=> `<button type="button" class="as-chip${shFilter === id ? ' on' : ''}" data-as-filter="${escapeAttr(id)}" onclick="shSetFilter(${jsArg(id)})">${escapeHtml(label)} <b>${n}</b></button>`;
   const chips = chip('', 'Все', open.length) + ids.map(id=> chip(id, (sups[id] || {}).name || 'Поставщик', count[id] || 0)).join('');
   const mine = list=> shFilter ? list.filter(s=> s.supplierId === shFilter) : list;

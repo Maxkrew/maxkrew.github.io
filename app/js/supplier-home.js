@@ -15,14 +15,16 @@ async function supplierCounts(){
   return out;
 }
 
-/* Строка размера у поставщика: «L на складе 5 · едет 50 · ждёт отправки 3» (нули не пишем). */
+/* Строка размера у поставщика: «L в наличии 2 · едет 50 · ждёт отправки 3» (нули не пишем).
+   В наличии — свободное: что на складе, минус уже забронированное в заказах (FoG, 24.10.2026). */
 function supplierSizeLine(label, c){
   c = c || {stock: 0, defect: 0, incoming: 0, waiting: 0};
   const flow = [];
   if(c.incoming) flow.push('едет ' + c.incoming);
   if(c.waiting) flow.push('ждёт отправки ' + c.waiting);
   if(c.defect) flow.push('<span class="warn">брак ' + c.defect + '</span>');
-  return `<span class="sz">${escapeHtml(label)}: на складе <b class="${stockTone(c.stock)}">${c.stock}</b>${flow.length ? ' <span class="flow">· ' + flow.join(' · ') + '</span>' : ''}</span>`;
+  const free = c.stock - c.waiting;
+  return `<span class="sz">${escapeHtml(label)}: в наличии <b class="${stockTone(free)}">${free}</b>${flow.length ? ' <span class="flow">· ' + flow.join(' · ') + '</span>' : ''}</span>`;
 }
 
 /* Кнопки «Приход» и «Продал» с главного экрана. */

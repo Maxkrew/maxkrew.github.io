@@ -79,7 +79,7 @@ async function finishReceipt(receiptId, weightKg, toFloor){
     await put('receiptLines', line);
   }
   if(weightKg !== undefined && weightKg !== null && weightKg !== '') r.weightKg = Number(String(weightKg).replace(',', '.')) || null;
-  r.fee = receiptFee(r);   // биллинг: сумма за вес приёмки по тарифу сейчас
+  r.fee = await receiptFee(r);   // биллинг: сумма за вес приёмки по тарифу сейчас
   r.status = confirm.length ? 'ждёт подтверждения' : 'раскладка';
   await put('receipts', r);
   if(!confirm.length) await applyPlanCells(receiptId);

@@ -147,7 +147,7 @@ async function tickCollected(lineId, on){
   await put('shipmentLines', l);
   const all = await shipmentLines(sh.id);
   const status = all.length && all.every(x=> x.collected) ? 'собрана' : 'новая';
-  if(sh.status !== status){ shipmentSetStatus(sh, status); await put('shipments', sh); }
+  if(sh.status !== status){ await shipmentSetStatus(sh, status); await put('shipments', sh); }
   return {ok:true};
 }
 
@@ -293,7 +293,7 @@ async function shDelLine(lineId){
   if(!confirm('Убрать строку из отправки?')) return;
   l.deletedAt = Date.now(); await put('shipmentLines', l);
   const sh = await get('shipments', l.shipmentId), rest = await shipmentLines(l.shipmentId);
-  if(sh && rest.length && rest.every(x=> x.collected) && sh.status !== 'собрана'){ shipmentSetStatus(sh, 'собрана'); await put('shipments', sh); }
+  if(sh && rest.length && rest.every(x=> x.collected) && sh.status !== 'собрана'){ await shipmentSetStatus(sh, 'собрана'); await put('shipments', sh); }
   toast('Строка убрана'); await renderShipments();
 }
 /* снять «Собрано» со всех строк: товар возвращается в ячейки, отправка снова «новая» */
@@ -309,7 +309,7 @@ async function shReopen(id){
 async function shDeleteDone(id){
   if(!confirm('Удалить отправку? Отметки «Собрано» снимутся, товар вернётся в ячейки.')) return;
   const r = await shUncollectAll(id); if(!r.ok){ toast(r.error); return; }
-  const sh = await get('shipments', id); if(sh){ shipmentSetStatus(sh, 'отменена'); await put('shipments', sh); }
+  const sh = await get('shipments', id); if(sh){ await shipmentSetStatus(sh, 'отменена'); await put('shipments', sh); }
   toast('Отправка удалена'); await renderShipments();
 }
 async function shMinus(lineId){

@@ -48,7 +48,7 @@ async function statsCard(supplierId){
   const bySup = !supplierId && Object.keys(f.bySup).length > 1 ? Object.entries(f.bySup)
     .sort((a, b)=> (b[1].shipSum + b[1].rcSum) - (a[1].shipSum + a[1].rcSum))
     .map(([id, x])=> `<div class="st-row">${escapeHtml((sups[id] || {}).name || 'Поставщик')}: ${fmtMoney(x.shipSum + x.rcSum)} <span class="rmeta">(отправок ${x.shipN}${x.kg ? ', приёмка ' + Math.round(x.kg * 100) / 100 + ' кг' : ''})</span></div>`).join('') : '';
-  const rates = typeof billingRates === 'function' ? billingRates() : {ship: 0, kg: 0};
+  const rates = typeof billingRates === 'function' ? billingRates(supplierId ? sups[supplierId] : null) : {ship: 0, kg: 0};
   return `<details class="card st-card" id="stCard"${window.stOpen ? ' open' : ''} ontoggle="window.stOpen = this.open"><summary class="rname">Статистика и начисления</summary>
     <div class="as-chips" style="margin-top:10px;">${tabs}</div>
     <div class="st-total">Отправлено всего: <b>${st.pieces} шт.</b> <span class="rmeta">в ${st.shipN} ${st.shipN === 1 ? 'отправке' : 'отправках'}</span></div>

@@ -229,8 +229,10 @@
   const MAP = {
     suppliers: {
       table:'suppliers', key:'id', push:['owner'], pull:['owner','supplier'],
-      toRow: (x, ws)=> Object.assign({id:x.id, name:x.name || '', archived:!!x.archived}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, name:r.name || '', memberId:r.member_id || null, inviteCode:r.invite_code || '', archived:!!r.archived}, base(r))
+      toRow: (x, ws)=> Object.assign({id:x.id, name:x.name || '', archived:!!x.archived,
+        ship_rate:x.shipRate == null ? null : num(x.shipRate), kg_rate:x.kgRate == null ? null : num(x.kgRate)}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, name:r.name || '', memberId:r.member_id || null, inviteCode:r.invite_code || '', archived:!!r.archived,
+        shipRate:r.ship_rate == null ? null : num(r.ship_rate), kgRate:r.kg_rate == null ? null : num(r.kg_rate)}, base(r))
     },
     models: {
       table:'models', key:'id', push:['owner','supplier'], pull:['owner','supplier'],

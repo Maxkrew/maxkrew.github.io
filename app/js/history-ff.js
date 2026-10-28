@@ -16,6 +16,10 @@ async function renderHistoryFF(){
   const type = (document.getElementById('ffHistType') || {}).value || '';
   const q = ((document.getElementById('ffHistSearch') || {}).value || '').trim().toLowerCase();
   const nameOf = id=> (modelName(models[id] || {}) || '').toLowerCase();
+  // трек-номер отправки: операция «Отправка» → строка (taskRef) → отправка
+  const shipById = Object.fromEntries((await getAll('shipments')).map(s=> [s.id, s]));
+  const trackOf = {};
+  for(const l of await getAll('shipmentLines')){ const s = shipById[l.shipmentId]; if(s && s.track) trackOf[l.id] = s.track; }
   /* Новые сверху по индексу времени — останавливаемся на 500 подходящих,
      а не сортируем все десятки тысяч операций. */
   const ops = await new Promise((res, rej)=>{
@@ -26,7 +30,7 @@ async function renderHistoryFF(){
       if(!cur || out.length >= 500){ res(out); return; }
       const o = cur.value;
       if((!o.deletedAt || o.review === 'отменено') && (!sup || o.supplierId === sup) && (!type || o.type === type) &&
-         (!q || nameOf(o.modelId).includes(q) || String(labels[o.sizeId] || '').toLowerCase() === q)) out.push(o);
+         (!q || nameOf(o.modelId).includes(q) || String(labels[o.sizeId] || '').toLowerCase() === q || String(trackOf[o.taskRef] || '').toLowerCase().includes(q))) out.push(o);
       cur.continue();
     };
     r.onerror = rej;
@@ -40,7 +44,7 @@ async function renderHistoryFF(){
     const rv = o.review === 'отменено' ? ' · <b>отменено складом</b>' : (o.review === 'на проверке' ? ' · <span class="warn">на проверке</span>' : '');
     return `<div class="row-item hist-row ${sign}${o.deletedAt ? ' cancelled' : ''}"><div class="rmain">
       <div class="rname">${escapeHtml(o.type)} ${Math.abs(o.qty)} шт. — ${escapeHtml(modelName(models[o.modelId] || {}))} ${escapeHtml(labels[o.sizeId] || '')}${escapeHtml(cell)} — ${escapeHtml(who)}</div>
-      <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}${owner ? ' · ' + escapeHtml((sups[o.supplierId] || {}).name || '') : ''}${o.rejected ? ' · <b>не принято сервером</b>' : ''}${rv}</div>
+      <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}${owner ? ' · ' + escapeHtml((sups[o.supplierId] || {}).name || '') : ''}${trackOf[o.taskRef] ? ' · трек ' + escapeHtml(trackOf[o.taskRef]) : ''}${o.rejected ? ' · <b>не принято сервером</b>' : ''}${rv}</div>
     </div><div class="rside"><span class="rval ${sign}">${o.delta > 0 ? '+' : ''}${o.delta}</span>${owner && !o.deletedAt ? `<button class="icon-btn" data-del-op="${escapeAttr(o.uid)}" onclick="deleteOpUI(${jsArg(o.uid)})" aria-label="Удалить операцию"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div></div>`;
   }).join('');
 }

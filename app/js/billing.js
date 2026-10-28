@@ -7,18 +7,56 @@ const BILLING_DEFAULT = {ship: 150, kg: 40};
 const money2 = n=> Math.round((Number(n) || 0) * 100) / 100;
 
 const rateVal = (x, d)=> (x === undefined || x === null || x === '' || !isFinite(Number(x))) ? d : Math.max(0, Number(x));
-/* Общий тариф склада; sup — поставщик: его свой тариф (shipRate/kgRate), пусто — общий. */
+/* Процент по ступеням — как в приложении про фонари (js/balance.js): ставка по сумме всего
+   заказа, ровно на пороге — нижняя ступень (заказ на 2500 → первая). */
+const BILLING_TIERS = [{max: 2500, percent: 6}, {max: 5000, percent: 8}, {max: null, percent: 10}];
+function billingTiers(){
+  const t = window.settings && settings.billing && Array.isArray(settings.billing.tiers) ? settings.billing.tiers : null;
+  return t && t.length ? t : BILLING_TIERS;
+}
+function tierPercent(amount){
+  const a = Number(amount) || 0, tiers = billingTiers();
+  for(const t of tiers) if(t.max === null || t.max === undefined || a <= Number(t.max)) return Number(t.percent) || 0;
+  return Number(tiers[tiers.length - 1].percent) || 0;
+}
+function tiersText(){
+  let prev = 0; const rub = n=> (Number(n) || 0).toLocaleString('ru-RU');
+  return billingTiers().map(t=>{
+    if(t.max === null || t.max === undefined) return 'свыше ' + rub(prev) + ' ₽ — ' + t.percent + ' %';
+    const s = (prev > 0 ? rub(prev) + '–' : 'до ') + rub(t.max) + ' ₽ — ' + t.percent + ' %'; prev = t.max; return s;
+  }).join(' · ');
+}
+/* Общий тариф склада; sup — поставщик: его свой тариф (shipRate/kgRate/billMode), пусто — общий.
+   mode: 'fixed' — сумма за отправку, 'percent' — процент по ступеням от суммы заказа. */
 function billingRates(sup){
   const b = (window.settings && settings.billing) || {};
-  const all = {ship: rateVal(b.ship, BILLING_DEFAULT.ship), kg: rateVal(b.kg, BILLING_DEFAULT.kg)};
+  const all = {ship: rateVal(b.ship, BILLING_DEFAULT.ship), kg: rateVal(b.kg, BILLING_DEFAULT.kg), mode: b.mode === 'percent' ? 'percent' : 'fixed'};
   if(!sup) return all;
-  return {ship: rateVal(sup.shipRate, all.ship), kg: rateVal(sup.kgRate, all.kg), own: sup.shipRate != null || sup.kgRate != null};
+  return {ship: rateVal(sup.shipRate, all.ship), kg: rateVal(sup.kgRate, all.kg), mode: sup.billMode || all.mode,
+          own: sup.shipRate != null || sup.kgRate != null || !!sup.billMode};
+}
+/* Сумма заказа для процента: штуки × «цена для расчёта процента» (нет — «цена продажи») из карточки. */
+async function shipmentAmount(sh){
+  const models = await modelsMap(); let sum = 0, noPrice = 0;
+  for(const l of await shipmentLines(sh.id)){
+    const m = models[l.modelId] || {};
+    const p = Number(m.calcPrice != null ? m.calcPrice : m.price) || 0;
+    if(!p) noPrice++;
+    sum += p * (Number(l.qty) || 0);
+  }
+  return {sum: money2(sum), noPrice};
+}
+async function shipmentFee(sh){
+  const r = await supplierRates(sh.supplierId);
+  if(r.mode !== 'percent') return r.ship;
+  const a = await shipmentAmount(sh);
+  return money2(a.sum * tierPercent(a.sum) / 100);
 }
 async function supplierRates(supplierId){ return billingRates(supplierId ? await get('suppliers', supplierId) : null); }
 /* Статус отправки и её сумма: «собрана» — начисляем по тарифу поставщика (один раз), иначе — снимаем. */
 async function shipmentSetStatus(sh, status){
   sh.status = status;
-  if(status === 'собрана'){ if(sh.fee === null || sh.fee === undefined) sh.fee = (await supplierRates(sh.supplierId)).ship; }
+  if(status === 'собрана'){ if(sh.fee === null || sh.fee === undefined) sh.fee = await shipmentFee(sh); }
   else sh.fee = null;
 }
 /* Сумма приёмки: только настоящая приёмка с весом (не возврат и не раскладка с пола). */
@@ -26,13 +64,14 @@ async function receiptFee(r){
   return (r.kind || 'приёмка') === 'приёмка' && Number(r.weightKg) > 0 ? money2(Number(r.weightKg) * (await supplierRates(r.supplierId)).kg) : null;
 }
 /* Свой тариф поставщика; пустое поле — как у всех. */
-async function setSupplierRates(supplierId, ship, kg){
+async function setSupplierRates(supplierId, ship, kg, mode){
   const s = await get('suppliers', supplierId);
   if(!s) return {ok:false, error:'Нет такого поставщика'};
   const v = x=> String(x == null ? '' : x).trim() === '' ? null : Number(String(x).replace(',', '.'));
   const sr = v(ship), kr = v(kg);
   if((sr !== null && !(sr >= 0)) || (kr !== null && !(kr >= 0))) return {ok:false, error:'Тариф — число, 0 или больше'};
   s.shipRate = sr === null ? null : money2(sr); s.kgRate = kr === null ? null : money2(kr);
+  s.billMode = mode === 'fixed' || mode === 'percent' ? mode : null;
   await put('suppliers', s);
   return {ok:true};
 }
@@ -63,10 +102,18 @@ async function removePayment(id){
 
 /* ---------------- экран «Поставщики»: тарифы и долг ---------------- */
 function billingTariffCard(){
-  const r = billingRates();
+  const r = billingRates(), t = billingTiers(), g = (i, k, d)=> (t[i] && t[i][k] != null) ? t[i][k] : d;
   return `<div class="card bill-card" id="billTariffs"><div class="rname">Тарифы склада для поставщиков</div>
+    <div class="field" style="margin:8px 0 0;"><label for="billMode">За отправку</label><select id="billMode" onchange="billModeShow()">
+      <option value="fixed"${r.mode === 'fixed' ? ' selected' : ''}>Сумма за каждую отправку</option>
+      <option value="percent"${r.mode === 'percent' ? ' selected' : ''}>Процент от суммы заказа (по ступеням)</option></select></div>
+    <div id="billTiers" class="bill-tiers"${r.mode === 'percent' ? '' : ' hidden'}>
+      <div class="field-row">до <input type="number" id="tierMax1b" min="1" value="${g(0, 'max', 2500)}"> ₽ → <input type="number" id="tierPct1b" min="0" max="100" value="${g(0, 'percent', 6)}"> %</div>
+      <div class="field-row">до <input type="number" id="tierMax2b" min="1" value="${g(1, 'max', 5000)}"> ₽ → <input type="number" id="tierPct2b" min="0" max="100" value="${g(1, 'percent', 8)}"> %</div>
+      <div class="field-row">свыше → <input type="number" id="tierPct3b" min="0" max="100" value="${g(2, 'percent', 10)}"> %</div>
+      <p class="hint" style="margin:4px 0 0;">Сейчас: ${escapeHtml(tiersText())}. Процент — от суммы заказа: штуки × «цена для расчёта процента» в карточке товара (нет её — «цена продажи»). Ровно на пороге — нижняя ступень.</p></div>
     <div class="field-row" style="margin-top:8px;align-items:flex-end;">
-      <div class="field" style="margin:0;"><label for="billShip">Отправка, ₽</label><input type="number" id="billShip" min="0" inputmode="decimal" value="${r.ship}"></div>
+      <div class="field" style="margin:0;" id="billShipBox"${r.mode === 'percent' ? ' hidden' : ''}><label for="billShip">Отправка, ₽</label><input type="number" id="billShip" min="0" inputmode="decimal" value="${r.ship}"></div>
       <div class="field" style="margin:0;"><label for="billKg">Приёмка, ₽ за кг</label><input type="number" id="billKg" min="0" inputmode="decimal" value="${r.kg}"></div>
       <button class="btn primary" style="width:auto;" id="billSave" onclick="billSaveRates()">Сохранить</button></div>
     <p class="hint" style="margin:6px 0 0;">Общий для всех поставщиков. Свой тариф поставщику — в его карточке ниже. Новый тариф — только для новых отправок и приёмок.</p></div>`;
@@ -76,7 +123,7 @@ async function billingSupplierBlock(s){
   const pays = b.payments.slice(0, 5).map(p=> `<div class="row-item bill-pay"><div class="rmain">Оплата ${fmtMoney(p.amount)} · ${new Date(p.ts).toLocaleDateString('ru-RU')}</div>
       <div class="rside"><button type="button" class="icon-btn" data-pay-del="${escapeAttr(p.id)}" onclick="billRemovePay(${jsArg(p.id)})" aria-label="Убрать оплату"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`).join('');
   const r = billingRates(s);
-  const rateLine = `<div class="rmeta bill-rate">Тариф: ${fmtMoney(r.ship)} за отправку · ${fmtMoney(r.kg)} за кг${r.own ? ' · <b>свой</b>' : ' · общий'}
+  const rateLine = `<div class="rmeta bill-rate">Тариф: ${r.mode === 'percent' ? 'процент от заказа (' + escapeHtml(tiersText()) + ')' : fmtMoney(r.ship) + ' за отправку'} · ${fmtMoney(r.kg)} за кг${r.own ? ' · <b>свой</b>' : ' · общий'}
       <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-rate-edit="${escapeAttr(s.id)}" onclick="billRateForm(${jsArg(s.id)})">Изменить</button></div>
     <div id="billRate-${escapeAttr(s.id)}"></div>`;
   return `<div class="bill-box" data-bill="${escapeAttr(s.id)}">${rateLine}
@@ -85,10 +132,19 @@ async function billingSupplierBlock(s){
     <div class="rmeta">Отправок ${b.shipN} — ${fmtMoney(b.shipSum)} · приёмка ${b.kg} кг — ${fmtMoney(b.rcSum)} · оплачено ${fmtMoney(b.paid)}</div>
     ${pays}</div>`;
 }
+function billModeShow(){
+  const p = document.getElementById('billMode').value === 'percent';
+  document.getElementById('billTiers').hidden = !p; document.getElementById('billShipBox').hidden = p;
+}
 async function billSaveRates(){
   const ship = Number(document.getElementById('billShip').value), kg = Number(document.getElementById('billKg').value);
   if(!(ship >= 0) || !(kg >= 0)){ toast('Тариф — число, 0 или больше'); return; }
-  settings.billing = {ship: money2(ship), kg: money2(kg)};
+  const n = id=> Number(document.getElementById(id).value);
+  const max1 = n('tierMax1b'), max2 = n('tierMax2b'), p1 = n('tierPct1b'), p2 = n('tierPct2b'), p3 = n('tierPct3b');
+  if(!(max1 > 0) || !(max2 > max1)){ toast('Верхний порог должен быть больше нижнего'); return; }
+  if([p1, p2, p3].some(p=> !(p >= 0 && p <= 100))){ toast('Проценты — от 0 до 100'); return; }
+  settings.billing = {ship: money2(ship), kg: money2(kg), mode: document.getElementById('billMode').value === 'percent' ? 'percent' : 'fixed',
+    tiers: [{max: max1, percent: p1}, {max: max2, percent: p2}, {max: null, percent: p3}]};
   await saveAppSettings();
   toast('Тарифы сохранены');
 }
@@ -98,6 +154,10 @@ async function billRateForm(supplierId){
   const box = document.getElementById('billRate-' + supplierId); if(!box || !s) return;
   box.innerHTML = `<div class="card inline-form"><div class="head-row"><button type="button" class="icon-btn" onclick="this.closest('.inline-form').remove()" aria-label="Назад"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
       <b>Свой тариф — ${escapeHtml(s.name || 'поставщик')}</b></div>
+    <div class="field" style="margin:0 0 8px;"><label>За отправку</label><select id="rateMode-${escapeAttr(supplierId)}">
+      <option value=""${!s.billMode ? ' selected' : ''}>Как у всех (${all.mode === 'percent' ? 'процент' : 'сумма'})</option>
+      <option value="fixed"${s.billMode === 'fixed' ? ' selected' : ''}>Сумма за каждую отправку</option>
+      <option value="percent"${s.billMode === 'percent' ? ' selected' : ''}>Процент по ступеням: ${escapeHtml(tiersText())}</option></select></div>
     <div class="field-row" style="align-items:flex-end;">
       <div class="field" style="margin:0;"><label>Отправка, ₽</label><input type="number" min="0" inputmode="decimal" id="rateShip-${escapeAttr(supplierId)}" value="${s.shipRate == null ? '' : s.shipRate}" placeholder="как у всех: ${all.ship}"></div>
       <div class="field" style="margin:0;"><label>Приёмка, ₽ за кг</label><input type="number" min="0" inputmode="decimal" id="rateKg-${escapeAttr(supplierId)}" value="${s.kgRate == null ? '' : s.kgRate}" placeholder="как у всех: ${all.kg}"></div></div>
@@ -106,8 +166,8 @@ async function billRateForm(supplierId){
     <p class="hint" style="margin:6px 0 0;">Пустое поле — общий тариф склада. Действует для новых отправок и приёмок.</p></div>`;
 }
 async function billRateSave(supplierId, reset){
-  const r = reset ? await setSupplierRates(supplierId, '', '')
-    : await setSupplierRates(supplierId, document.getElementById('rateShip-' + supplierId).value, document.getElementById('rateKg-' + supplierId).value);
+  const r = reset ? await setSupplierRates(supplierId, '', '', '')
+    : await setSupplierRates(supplierId, document.getElementById('rateShip-' + supplierId).value, document.getElementById('rateKg-' + supplierId).value, document.getElementById('rateMode-' + supplierId).value);
   if(!r.ok){ toast(r.error); return; }
   toast(reset ? 'Тариф как у всех' : 'Тариф поставщика сохранён'); await renderSuppliers();
 }

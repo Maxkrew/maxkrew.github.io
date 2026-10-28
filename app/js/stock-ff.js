@@ -189,7 +189,9 @@ async function openModelModal(id){
   setv('mmSku', m && m.sku); setv('mmPrice', m && m.price); setv('mmCalcPrice', m && m.calcPrice);
   setv('mmBuyFrom', priv && priv.buyFrom); setv('mmCost', priv && priv.cost); setv('mmCommission', priv && priv.commissionPercent);
   setv('mmTax', priv && priv.taxPercent); setv('mmPackaging', priv && priv.packaging); setv('mmDelivery', priv && priv.deliveryDiscount);
-  document.getElementById('mmCalcPriceRow').hidden = true;   // нужна для тарифа «% от цены» (этап 3) — пока не показываем
+  // «цена для расчёта процента» — складу и только когда включён тариф «процент от заказа» (иначе лишняя вторая цена)
+  const pctOn = typeof billingRates === 'function' && (billingRates().mode === 'percent' || (await getAll('suppliers')).some(x=> !x.deletedAt && x.billMode === 'percent'));
+  document.getElementById('mmCalcPriceRow').hidden = !(ffRole() === 'owner' && pctOn);
   document.getElementById('mmPrivate').hidden = owner;     // личные цифры поставщика складу не показываем вовсе
   const sizes = m ? (await getAll('sizes')).filter(s=> s.modelId === m.id && !s.deletedAt) : [];
   mmPicked = sizes.map(s=> s.sizeLabel);

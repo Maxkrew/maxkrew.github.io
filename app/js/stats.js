@@ -54,7 +54,7 @@ async function statsCard(supplierId){
     <div class="st-total">Отправлено всего: <b>${st.pieces} шт.</b> <span class="rmeta">в ${st.shipN} ${st.shipN === 1 ? 'отправке' : 'отправках'}</span></div>
     ${rows || '<div class="hint">За этот период ничего не отправлено</div>'}
     <div class="grp-title">Начислено за период</div>
-    <div class="st-row">Отправки: ${st.shipN} — ${fmtMoney(f.shipSum)} <span class="rmeta">(тариф ${fmtMoney(rates.ship)})</span></div>
+    <div class="st-row">Отправки: ${st.shipN} — ${fmtMoney(f.shipSum)} <span class="rmeta">(${rates.mode === 'percent' ? 'процент от заказа' : 'тариф ' + fmtMoney(rates.ship)})</span></div>
     <div class="st-row">Приёмка: ${Math.round(f.kg * 100) / 100} кг — ${fmtMoney(f.rcSum)} <span class="rmeta">(тариф ${fmtMoney(rates.kg)}/кг)</span></div>
     <div class="st-total">Итого: <b>${fmtMoney(f.shipSum + f.rcSum)}</b></div>${bySup}</details>`;
 }

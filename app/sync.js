@@ -230,9 +230,9 @@
     suppliers: {
       table:'suppliers', key:'id', push:['owner'], pull:['owner','supplier'],
       toRow: (x, ws)=> Object.assign({id:x.id, name:x.name || '', archived:!!x.archived,
-        ship_rate:x.shipRate == null ? null : num(x.shipRate), kg_rate:x.kgRate == null ? null : num(x.kgRate)}, tail(x, ws)),
+        ship_rate:x.shipRate == null ? null : num(x.shipRate), kg_rate:x.kgRate == null ? null : num(x.kgRate), bill_mode:x.billMode || null}, tail(x, ws)),
       toLocal: r=> Object.assign({id:r.id, name:r.name || '', memberId:r.member_id || null, inviteCode:r.invite_code || '', archived:!!r.archived,
-        shipRate:r.ship_rate == null ? null : num(r.ship_rate), kgRate:r.kg_rate == null ? null : num(r.kg_rate)}, base(r))
+        shipRate:r.ship_rate == null ? null : num(r.ship_rate), kgRate:r.kg_rate == null ? null : num(r.kg_rate), billMode:r.bill_mode || null}, base(r))
     },
     models: {
       table:'models', key:'id', push:['owner','supplier'], pull:['owner','supplier'],

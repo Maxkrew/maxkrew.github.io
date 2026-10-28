@@ -173,6 +173,9 @@ async function renderShipments(){
   const open = list.filter(s=> s.status !== 'собрана');
   const done = list.filter(s=> s.status === 'собрана').slice(0, 10);
   const parts = [];
+  // «В работе» / «История» (js/archive.js) — история отправок и возвратов, ничего не пропадает
+  parts.push(`<div class="as-chips sh-view"><button type="button" class="as-chip${shView === 'work' ? ' on' : ''}" data-sh-view="work" onclick="shSetView('work')">В работе</button><button type="button" class="as-chip${shView === 'history' ? ' on' : ''}" data-sh-view="history" onclick="shSetView('history')">История</button></div>`);
+  if(shView === 'history'){ parts.push(await renderArchive()); box.innerHTML = parts.join(''); return; }
   if(!sup && typeof renderReviewBlock === 'function') parts.push(await renderReviewBlock());
   // поставщик заказывает через «Продал» (служба, скриншот, комментарий — там)
   if(sup) parts.push(`<button class="btn primary sh-sell" id="shStart" onclick="shStart()"><svg class="icon"><use href="#i-out"/></svg>Продал — новый заказ</button>`);
@@ -186,13 +189,18 @@ async function renderShipments(){
   // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
   if(!sup) parts.push(await assemblyHeader(open, list));
   if(!sup && typeof statsCard === 'function') parts.push(await statsCard(shFilter));   // статистика и начисления за период
-  const shown = !sup && shFilter ? open.filter(s=> s.supplierId === shFilter) : open;
+  let shown = !sup && shFilter ? open.filter(s=> s.supplierId === shFilter) : open;
+  if(!sup && shModelFilter){   // фильтр по товару: «только Суприм» — собрали, выбрали следующий
+    const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && l.modelId === shModelFilter).map(l=> l.shipmentId));
+    shown = shown.filter(s=> has.has(s.id));
+  }
   for(const s of shown) parts.push(await shipmentCard(s, true));
   if(!shown.length) parts.push(emptyState('i-out', sup ? 'Заказов в работе нет' : 'Несобранных отправок нет', sup ? 'Выберите службу доставки и нажмите «Новый заказ» — склад соберёт.' : 'Выберите поставщика и службу, нажмите «Новая отправка».'));
   // склад: «Собранные сегодня» (нет сегодняшних — последние собранные)
   const today = sup ? [] : await shCollectedToday(list.filter(s=> !shFilter || s.supplierId === shFilter));
-  const recent = today.length ? today : done.filter(s=> sup || !shFilter || s.supplierId === shFilter);
-  if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + today.length : 'Собраны недавно') + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
+  let recent = today.length ? today : done.filter(s=> sup || !shFilter || s.supplierId === shFilter);
+  if(!sup && shModelFilter){ const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && l.modelId === shModelFilter).map(l=> l.shipmentId)); recent = recent.filter(s=> has.has(s.id)); }
+  if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + recent.length : 'Собраны недавно') + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
   box.innerHTML = parts.join('');
   wireFFScanInputs();
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);

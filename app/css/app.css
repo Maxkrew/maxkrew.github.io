@@ -1118,3 +1118,10 @@ b.lvl-high{background:#FFE0DE;color:#A3261C;border-radius:6px;padding:0 6px;}
 html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 /* все шторки: высота по видимой части экрана iPhone (vh там больше видимого) */
 .modal{max-height:88dvh;}
+.bill-tiers .field-row{align-items:center;gap:6px;margin-top:6px;}
+.bill-tiers input{width:90px;flex:none;}
+.ar-status{font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--field);white-space:nowrap;}
+.ar-row.st-собрана .ar-status{background:#D9F5E3;color:#17643A;}
+.ar-row.st-забронировано .ar-status{background:#FFF1B8;color:#7A5A00;}
+.ar-row.st-отменена .ar-status,.ar-row.st-удалена .ar-status{background:#FFE0DE;color:#A3261C;}
+.as-model{margin:0 0 10px;}

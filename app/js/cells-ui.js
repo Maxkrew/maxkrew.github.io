@@ -23,7 +23,8 @@ async function renderCells(){
   const models = await modelsMap(), sups = await ffSuppliersMap(), stock = await cellStockByLabel();
   const bySizeId = await ffCellStockMap(), modelOf = Object.fromEntries((await getAll('sizes')).map(z=> [z.id, z.modelId]));
   const head = `<div class="card head-row"><span class="rmeta">Ячеек: ${cells.length} · пустых: ${cells.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length}</span>
-    <button class="btn primary sm" style="width:auto;" onclick="openCellModal()"><svg class="icon"><use href="#i-plus"/></svg>Ячейка</button></div>`;
+    <span style="display:flex;gap:6px;"><button class="btn danger sm" style="width:auto;" id="cellsDelAll" onclick="cellsDeleteAll()"${cells.length ? '' : ' hidden'}><svg class="icon"><use href="#i-trash"/></svg>Удалить все</button>
+    <button class="btn primary sm" style="width:auto;" onclick="openCellModal()"><svg class="icon"><use href="#i-plus"/></svg>Ячейка</button></span></div>`;
   if(!cells.length){
     box.innerHTML = head + emptyState('i-grid', 'Ячеек пока нет', 'Назначьте ячейки поставщику в «Поставщиках» («1-12») или добавьте кнопкой «Ячейка».');
     return;
@@ -121,7 +122,9 @@ async function openCellModal(number){
   document.getElementById('cmCapacity').value = c && c.capacity || '';
   const lying = c ? cellTotal((await cellStockByLabel())[c.number]) : 0;
   document.getElementById('cmEmptyActions').hidden = !(c && !lying && c.modelId);
-  document.getElementById('cmDelete').hidden = !(c && !lying);
+  // удалить и очистить можно и ячейку с товаром — товар спишется (владелец, 28.10.2026)
+  document.getElementById('cmDelete').hidden = !c;
+  const clr = document.getElementById('cmClear'); clr.hidden = !(c && lying); clr.textContent = 'Очистить ячейку (списать ' + lying + ' шт.)';
   document.getElementById('cmDefect').checked = !!(c && isDefectCell(c));
   document.getElementById('cmWarn').hidden = true;
   document.getElementById('cmError').classList.remove('show');
@@ -168,4 +171,63 @@ async function cmSubCell(){
   const r = await createSubCell(cmEditing);
   if(!r.ok){ toast(r.error); return; }
   closeCellModal(); toast('Создана ячейка ' + r.number); await renderCells();
+}
+
+/* Очистить ячейку, даже если в ней товар (владелец, 28.10.2026): остаток каждого размера в ней
+   уходит в ноль корректировкой (видно в «Истории»), ячейка освобождается (del — удаляется).
+   Несобранные строки отправок, бравшие из неё, теряют ячейку — «откуда взять» подберётся заново.
+   Минус в ячейке (отправляли в минус) списывается без ячейки: в удалённую ячейку класть нельзя. */
+async function clearCell(number, del){
+  const c = await get('cells', number);
+  if(!c || c.deletedAt) return {ok:false, error:'Нет такой ячейки'};
+  const by = (await ffCellStockMap())[number] || {};
+  const sizes = Object.fromEntries((await getAll('sizes')).map(s=> [s.id, s]));
+  let n = 0;
+  for(const [sid, q] of Object.entries(by)){
+    const s = sizes[sid]; if(!q || !s) continue;
+    await ffLogOp({supplierId: s.supplierId, modelId: s.modelId, sizeId: sid, cellNumber: q > 0 ? number : null,
+      type: 'Корректировка', qty: Math.abs(q), delta: -q, defect: q > 0 && isDefectCell(c)});
+    if(q > 0) n += q;
+  }
+  for(const l of (await getAll('shipmentLines')).filter(l=> !l.deletedAt && !l.collected && l.cellNumber === number)){
+    l.cellNumber = null; await put('shipmentLines', l);
+  }
+  /* в ячейку положили товар, а на сервер он ещё не ушёл — удалённую ячейку сервер не примет:
+     такую ячейку не удаляем, а только очищаем */
+  const pending = (await getAll('ops')).some(o=> o.cellNumber === number && o.dirty && !o.deletedAt && Number(o.delta) > 0);
+  if(del && !pending) c.deletedAt = Date.now();
+  else { c.modelId = null; c.reserved = false; c.allowedSizes = null; }
+  await put('cells', c);
+  return {ok:true, n, kept: !!(del && pending)};
+}
+/* «Удалить все»: сначала резервная копия на сервере, потом все ячейки — с товаром в них. */
+async function clearAllCells(){
+  let backup = false;
+  try{ if(window.Sync && Sync.takeSnapshot){ const r = await Sync.takeSnapshot('manual'); backup = !!(r && r.ok !== false); } }catch(e){}
+  try{ if(window.Sync && Sync.syncNow) await Sync.syncNow('перед удалением ячеек'); }catch(e){}   // сначала всё на сервер
+  let cells = 0, pieces = 0, kept = 0;
+  for(const c of (await getAll('cells')).filter(c=> !c.deletedAt)){
+    const r = await clearCell(c.number, true);
+    if(r.ok){ if(r.kept) kept++; else cells++; pieces += r.n; }
+  }
+  return {ok:true, cells, pieces, backup, kept};
+}
+async function cmClear(del){
+  const lying = cellTotal((await cellStockByLabel())[cmEditing]);
+  if(!confirm((del ? 'Удалить ячейку ' : 'Очистить ячейку ') + cmEditing + '?' + (lying ? ' Товар в ней (' + lying + ' шт.) спишется со склада — это будет видно в «Истории».' : ''))) return;
+  if(del) try{ if(window.Sync && Sync.syncNow) await Sync.syncNow('перед удалением ячейки'); }catch(e){}
+  const r = await clearCell(cmEditing, !!del);
+  if(!r.ok){ toast(r.error); return; }
+  closeCellModal(); toast((del && !r.kept ? 'Ячейка удалена' : (r.kept ? 'Нет связи — ячейка очищена, удалите её позже' : 'Ячейка очищена')) + (r.n ? ' · списано ' + r.n + ' шт.' : '')); await renderCells();
+}
+async function cellsDeleteAll(){
+  const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
+  if(!cells.length){ toast('Ячеек нет'); return; }
+  const stock = await cellStockByLabel();
+  const pieces = cells.reduce((n, c)=> n + Math.max(0, cellTotal(stock[c.number])), 0);
+  if(!confirm('Удалить ВСЕ ячейки (' + cells.length + ')?' + (pieces ? ' Весь товар в них — ' + pieces + ' шт. — спишется со склада.' : '') + ' Перед этим сделаю резервную копию.')) return;
+  if(!confirm('Точно удалить все ячейки? Отменить можно только восстановлением копии в «Настройках».')) return;
+  const r = await clearAllCells();
+  toast('Удалено ячеек: ' + r.cells + (r.pieces ? ' · списано ' + r.pieces + ' шт.' : '') + (r.backup ? ' · копия сделана' : '') + (r.kept ? ' · ' + r.kept + ' только очищены (нет связи)' : ''));
+  await renderCells();
 }

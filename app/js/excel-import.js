@@ -159,6 +159,19 @@ async function importToIncoming(matched){
     const fresh = matched.filter(l=> !l.modelId || !l.sizeId);
     if(fresh.length) throw new Error('Новых товаров в таблице: ' + fresh.length + ' (например, «' + fresh[0].name + (fresh[0].size ? ' ' + fresh[0].size : '') + '»). Их добавляет поставщик — попросите его, потом загрузите снова.');
   }
+  // штрихкоды новых размеров — без повторов в таблице и на складе; проверяем до записи
+  const seen = new Map();
+  for(const l of matched){
+    if(l.sizeId || !l.barcode) continue;
+    const k = (l.modelId || xlsNorm([l.name, l.color, l.sku].join('|'))) + '|' + (xlsSizeLabel(l.size) || xlsNorm(l.size));
+    if(seen.has(l.barcode)){
+      if(seen.get(l.barcode) !== k) throw new Error('Строка ' + l.row + ': штрихкод ' + l.barcode + ' повторяется в таблице у другого товара или размера');
+      continue;
+    }
+    seen.set(l.barcode, k);
+    const who = await barcodeTakenBy(l.barcode, null, null);
+    if(who) throw new Error('Строка ' + l.row + ': штрихкод ' + l.barcode + ' уже есть: ' + who);
+  }
   const made = new Map();   // одна новая модель на название+цвет+артикул
   const out = [];
   for(const l of matched){

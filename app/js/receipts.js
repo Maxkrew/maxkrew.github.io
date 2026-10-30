@@ -180,6 +180,13 @@ async function tickReceiptStep(lineId, idx){
 async function ffOnRejected(store, op, msg){
   if(store === 'shipments' && typeof ffShipmentRejected === 'function'){ await ffShipmentRejected(store, op, msg); return; }
   if((store === 'receipts' || store === 'receiptLines') && typeof ffIncomingRejected === 'function'){ await ffIncomingRejected(store, op, msg); return; }
+  // штрихкод успел занять кто-то другой — размер оставляем, штрихкод снимаем (повторов на складе не бывает)
+  if(store === 'sizes' && /Штрихкод|sizes_barcode/i.test(msg) && op.barcode){
+    const s = await get('sizes', op.id);
+    if(s){ s.barcode = ''; s.rejected = 0; s.rejectReason = null; await put('sizes', s); }
+    toast('Штрихкод ' + op.barcode + ' уже есть у другого товара — у размера ' + op.sizeLabel + ' он снят');
+    return;
+  }
   if(store !== 'ops' || !op.taskRef) return;
   const rl = await get('receiptLines', op.taskRef);
   if(rl && rl.plan){

@@ -389,6 +389,8 @@
     const byKey = new Map();
     for(const p of pairs){ const k = String(p.row[spec.key]); const c = byKey.get(k); if(!c || num(p.local.updatedAt) >= num(c.local.updatedAt)) byKey.set(k, p); }
     const unique = [...byKey.values()];
+    // штрихкод перенесли на другой размер — сначала снять его со старого (повторов сервер не примет)
+    if(store === 'sizes') unique.sort((a, b)=> (a.row.barcode && !a.row.deleted_at ? 1 : 0) - (b.row.barcode && !b.row.deleted_at ? 1 : 0));
     let sent = 0;
     for(let i = 0; i < unique.length; i += 200){
       const slice = unique.slice(i, i + 200);
@@ -855,6 +857,14 @@
     resolveMembership, role, ownerId, mySupplierId, memberName, authorName, isStaff,
     inviteStaff: async name=>{ const {data, error} = await client.rpc('invite_staff', {p_ws: ownerId(), p_name: String(name || '')}); if(error) throw new Error(error.message); return (data || [])[0] || null; },
     removeStaff: async id=>{ const {error} = await client.rpc('remove_staff', {p_ws: ownerId(), p_id: id}); if(error) throw new Error(error.message); return true; },
+    /* у кого на складе уже есть штрихкод (поставщику чужие товары не называем); нет сети — null */
+    barcodeTaken: async (code, sizeId, modelId)=>{
+      if(!ready() || !navigator.onLine || !ownerId()) return null;
+      const call = client.rpc('barcode_taken', {p_ws: ownerId(), p_code: String(code || ''), p_size: sizeId || null, p_model: modelId || null});
+      const {data, error} = await Promise.race([call, new Promise(res=> setTimeout(()=> res({data: null}), 6000))]);
+      if(error) throw new Error(error.message);
+      return data || null;
+    },
     staffList: async ()=>{ const {data, error} = await client.from('supplier_staff').select('id,name,member_id,invite_code,created_at').eq('owner_id', ownerId()).eq('supplier_id', mySupplierId()).is('deleted_at', null).order('created_at'); if(error) throw new Error(error.message); return data || []; },
     warehouses: ()=> (membership && membership.warehouses) || [],
     chooseWarehouse: async ownerIdToUse=>{ try{ localStorage.setItem(WAREHOUSE_KEY, ownerIdToUse); }catch(e){} await resolveMembership(); return syncNow('другой склад'); },

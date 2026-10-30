@@ -211,6 +211,19 @@ async function saveModel(form){
   if(!supplierId) throw new Error('Выберите поставщика');
   if(!String(form.brand || '').trim() && !String(form.title || '').trim()) throw new Error('Укажите бренд или название');
   const existing = form.id ? await get('models', form.id) : null;
+  // штрихкоды — без повторов в карточке и на всём складе; проверяем до записи, чтобы не сохранить полтовара
+  const codes = {};
+  const mine = existing ? (await getAll('sizes')).filter(s=> s.modelId === existing.id && !s.deletedAt) : [];
+  for(const label of form.sizes || []){
+    const c = String((form.barcodes || {})[label] || '').trim();
+    if(!c) continue;
+    if(codes[c]) throw new Error('Штрихкод ' + c + ' стоит у двух размеров: ' + codes[c] + ' и ' + label);
+    codes[c] = label;
+    const own = mine.find(s=> s.sizeLabel === label);
+    if(own && String(own.barcode || '').trim() === c) continue;   // не менялся
+    const who = await barcodeTakenBy(c, own ? own.id : null, existing ? existing.id : null);
+    if(who) throw new Error('Штрихкод ' + c + ' уже есть: ' + who);
+  }
   const m = Object.assign({}, existing || {id: newUid(), supplierId}, {
     brand: String(form.brand || '').trim(), title: String(form.title || '').trim(), color: String(form.color || '').trim(),
     category: String(form.category || '').trim() || 'Другое', capacity: Math.min(1000, Math.max(1, parseInt(form.capacity, 10) || 7)),
@@ -243,6 +256,18 @@ async function saveSize(modelId, label, barcode){
   if(barcode !== undefined) s.barcode = String(barcode || '').trim();
   if(!s0 || s0.barcode !== s.barcode || s0.sortKey !== s.sortKey) await put('sizes', s);
   return s.id;
+}
+/* Штрихкод на складе не повторяется (владелец, 30.10.2026): ни у другого размера, ни у другого
+   товара, ни у другого поставщика. Сначала смотрим у себя, потом (есть сеть) на сервере: чужие
+   товары поставщику не видны. Размеры товара modelId не в счёт — их сверяет сама карточка.
+   Ответ — у кого он уже есть, или ''. */
+async function barcodeTakenBy(code, sizeId, modelId){
+  const c = String(code || '').trim();
+  if(!c) return '';
+  const hit = (await getAll('sizes')).find(s=> !s.deletedAt && s.id !== sizeId && (!modelId || s.modelId !== modelId) && String(s.barcode || '').trim() === c);
+  if(hit){ const m = await get('models', hit.modelId); return '«' + (m ? modelName(m) : 'товар') + '», размер ' + hit.sizeLabel; }
+  if(window.Sync && Sync.barcodeTaken){ try{ return (await Sync.barcodeTaken(c, sizeId, modelId)) || ''; }catch(e){} }
+  return '';
 }
 /* parseDim — из js/boxes? Здесь своя: «20,5» → 20.5, пусто/0/минус → null */
 function parseDim(v){

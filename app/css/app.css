@@ -1147,3 +1147,10 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .sell-models{max-height:230px;}
 /* узкий телефон: кнопки стоят напротив размера, слово «в наличии» уступает им место */
 @media (max-width:430px){.has-notes .sz-word{display:none;}}
+/* правки FoG 01.11.2026, вечер: фильтры сборки, определение службы */
+.as-carriers .as-chip{font-size:14px;padding:6px 12px;}
+.pp-head .pp-name{flex:1;min-width:0;}
+.pp-count{flex:none;min-width:30px;text-align:center;background:var(--accent);color:#fff;border-radius:999px;padding:3px 9px;font-size:14px;}
+.pp-count.none{background:var(--surface-2);color:var(--text-tertiary);}
+.sell-detect:empty{display:none;}
+.sell-detect{margin:-4px 0 10px;}

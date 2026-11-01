@@ -6,6 +6,7 @@ let ppSelect = null;
 
 async function openProductPick(sel){
   ppSelect = sel;
+  if(sel.dataset.products === 'filter') return openModelFilterPick(sel);
   const ship = sel.dataset.products === 'ship';
   const models = await modelsMap(), idx = await ffStockIndex();
   const sizes = (await getAll('sizes')).filter(s=> !s.deletedAt);
@@ -33,6 +34,24 @@ async function openProductPick(sel){
   document.documentElement.classList.add('sheet-open');   // страница позади не прокручивается
   list.scrollTop = 0;
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(list);
+}
+/* Фильтр «Сборки»: фото, название и число несобранных заказов; размеры тут не нужны. */
+async function openModelFilterPick(sel){
+  const models = await modelsMap(), rows = [];
+  for(const o of sel.options){
+    const m = models[o.value], ph = m ? await modelPhoto(m.id) : null, n = Number(o.dataset.n) || 0;
+    rows.push(`<div class="pp-item${o.selected ? ' on' : ''}" data-pp-model="${escapeAttr(o.value)}">
+      <button type="button" class="pp-head" onclick="ppChoose(${jsArg(o.value)})">
+        ${m ? `<span class="pp-photo">${ph ? `<img alt="" data-ph-src="${escapeAttr(ph.id)}">` : '<svg class="icon"><use href="#i-box"/></svg>'}</span>` : ''}
+        <span class="pp-name">${escapeHtml(m ? modelName(m) : o.textContent)}</span>${m ? `<b class="pp-count${n ? '' : ' none'}">${n}</b>` : ''}</button></div>`);
+  }
+  document.getElementById('pickTitle').textContent = 'Какую модель собираем';
+  const list = document.getElementById('pickList');
+  list.innerHTML = rows.join('');
+  document.getElementById('pickSheetBg').classList.add('show');
+  document.documentElement.classList.add('sheet-open');
+  list.scrollTop = 0;
+  fillPhotoThumbs(list);
 }
 async function ppChoose(modelId, sizeId){
   const sel = ppSelect; ppSelect = null;

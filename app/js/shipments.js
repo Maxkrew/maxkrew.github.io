@@ -7,13 +7,28 @@ function carrierList(){
   const c = (window.settings && Array.isArray(settings.carriers) && settings.carriers.length) ? settings.carriers : DEFAULT_CARRIERS;
   return c.filter(x=> !/\bDPD\b/i.test(x));      // DPD не возим (ТЗ владельца)
 }
+/* Служба по формату трек-номера (FoG, 01.11.2026). Порядок важен: международный номер Почты
+   тоже может начинаться с P. Нашли — вернём название из списка служб, иначе null. */
+const TRACK_RULES = [
+  [/^51[23]\d{5,}$/, /авито/i],                // Авито: всегда 512… или 513…
+  [/^[A-Z]{2}\d{9}[A-Z]{2}$/, /почта/i],        // международный: RA123456789RU
+  [/^[РP][0-9A-ZА-Я-]{5,}$/, /яндекс/i],        // Яндекс: начинается с Р (русской или латинской)
+  [/^LO-?\d{5,}$/, /яндекс/i],
+  [/^\d{14}$/, /почта/i],
+  [/^\d{10}$/, /сдэк|cdek/i]
+];
+function carrierByTrack(track){
+  const t = String(track || '').trim().toUpperCase();
+  const rule = TRACK_RULES.find(r=> r[0].test(t));
+  return rule ? carrierList().find(c=> rule[1].test(c)) || null : null;
+}
 const shIsSupplier = ()=> ffRole() === 'supplier';
 const CANCEL_LATE = 'Склад уже начал собирать — отменить нельзя';
 
 async function newShipment(o){
   const id = newUid(), sup = shIsSupplier();
   await put('shipments', {id, supplierId: sup ? Sync.mySupplierId() : o.supplierId, carrier: o.carrier || carrierList()[0], comment: o.comment || '',
-    track: sup ? '' : String(o.track || '').trim().slice(0, 60),
+    track: String(o.track || '').trim().slice(0, 60),
     status: 'новая', createdBy: sup ? 'supplier' : 'owner', createdTs: Date.now()});
   return id;
 }
@@ -182,23 +197,24 @@ async function renderShipments(){
   else parts.push(`<div class="card">
       <div class="field-row">${sup ? '' : `<select id="shSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>`}
         <select id="shCarrier">${carrierList().map(c=> `<option>${escapeHtml(c)}</option>`).join('')}</select></div>
-      <div class="field-row" style="margin-top:8px;"><input type="text" id="shTrack" maxlength="60" placeholder="Трек-номер" autocomplete="off"></div>
+      <div class="field-row" style="margin-top:8px;"><input type="text" id="shTrack" maxlength="60" placeholder="Трек-номер" autocomplete="off" oninput="shTrackGuess(this.value)"></div>
       <div class="field-row" style="margin-top:8px;"><input type="text" id="shComment" placeholder="Комментарий">
         <button class="btn primary" id="shStart" style="width:auto;white-space:nowrap;" onclick="shStart()"><svg class="icon"><use href="#i-plus"/></svg>${sup ? 'Новый заказ' : 'Новая отправка'}</button></div>
     </div>`);
   // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
   if(!sup) parts.push(await assemblyHeader(open, list));
   if(!sup && typeof statsCard === 'function') parts.push(await statsCard(shFilter));   // статистика и начисления за период
-  let shown = !sup && shFilter ? open.filter(s=> s.supplierId === shFilter) : open;
+  const byCarrier = list=> !sup && shCarrierFilter ? list.filter(s=> s.carrier === shCarrierFilter) : list;
+  let shown = byCarrier(!sup && shFilter ? open.filter(s=> s.supplierId === shFilter) : open);
   if(!sup && shModelFilter){   // фильтр по товару: «только Суприм» — собрали, выбрали следующий
-    const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && l.modelId === shModelFilter).map(l=> l.shipmentId));
+    const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && !l.collected && l.modelId === shModelFilter).map(l=> l.shipmentId));
     shown = shown.filter(s=> has.has(s.id));
   }
   for(const s of shown) parts.push(await shipmentCard(s, true));
   if(!shown.length) parts.push(emptyState('i-out', sup ? 'Заказов в работе нет' : 'Несобранных отправок нет', sup ? 'Выберите службу доставки и нажмите «Новый заказ» — склад соберёт.' : 'Выберите поставщика и службу, нажмите «Новая отправка».'));
   // склад: «Собранные сегодня» (нет сегодняшних — последние собранные)
   const today = sup ? [] : await shCollectedToday(list.filter(s=> !shFilter || s.supplierId === shFilter));
-  let recent = today.length ? today : done.filter(s=> sup || !shFilter || s.supplierId === shFilter);
+  let recent = byCarrier(today.length ? today : done.filter(s=> sup || !shFilter || s.supplierId === shFilter));
   if(!sup && shModelFilter){ const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && l.modelId === shModelFilter).map(l=> l.shipmentId)); recent = recent.filter(s=> has.has(s.id)); }
   if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + recent.length : 'Собраны недавно') + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
   box.innerHTML = parts.join('');
@@ -270,6 +286,8 @@ async function shStart(){
     track: (document.getElementById('shTrack') || {}).value || ''});
   await renderShipments();
 }
+/* склад вписал трек — служба выбирается сама */
+function shTrackGuess(v){ const c = carrierByTrack(v), el = document.getElementById('shCarrier'); if(c && el) el.value = c; }
 async function shFillSizes(sid){
   const mid = document.getElementById('shModel-' + sid).value;
   const sizes = mid ? (await getAll('sizes')).filter(s=> s.modelId === mid && !s.deletedAt).sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel)) : [];

@@ -30,7 +30,7 @@ async function submitSale(o){
     if(o.photo) photo = await compressImage(o.photo);
   }catch(e){ return {ok:false, error:'Не получилось открыть картинку — сохраните её как JPEG или PNG'}; }
   if(o.barcode && !barcode) return {ok:false, error:'Не получилось открыть картинку — сохраните её как JPEG или PNG'};
-  const id = await newShipment({carrier, comment: o.comment || ''});
+  const id = await newShipment({carrier, comment: o.comment || '', track: o.track || ''});
   const supplierId = Sync.mySupplierId();
   // заказ уходит на сервер только после своих картинок (shipmentReady в sync)
   if(barcode) await addPhoto({supplierId, kind:'штрихкод', shipmentId:id}, barcode, true);
@@ -160,10 +160,56 @@ function closePhoto(){
   try{ if(pvLock) pvLock.release(); }catch(e){} pvLock = null;
 }
 
+/* --- штрихкод со скриншота: служба и трек определяются сами --- */
+const BARCODE_READ_SIDE = 2000;
+async function barcodeFromImage(file){
+  let bm;
+  try{ bm = await createImageBitmap(file); }catch(e){ return null; }
+  if(window.BarcodeDetector){
+    try{ const f = await new BarcodeDetector().detect(bm); if(f.length && f[0].rawValue) return f[0].rawValue; }catch(e){}
+  }
+  if(!window.ZXing) return null;
+  const k = Math.min(1, BARCODE_READ_SIDE / Math.max(bm.width, bm.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bm.width * k); c.height = Math.round(bm.height * k);
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bm, 0, 0, c.width, c.height);
+  const reader = new ZXing.MultiFormatReader();
+  reader.setHints(new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]));
+  for(const Bin of [ZXing.HybridBinarizer, ZXing.GlobalHistogramBinarizer]){
+    try{ return reader.decode(new ZXing.BinaryBitmap(new Bin(new ZXing.HTMLCanvasElementLuminanceSource(c)))).getText(); }catch(e){}
+  }
+  return null;
+}
+/* Трек — только похожее на номер: ссылка из QR-кода или длинный текст им не считаются. */
+const trackFromCode = code=>{ const t = String(code || '').trim(); return t && t.length <= 60 && /^[0-9A-Za-zА-Яа-я-]+$/.test(t) ? t : ''; };
+function sellSetDetect(text){ document.getElementById('sellDetect').textContent = text; }
+async function sellSetBarcode(file){
+  sell.barcode = file;
+  const job = sell.detecting = (async ()=>{
+    const code = await barcodeFromImage(file);
+    if(job !== sell.detecting) return;   // уже выбрали другой скриншот или закрыли окно
+    const track = trackFromCode(code), el = document.getElementById('sellTrack');
+    if(track && (!el.value.trim() || sell.trackAuto)){ el.value = track; sell.trackAuto = true; }
+    const carrier = carrierByTrack(el.value);
+    if(carrier) document.getElementById('sellCarrier').value = carrier;
+    sellSetDetect(!track ? 'Штрихкод не прочитался — выберите службу и впишите трек сами'
+      : carrier ? 'Определено по штрихкоду: ' + carrier + ', трек ' + el.value
+      : 'Трек прочитан, службу выберите сами');
+  })();
+  await sellRender();
+  await job;
+}
+function sellTrackInput(v){
+  sell.trackAuto = false;
+  const carrier = carrierByTrack(v);
+  if(carrier) document.getElementById('sellCarrier').value = carrier;
+}
+
 /* --- окно «Продал» --- */
-const sell = {cart: [], modelId: '', sizeId: '', barcode: null, photo: null};
+const sell = {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, trackAuto: false, detecting: null};
 async function sellStart(){
-  Object.assign(sell, {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, editId: null, priceTouched: false});
+  Object.assign(sell, {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, editId: null, priceTouched: false, trackAuto: false, detecting: null});
+  document.getElementById('sellTrack').value = ''; sellSetDetect('');
   sellSetMode(false);
   document.getElementById('sellSearch').value = '';
   document.getElementById('sellComment').value = '';
@@ -211,6 +257,7 @@ async function sellEditStart(id){
   const c = document.getElementById('sellCarrier'); if(![...c.options].some(o=> o.value === s.carrier)) c.insertAdjacentHTML('beforeend', `<option>${escapeHtml(s.carrier)}</option>`);
   c.value = s.carrier;
   document.getElementById('sellComment').value = s.comment || '';
+  document.getElementById('sellTrack').value = s.track || '';
   for(const p of await shipmentPhotos(id)){
     const b = await photoBlobOf(p);
     if(b && p.kind === 'штрихкод') sell.barcode = b;
@@ -319,6 +366,7 @@ async function sellAdd(){
 async function sellRemove(i){ sell.cart.splice(i, 1); await sellRender(); }
 async function sellPickFile(input, kind){
   const f = input.files && input.files[0]; if(!f) return;
+  if(kind === 'barcode'){ await sellSetBarcode(f); return; }
   sell[kind] = f; await sellRender();
 }
 async function sellSend(){
@@ -329,7 +377,8 @@ async function sellSend(){
   if(p) lines.push(p);
   const btn = document.getElementById('sellSend'); btn.disabled = true;
   try{
-    const o = {lines, carrier: document.getElementById('sellCarrier').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo};
+    if(sell.detecting) await sell.detecting;   // скриншот ещё читается — дождёмся трека
+    const o = {lines, carrier: document.getElementById('sellCarrier').value, track: document.getElementById('sellTrack').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo};
     const r = sell.editId ? await replaceSale(sell.editId, o) : await submitSale(o);
     if(!r.ok){ err.textContent = r.error; return; }
     closeSell(); toast(sell.editId ? 'Заказ изменён — склад видит новый вариант' : 'Заказ отправлен складу');
@@ -343,5 +392,5 @@ document.addEventListener('paste', e=>{
   if(!bg || !bg.classList.contains('show')) return;
   const item = [...((e.clipboardData && e.clipboardData.items) || [])].find(i=> i.type && i.type.startsWith('image/'));
   if(!item) return;
-  e.preventDefault(); sell.barcode = item.getAsFile(); sellRender();
+  e.preventDefault(); sellSetBarcode(item.getAsFile());
 });

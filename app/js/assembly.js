@@ -4,6 +4,7 @@
 let shFilter = '';                 // поставщик в фильтре; '' — все
 let shSelectMode = false;          // режим «Выбрать»
 let shModelFilter = '';            // товар в фильтре; '' — все
+let shCarrierFilter = '';          // служба в фильтре; '' — все
 const shSelected = new Set();
 
 /* Когда отправку собрали: последняя отметка «Собрано» её строк. */
@@ -28,25 +29,33 @@ async function assemblyHeader(open, all){
   if(shFilter && !ids.includes(shFilter)) ids.push(shFilter);
   const chip = (id, label, n)=> `<button type="button" class="as-chip${shFilter === id ? ' on' : ''}" data-as-filter="${escapeAttr(id)}" onclick="shSetFilter(${jsArg(id)})">${escapeHtml(label)} <b>${n}</b></button>`;
   const chips = chip('', 'Все', open.length) + ids.map(id=> chip(id, (sups[id] || {}).name || 'Поставщик', count[id] || 0)).join('');
-  const mine = list=> shFilter ? list.filter(s=> s.supplierId === shFilter) : list;
+  const mine = list=> list.filter(s=> (!shFilter || s.supplierId === shFilter) && (!shCarrierFilter || s.carrier === shCarrierFilter));
   const left = mine(open).length, done = (await shCollectedToday(mine(all))).length, total = left + done;
   const pct = total ? Math.round(done / total * 100) : 0;
   const selBar = shSelectMode ? `<div class="as-selbar"><span>Выбрано: <b>${shSelected.size}</b></span>
       <button class="btn primary" style="width:auto;" id="asCollectSel" onclick="shCollectSelected()"${shSelected.size ? '' : ' disabled'}>Собрать выбранные</button></div>` : '';
-  // фильтр по товару — товары несобранных отправок (с учётом поставщика) и сколько отправок с ними
+  // фильтр по службе — службы, у которых есть несобранные заказы (с учётом поставщика)
+  const inSup = open.filter(s=> !shFilter || s.supplierId === shFilter), byCarrier = {};
+  for(const s of inSup) byCarrier[s.carrier] = (byCarrier[s.carrier] || 0) + 1;
+  if(shCarrierFilter && !byCarrier[shCarrierFilter]) byCarrier[shCarrierFilter] = 0;
+  const cChip = (id, label, n)=> `<button type="button" class="as-chip${shCarrierFilter === id ? ' on' : ''}" data-as-carrier="${escapeAttr(id)}" onclick="shSetCarrier(${jsArg(id)})">${escapeHtml(label)} <b>${n}</b></button>`;
+  const cChips = cChip('', 'Все службы', inSup.length) + Object.keys(byCarrier).sort((a, b)=> a.localeCompare(b, 'ru')).map(c=> cChip(c, c, byCarrier[c])).join('');
+  // фильтр по товару — все модели склада (с учётом поставщика) и сколько несобранных заказов с ними
   const models = await modelsMap(), byModel = {};
   const openIds = new Set(mine(open).map(s=> s.id));
   for(const l of await getAll('shipmentLines')) if(!l.deletedAt && !l.collected && openIds.has(l.shipmentId)) (byModel[l.modelId] || (byModel[l.modelId] = new Set())).add(l.shipmentId);
-  if(shModelFilter && !byModel[shModelFilter]) byModel[shModelFilter] = new Set();
-  const mOpts = Object.keys(byModel).sort((a, b)=> modelName(models[a] || {}).localeCompare(modelName(models[b] || {}), 'ru'))
-    .map(id=> `<option value="${escapeAttr(id)}"${shModelFilter === id ? ' selected' : ''}>${escapeHtml(modelName(models[id] || {}))} — ${byModel[id].size}</option>`).join('');
-  const modelSel = `<select id="asModel" onchange="shSetModel(this.value)"><option value="">Все товары</option>${mOpts}</select>`;
-  return `<div class="as-chips">${chips}</div><div class="field as-model">${modelSel}</div>
+  const n = id=> (byModel[id] || {size: 0}).size;
+  const mOpts = Object.values(models).filter(m=> !m.deletedAt && (!shFilter || m.supplierId === shFilter) || m.id === shModelFilter)
+    .sort((a, b)=> (n(b.id) > 0) - (n(a.id) > 0) || modelName(a).localeCompare(modelName(b), 'ru'))
+    .map(m=> `<option value="${escapeAttr(m.id)}" data-n="${n(m.id)}"${shModelFilter === m.id ? ' selected' : ''}>${escapeHtml(modelName(m))} — ${n(m.id)}</option>`).join('');
+  const modelSel = `<select id="asModel" data-products="filter" onchange="shSetModel(this.value)"><option value="">Все товары</option>${mOpts}</select>`;
+  return `<div class="as-chips">${chips}</div><div class="as-chips as-carriers">${cChips}</div><div class="field as-model">${modelSel}</div>
     <div class="as-tools"><button type="button" class="btn ghost sm${shSelectMode ? ' on' : ''}" style="width:auto;" id="asSelectBtn" onclick="shToggleSelect()">${shSelectMode ? 'Отменить выбор' : '☑ Выбрать'}</button></div>
     <div class="card as-progress"><b class="as-count">${done} / ${total}</b><span class="bar"><i style="width:${pct}%"></i></span><span class="rmeta">осталось ${left}</span></div>${selBar}`;
 }
 async function shSetFilter(id){ shFilter = id; await renderShipments(); }
 async function shSetModel(id){ shModelFilter = id; await renderShipments(); }
+async function shSetCarrier(id){ shCarrierFilter = id; await renderShipments(); }
 async function shToggleSelect(){ shSelectMode = !shSelectMode; shSelected.clear(); await renderShipments(); }
 async function shSelectOne(id, on){
   if(on) shSelected.add(id); else shSelected.delete(id);

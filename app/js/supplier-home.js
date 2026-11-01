@@ -24,7 +24,7 @@ function supplierSizeLine(label, c){
   if(c.waiting) flow.push('ждёт отправки ' + c.waiting);
   if(c.defect) flow.push('<span class="warn">брак ' + c.defect + '</span>');
   const free = c.stock - c.waiting;
-  return `<span class="sz">${escapeHtml(label)}: в наличии <b class="${stockTone(free)}">${free}</b>${flow.length ? ' <span class="flow">· ' + flow.join(' · ') + '</span>' : ''}</span>`;
+  return `<span class="sz">${escapeHtml(label)}: <span class="sz-word">в наличии </span><b class="${stockTone(free)}">${free}</b>${flow.length ? ' <span class="flow">· ' + flow.join(' · ') + '</span>' : ''}</span>`;
 }
 
 /* Кнопки «Приход» и «Продал» с главного экрана. */
@@ -35,7 +35,7 @@ async function homeGo(kind){
 
 /* «Кончаются размеры» (поставщик, по образцу владельца 24.10.2026): размеры, которых на складе
    0–1 шт. и которые продавались за 2 недели; сверху — что продаётся лучше. */
-let runOutAll = false;
+let runOutAll = false, runOutOpen = false;
 async function runningOutList(){
   const since = Date.now() - 14 * 86400000;
   const ships = new Map((await getAll('shipments')).filter(s=> !s.deletedAt && s.status !== 'отменена' && (s.createdTs || 0) >= since).map(s=> [s.id, s]));
@@ -51,11 +51,14 @@ async function runningOutList(){
   return out.sort((a, b)=> (b.sold - a.sold) || (a.left - b.left));
 }
 async function renderRunningOut(){
-  const box = document.getElementById('runningOut');
+  const box = document.getElementById('runningOut'), btn = document.getElementById('runOutBtn');
   if(!box) return;
-  if(isOwnerRole()){ box.innerHTML = ''; return; }
+  if(isOwnerRole()){ box.innerHTML = ''; btn.hidden = true; return; }
   const list = await runningOutList();
-  if(!list.length){ box.innerHTML = ''; return; }
+  btn.hidden = !list.length;   // оператору блок не мешает: нажал — появился, нажал — скрылся (FoG, 01.11.2026)
+  btn.textContent = 'Кончаются · ' + list.length;
+  btn.classList.toggle('on', runOutOpen);
+  if(!list.length || !runOutOpen){ box.innerHTML = ''; return; }
   const shown = runOutAll ? list : list.slice(0, 5);
   const rows = [];
   for(const x of shown){

@@ -109,12 +109,16 @@ async function renderStockFF(){
                cells: (cellsByModel[m.id] || []).sort((a, b)=> cmpCellNumber(a.number, b.number))};
     const total = v.sizes.reduce((s, x)=> s + x.stock, 0);
     const sizesLine = !v.sizes.length ? '<span class="hint">размеров нет</span>'
-      : !owner ? sz.map(s=> supplierSizeLine(s.sizeLabel, counts.get(s.id))).join('<br>')
+      : !owner ? sz.map(s=> `<div class="sz-row">${supplierSizeLine(s.sizeLabel, counts.get(s.id))}${sizeCopyBtns(s)}</div>`).join('')
       : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b class="${stockTone(s.stock)}">${s.stock}</b>${s.booked ? ` <span class="hint">+${s.booked} брон.</span>` : ''}${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
     const cellsLine = (owner && v.cells.length)
       ? '<div class="cells-line">' + v.cells.map(c=> `${c.floor ? 'Пол' : 'Ячейка ' + escapeHtml(c.number) + ' (' + escapeHtml(sizesLabel(c.allowedSizes)) + ')'} — <span class="${c.stock < 0 ? 'neg' : ''}">${c.stock} шт.</span>${c.reserved && !c.stock ? ' · бронь' : ''}`).join(' · ') + '</div>'
       : '';
     const sup = owner ? `<span class="rmeta">${escapeHtml((sups[m.supplierId] || {}).name || '')}${m.sku ? ' · ' + escapeHtml(m.sku) : ''} · ${escapeHtml(m.category || '')}</span>` : (m.sku ? `<span class="rmeta">${escapeHtml(m.sku)}</span>` : '');
+    if(!owner){ parts.push(`<div class="card model-card mc-big${sz.some(s=> s.fitNote || s.measureNote) ? ' has-notes' : ''}" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
+      ${photoCell(m.id, phByModel.get(m.id))}<div class="mc-body"><div class="model-head"><div class="rname">${escapeHtml(modelName(m))}${sup}</div><div class="big-num">${total}<span> шт.</span></div></div>
+      <div class="sizes-line">${sizesLine}</div></div>
+    </div>`); continue; }
     parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
       <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>
       <div class="sizes-line">${sizesLine}</div>${cellsLine}
@@ -124,6 +128,22 @@ async function renderStockFF(){
   list.innerHTML = parts.join('');
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(list);
   if(typeof renderExpected === 'function') await renderExpected();
+}
+/* Кнопки у размера (FoG, 01.11.2026): нажал — текст сразу в буфере, можно вставить в чат. Пустые не показываем. */
+function sizeCopyBtns(s){
+  const b = (kind, attr, label)=> `<button type="button" class="sz-copy" data-copy-${attr}="${escapeAttr(s.id)}" onclick="event.stopPropagation();sizeCopy(${jsArg(s.id)}, '${kind}')">${label}</button>`;
+  return (s.fitNote || s.measureNote) ? `<span class="sz-btns">${s.fitNote ? b('fitNote', 'fit', 'Рост/вес') : ''}${s.measureNote ? b('measureNote', 'measure', 'Замеры') : ''}</span>` : '';
+}
+async function sizeCopy(id, kind){
+  const s = await get('sizes', id), text = (s && s[kind]) || '';
+  if(!text) return;
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){
+    const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); const done = document.execCommand('copy'); t.remove();
+    if(!done){ toast(text); return; }
+  }
+  toast('Скопировано');
 }
 function photoCell(modelId, p){
   if(typeof photoThumb !== 'function') return '';
@@ -140,6 +160,7 @@ function ffSetCategory(c){ ffAbcLetter = c; ffStockLimit = 200; renderStockFF();
 /* ---------------- карточка модели ---------------- */
 let mmPicked = [];          // выбранные размеры (подписи)
 let mmBarcodes = {};        // подпись → штрихкод
+let mmFits = {}, mmMeasures = {};   // подпись → рост и вес, замеры
 
 function mmRenderSizes(){
   const all = [...new Set(SIZE_SET.concat(mmPicked))].sort((a, b)=> sizeOrder(a) - sizeOrder(b));
@@ -148,6 +169,8 @@ function mmRenderSizes(){
   document.getElementById('mmSizeBarcodes').innerHTML = mmPicked.length
     ? '<div class="hint" style="margin:6px 0 4px;">Штрихкоды размеров — по желанию</div>' + mmPicked.slice().sort((a, b)=> sizeOrder(a) - sizeOrder(b)).map(s=>
       `<div class="field-row bc-row"><span class="sz-tag">${escapeHtml(s)}</span><input type="text" data-bc="${escapeAttr(s)}" value="${escapeAttr(mmBarcodes[s] || '')}" placeholder="штрихкод" oninput="mmBarcodes[this.dataset.bc]=this.value"></div>`).join('')
+      + '<div class="no-staff"><div class="hint" style="margin:10px 0 4px;">Рост и вес, замеры — на каждый размер. На экране товаров это кнопки: нажал — текст скопирован</div>' + mmPicked.slice().sort((a, b)=> sizeOrder(a) - sizeOrder(b)).map(s=>
+      `<div class="note-row"><span class="sz-tag">${escapeHtml(s)}</span><div class="note-fields"><textarea rows="2" maxlength="2000" data-fit="${escapeAttr(s)}" placeholder="рост и вес" oninput="mmFits[this.dataset.fit]=this.value">${escapeHtml(mmFits[s] || '')}</textarea><textarea rows="2" maxlength="2000" data-measure="${escapeAttr(s)}" placeholder="замеры" oninput="mmMeasures[this.dataset.measure]=this.value">${escapeHtml(mmMeasures[s] || '')}</textarea></div></div>`).join('') + '</div>'
     : '';
 }
 function mmToggleSize(s){
@@ -196,6 +219,8 @@ async function openModelModal(id){
   const sizes = m ? (await getAll('sizes')).filter(s=> s.modelId === m.id && !s.deletedAt) : [];
   mmPicked = sizes.map(s=> s.sizeLabel);
   mmBarcodes = Object.fromEntries(sizes.map(s=> [s.sizeLabel, s.barcode || '']));
+  mmFits = Object.fromEntries(sizes.map(s=> [s.sizeLabel, s.fitNote || '']));
+  mmMeasures = Object.fromEntries(sizes.map(s=> [s.sizeLabel, s.measureNote || '']));
   mmRenderSizes();
   document.getElementById('mmError').classList.remove('show');
   document.getElementById('mmDeleteBtn').hidden = !m;
@@ -241,7 +266,7 @@ async function saveModel(form){
   }
   // размеры: новые — добавить, снятые — удалить, если по ним ничего не лежит
   const have = (await getAll('sizes')).filter(s=> s.modelId === m.id && !s.deletedAt);
-  for(const label of form.sizes || []) await saveSize(m.id, label, (form.barcodes || {})[label]);
+  for(const label of form.sizes || []) await saveSize(m.id, label, (form.barcodes || {})[label], form.fits && form.fits[label], form.measures && form.measures[label]);
   for(const s of have){
     if((form.sizes || []).includes(s.sizeLabel)) continue;
     if(await ffSizeStock(s.id)) continue;            // с остатком размер не убираем
@@ -249,12 +274,14 @@ async function saveModel(form){
   }
   return m.id;
 }
-async function saveSize(modelId, label, barcode){
+async function saveSize(modelId, label, barcode, fit, measure){
   const m = await get('models', modelId);
   const s0 = (await getAll('sizes')).find(s=> s.modelId === modelId && s.sizeLabel === label && !s.deletedAt);
   const s = Object.assign({}, s0 || {id: newUid(), modelId, supplierId: m.supplierId, sizeLabel: label}, {sortKey: sizeOrder(label)});
   if(barcode !== undefined) s.barcode = String(barcode || '').trim();
-  if(!s0 || s0.barcode !== s.barcode || s0.sortKey !== s.sortKey) await put('sizes', s);
+  if(fit !== undefined) s.fitNote = String(fit || '').trim();
+  if(measure !== undefined) s.measureNote = String(measure || '').trim();
+  if(!s0 || s0.barcode !== s.barcode || s0.sortKey !== s.sortKey || s0.fitNote !== s.fitNote || s0.measureNote !== s.measureNote) await put('sizes', s);
   return s.id;
 }
 /* Штрихкод на складе не повторяется (владелец, 30.10.2026): ни у другого размера, ни у другого
@@ -285,7 +312,8 @@ async function saveModelFromForm(){
       sku: g('mmSku'), price: g('mmPrice'), calcPrice: g('mmCalcPrice'), buyFrom: g('mmBuyFrom'), cost: g('mmCost'),
       commissionPercent: g('mmCommission'), taxPercent: g('mmTax'), packaging: g('mmPackaging'), deliveryDiscount: g('mmDelivery'),
       sizes: mmPicked.length ? mmPicked.slice() : ['Единый'],   // товар без размеров (пылесос) — один вариант
-      barcodes: Object.assign({}, mmBarcodes)
+      barcodes: Object.assign({}, mmBarcodes),
+      fits: Object.assign({}, mmFits), measures: Object.assign({}, mmMeasures)
     });
     if(typeof mmPendingPhoto !== 'undefined' && mmPendingPhoto){ const f = mmPendingPhoto; mmPendingPhoto = null; try{ await setModelPhoto(savedId, f); }catch(e){ toast('Фото не сохранилось: ' + e.message); } }
   }catch(e){

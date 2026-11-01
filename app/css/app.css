@@ -1125,3 +1125,25 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .ar-row.st-забронировано .ar-status{background:#FFF1B8;color:#7A5A00;}
 .ar-row.st-отменена .ar-status,.ar-row.st-удалена .ar-status{background:#FFE0DE;color:#A3261C;}
 .as-model{margin:0 0 10px;}
+
+/* правки FoG 01.11.2026 */
+.model-card.mc-big{display:flex;gap:10px;align-items:flex-start;}
+.mc-big .model-photo{margin:0;flex:none;}
+.mc-big .model-photo .ph-add,.mc-big .model-photo .ph-thumb,.mc-big .model-photo .ph-thumb img{width:88px;height:88px;}
+.mc-big .mc-body{flex:1;min-width:0;}
+.mc-big .model-head{gap:6px;}
+.mc-big .rname{min-width:0;overflow-wrap:anywhere;}
+.sz-row{display:flex;flex-wrap:wrap;align-items:center;gap:3px 4px;min-height:24px;}
+.sz-row .sz{font-size:12px;}
+.sz-btns{display:inline-flex;gap:4px;margin-left:auto;}
+.sz-copy{border:0;border-radius:6px;background:var(--accent-soft);color:var(--accent-strong);font:inherit;font-size:11px;font-weight:600;padding:4px 6px;cursor:pointer;white-space:nowrap;}
+.sz-copy:active{opacity:.6;}
+.note-row{display:flex;gap:8px;align-items:flex-start;margin-top:6px;}
+.note-fields{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.note-fields textarea{width:100%;min-width:0;font-size:13px;}
+#runOutBtn.on{background:var(--accent-soft);color:var(--accent-strong);}
+.sell-models .chip{display:inline-flex;align-items:center;gap:8px;}
+.sell-models .chip img{width:44px;height:44px;object-fit:cover;border-radius:var(--r-sm);flex:none;}
+.sell-models{max-height:230px;}
+/* узкий телефон: кнопки стоят напротив размера, слово «в наличии» уступает им место */
+@media (max-width:430px){.has-notes .sz-word{display:none;}}

@@ -257,8 +257,8 @@
     },
     sizes: {
       table:'sizes', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
-      toRow: (x, ws)=> Object.assign({id:x.id, model_id:x.modelId, supplier_id:x.supplierId, size_label:x.sizeLabel || '', sort_key:num(x.sortKey), barcode:x.barcode || null}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, modelId:r.model_id, supplierId:r.supplier_id, sizeLabel:r.size_label, sortKey:num(r.sort_key), barcode:r.barcode || ''}, base(r))
+      toRow: (x, ws)=> Object.assign({id:x.id, model_id:x.modelId, supplier_id:x.supplierId, size_label:x.sizeLabel || '', sort_key:num(x.sortKey), barcode:x.barcode || null, fit_note:x.fitNote || null, measure_note:x.measureNote || null}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, modelId:r.model_id, supplierId:r.supplier_id, sizeLabel:r.size_label, sortKey:num(r.sort_key), barcode:r.barcode || '', fitNote:r.fit_note || '', measureNote:r.measure_note || ''}, base(r))
     },
     cells: {
       table:'cells', key:'number', push:['owner'], pull:['owner'],

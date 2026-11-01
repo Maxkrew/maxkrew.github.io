@@ -264,7 +264,11 @@ async function sellRender(){
   let ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === mySup).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
   if(q) ms = ms.filter(m=> xlsNormSafe(modelName(m) + ' ' + (m.sku || '')).includes(q));
   else { const rec = await sellRecentModels(); ms = rec.map(id=> models[id]).filter(Boolean).concat(ms.filter(m=> !rec.includes(m.id))); }
-  document.getElementById('sellModels').innerHTML = ms.slice(0, 60).map(m=> `<button type="button" class="chip${m.id === sell.modelId ? ' on' : ''}" data-model="${escapeAttr(m.id)}" onclick="sellPickModel(${jsArg(m.id)})">${escapeHtml(modelName(m))}</button>`).join('') || '<span class="hint">Товаров нет — добавьте их через «Приход»</span>';
+  const phByModel = new Map();   // последнее фото товара
+  for(const p of (await getAll('photos')).filter(p=> !p.deletedAt && p.kind === 'товар').sort((a, b)=> (a.createdTs || 0) - (b.createdTs || 0))) phByModel.set(p.modelId, p);
+  const modelsBox = document.getElementById('sellModels');
+  modelsBox.innerHTML = ms.slice(0, 60).map(m=> `<button type="button" class="chip${m.id === sell.modelId ? ' on' : ''}" data-model="${escapeAttr(m.id)}" onclick="sellPickModel(${jsArg(m.id)})">${phByModel.has(m.id) ? `<img alt="" data-ph-src="${escapeAttr(phByModel.get(m.id).id)}">` : ''}<span>${escapeHtml(modelName(m))}</span></button>`).join('') || '<span class="hint">Товаров нет — добавьте их через «Приход»</span>';
+  fillPhotoThumbs(modelsBox);
   const sz = [];
   if(sell.modelId){
     for(const s of (await getAll('sizes')).filter(s=> s.modelId === sell.modelId && !s.deletedAt).sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel))){

@@ -30,7 +30,7 @@ function sameItem(a, b){
 
 /* Подсветка остатка размера (пожелание поставщика FoG, 24.10.2026): меньше 2 — жёлтым,
    от 2 до 6 — зелёным, больше 6 — красным. */
-function stockTone(q){ q = Number(q) || 0; return q < 2 ? 'lvl-low' : (q > 6 ? 'lvl-high' : 'lvl-ok'); }
+function stockTone(q){ q = Number(q) || 0; return q < 1 ? 'lvl-low' : (q > 4 ? 'lvl-high' : 'lvl-ok'); }
 
 /* Под-ячейка рядом: у «4» и у «4.1» соседняя — следующая свободная «4.N». */
 function nextSubCell(number, existing){

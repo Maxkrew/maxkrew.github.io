@@ -260,7 +260,7 @@ async function sellSetBarcode(file){
     const carrier = carrierByTrack(el.value);
     if(carrier) document.getElementById('sellCarrier').value = carrier;
     sellSetDetect(!track ? 'Штрихкод не прочитался — выберите службу и впишите трек сами'
-      : carrier ? 'Определено по штрихкоду: ' + carrier + ', трек ' + el.value
+      : carrier ? 'Определено по штрихкоду: ' + carrier + ', трек ' + trackGroups(el.value).join(' ')
       : 'Трек прочитан, службу выберите сами');
   })();
   await sellRender();

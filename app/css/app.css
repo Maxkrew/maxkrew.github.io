@@ -1154,3 +1154,4 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .pp-count.none{background:var(--surface-2);color:var(--text-tertiary);}
 .sell-detect:empty{display:none;}
 .sell-detect{margin:-4px 0 10px;}
+.trk-g+.trk-g{margin-left:.35em;}

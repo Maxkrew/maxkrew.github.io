@@ -44,7 +44,7 @@ async function renderHistoryFF(){
     const rv = o.review === 'отменено' ? ' · <b>отменено складом</b>' : (o.review === 'на проверке' ? ' · <span class="warn">на проверке</span>' : '');
     return `<div class="row-item hist-row ${sign}${o.deletedAt ? ' cancelled' : ''}"><div class="rmain">
       <div class="rname">${escapeHtml(o.type)} ${Math.abs(o.qty)} шт. — ${escapeHtml(modelName(models[o.modelId] || {}))} ${escapeHtml(labels[o.sizeId] || '')}${escapeHtml(cell)} — ${escapeHtml(who)}</div>
-      <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}${owner ? ' · ' + escapeHtml((sups[o.supplierId] || {}).name || '') : ''}${trackOf[o.taskRef] ? ' · трек ' + escapeHtml(trackOf[o.taskRef]) : ''}${o.rejected ? ' · <b>не принято сервером</b>' : ''}${rv}</div>
+      <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}${owner ? ' · ' + escapeHtml((sups[o.supplierId] || {}).name || '') : ''}${trackOf[o.taskRef] ? ' · трек ' + trackHtml(trackOf[o.taskRef]) : ''}${o.rejected ? ' · <b>не принято сервером</b>' : ''}${rv}</div>
     </div><div class="rside"><span class="rval ${sign}">${o.delta > 0 ? '+' : ''}${o.delta}</span>${owner && !o.deletedAt ? `<button class="icon-btn" data-del-op="${escapeAttr(o.uid)}" onclick="deleteOpUI(${jsArg(o.uid)})" aria-label="Удалить операцию"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div></div>`;
   }).join('');
 }

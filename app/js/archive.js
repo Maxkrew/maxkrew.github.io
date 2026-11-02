@@ -41,13 +41,13 @@ async function renderArchive(){
       const st = arStatusText(s);
       if(keep.status && st !== keep.status) continue;
       const items = ls.map(l=> modelName(models[l.modelId] || {}) + ' ' + sizeText(labels[l.sizeId] || '') + ' ×' + l.qty).join(', ');
-      if(q && !(String(s.track || '').toLowerCase().includes(q) || items.toLowerCase().includes(q) || String(s.comment || '').toLowerCase().includes(q))) continue;
+      if(q && !(String(s.track || '').toLowerCase().includes(q.replace(/\s+/g, '')) || items.toLowerCase().includes(q) || String(s.comment || '').toLowerCase().includes(q))) continue;
       total++;
       if(rows.length >= arLimit) continue;
       const d = new Date(s.createdTs || 0);
       rows.push(`<div class="row-item ar-row st-${escapeAttr(st)}" data-ar="${escapeAttr(s.id)}"><div class="rmain">
           <div class="rname">${escapeHtml(items || 'без товаров')}</div>
-          <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}${owner ? ' · ' + escapeHtml((sups[s.supplierId] || {}).name || '') : ''} · ${escapeHtml(s.carrier || '')}${s.track ? ' · трек <b>' + escapeHtml(s.track) + '</b>' : ''}${s.comment ? ' · ' + escapeHtml(s.comment) : ''}</div></div>
+          <div class="rmeta">${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}${owner ? ' · ' + escapeHtml((sups[s.supplierId] || {}).name || '') : ''} · ${escapeHtml(s.carrier || '')}${s.track ? ' · трек <b>' + trackHtml(s.track) + '</b>' : ''}${s.comment ? ' · ' + escapeHtml(s.comment) : ''}</div></div>
         <div class="rside"><span class="ar-status">${escapeHtml(st)}</span></div></div>`);
     }
   } else {

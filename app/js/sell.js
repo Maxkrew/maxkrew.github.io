@@ -249,6 +249,9 @@ async function barcodeFromImage(file){
 }
 /* Трек — только похожее на номер: ссылка из QR-кода или длинный текст им не считаются. */
 const trackFromCode = code=>{ const t = String(code || '').trim(); return t && t.length <= 60 && /^[0-9A-Za-zА-Яа-я-]+$/.test(t) ? t : ''; };
+const barcodeDetectText = (track, carrier)=> !track ? 'Штрихкод не прочитался — выберите службу и впишите трек сами'
+  : carrier ? 'Определено по штрихкоду: ' + carrier + ', трек ' + trackGroups(track).join(' ')
+  : 'Трек прочитан, службу выберите сами';
 function sellSetDetect(text){ document.getElementById('sellDetect').textContent = text; }
 async function sellSetBarcode(file){
   sell.barcode = file;
@@ -259,9 +262,7 @@ async function sellSetBarcode(file){
     if(track && (!el.value.trim() || sell.trackAuto)){ el.value = track; sell.trackAuto = true; }
     const carrier = carrierByTrack(el.value);
     if(carrier) document.getElementById('sellCarrier').value = carrier;
-    sellSetDetect(!track ? 'Штрихкод не прочитался — выберите службу и впишите трек сами'
-      : carrier ? 'Определено по штрихкоду: ' + carrier + ', трек ' + trackGroups(el.value).join(' ')
-      : 'Трек прочитан, службу выберите сами');
+    sellSetDetect(barcodeDetectText(track && el.value, carrier));
   })();
   await sellRender();
   await job;
@@ -273,9 +274,11 @@ function sellTrackInput(v){
 }
 
 /* --- окно «Продал» --- */
-const sell = {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, trackAuto: false, detecting: null};
-async function sellStart(){
-  Object.assign(sell, {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, editId: null, priceTouched: false, trackAuto: false, detecting: null});
+/* mode 'return' — то же окно для возврата (FoG, 03.11.2026): без цены и без «свободно» — товар едет на склад */
+const sell = {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, trackAuto: false, detecting: null, mode: 'sell'};
+const sellIsReturn = ()=> sell.mode === 'return';
+async function sellStart(mode){
+  Object.assign(sell, {cart: [], modelId: '', sizeId: '', barcode: null, photo: null, editId: null, priceTouched: false, trackAuto: false, detecting: null, mode: mode === 'return' ? 'return' : 'sell'});
   document.getElementById('sellTrack').value = ''; sellSetDetect('');
   sellSetMode(false);
   document.getElementById('sellSearch').value = '';
@@ -289,8 +292,12 @@ async function sellStart(){
 }
 function closeSell(){ document.getElementById('sellModalBg').classList.remove('show'); sell.editId = null; }
 function sellSetMode(edit){
-  document.getElementById('sellTitle').textContent = edit ? 'Изменить заказ' : 'Продал';
+  const ret = sellIsReturn();
+  document.getElementById('sellTitle').textContent = edit ? 'Изменить заказ' : (ret ? 'Возврат' : 'Продал');
   document.getElementById('sellSendText').textContent = edit ? 'Сохранить изменения' : 'Отправить складу';
+  document.getElementById('sellPriceBox').style.display = ret ? 'none' : '';
+  document.getElementById('sellAddText').textContent = ret ? 'Ещё товар в этот возврат' : 'Ещё товар в этот заказ';
+  document.getElementById('sellComment').placeholder = ret ? 'Комментарий: причина возврата' : 'Комментарий: номер заказа, адрес';
 }
 
 /* --- изменить заказ (карандаш) ---
@@ -386,6 +393,7 @@ async function sellRender(){
   const sz = [];
   if(sell.modelId){
     for(const s of (await getAll('sizes')).filter(s=> s.modelId === sell.modelId && !s.deletedAt).sort((a, b)=> sizeOrder(a.sizeLabel) - sizeOrder(b.sizeLabel))){
+      if(sellIsReturn()){ sz.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" class="${s.id === sell.sizeId ? 'on' : ''}" onclick="sellPickSize(${jsArg(s.id)})">${escapeHtml(sizeText(s.sizeLabel))}</button>`); continue; }
       const inCart = sell.cart.filter(c=> c.sizeId === s.id).reduce((n, c)=> n + c.qty, 0);
       const free = Math.max(0, await freeQty(s.id) - inCart);
       sz.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" class="${s.id === sell.sizeId ? 'on' : ''}"${free ? '' : ' disabled'} onclick="sellPickSize(${jsArg(s.id)})">${escapeHtml(sizeText(s.sizeLabel))} · свободно ${free}</button>`);
@@ -419,7 +427,7 @@ function sellPending(){
   const q = sanitizeQty(document.getElementById('sellQty').value || 1);
   if(q.error) return {error: q.error};
   const pr = String(document.getElementById('sellPrice').value || '').replace(/\s/g, '').replace(',', '.');
-  const price = pr === '' || (Sync.isStaff && Sync.isStaff()) ? null : Number(pr);   // сотрудник цен не видит
+  const price = pr === '' || sellIsReturn() || (Sync.isStaff && Sync.isStaff()) ? null : Number(pr);   // сотрудник цен не видит
   if(price !== null && (!isFinite(price) || price < 0)) return {error: 'Цена — число'};
   return {modelId: sell.modelId, sizeId: sell.sizeId, qty: q.n, price};
 }
@@ -446,9 +454,9 @@ async function sellSend(){
   try{
     if(sell.detecting) await sell.detecting;   // скриншот ещё читается — дождёмся трека
     const o = {lines, carrier: document.getElementById('sellCarrier').value, track: document.getElementById('sellTrack').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo};
-    const r = sell.editId ? await replaceSale(sell.editId, o) : await submitSale(o);
+    const r = sellIsReturn() ? await submitReturn(o) : sell.editId ? await replaceSale(sell.editId, o) : await submitSale(o);
     if(!r.ok){ err.textContent = r.error; return; }
-    closeSell(); toast(sell.editId ? 'Заказ изменён — склад видит новый вариант' : 'Заказ отправлен складу');
+    closeSell(); toast(sellIsReturn() ? 'Возврат отправлен складу' : sell.editId ? 'Заказ изменён — склад видит новый вариант' : 'Заказ отправлен складу');
     if(typeof renderShipments === 'function') await renderShipments();
   } catch(e){ err.textContent = 'Не получилось: ' + e.message; }
   finally { btn.disabled = false; }

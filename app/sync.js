@@ -281,8 +281,9 @@
     receipts: {
       table:'receipts', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
       toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind || 'приёмка', weight_kg:x.weightKg == null ? null : num(x.weightKg), status:x.status || 'черновик', created_ts:num(x.createdTs),
-        fee:x.fee == null ? null : num(x.fee)}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, weightKg:r.weight_kg, status:r.status, createdTs:num(r.created_ts), fee:r.fee == null ? null : num(r.fee)}, base(r))
+        fee:x.fee == null ? null : num(x.fee), is_return:!!x.isReturn, carrier:x.carrier || '', track:x.track || '', comment:x.comment || ''}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, weightKg:r.weight_kg, status:r.status, createdTs:num(r.created_ts), fee:r.fee == null ? null : num(r.fee),
+        isReturn:!!r.is_return, carrier:r.carrier || '', track:r.track || '', comment:r.comment || ''}, base(r))
     },
     receiptLines: {
       /* поставщик читает строки через представление без плана раскладки и не шлёт план (этап 2) */
@@ -332,8 +333,8 @@
     photos: {
       table:'photos', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
       ready: x=> (typeof window.photoReady === 'function') ? window.photoReady(x) : true,
-      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind, model_id:x.modelId || null, shipment_id:x.shipmentId || null, path:x.path, created_ts:num(x.createdTs)}, tail(x, ws)),
-      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, modelId:r.model_id || null, shipmentId:r.shipment_id || null, path:r.path, createdTs:num(r.created_ts)}, base(r))
+      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind, model_id:x.modelId || null, shipment_id:x.shipmentId || null, receipt_id:x.receiptId || null, path:x.path, created_ts:num(x.createdTs)}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, modelId:r.model_id || null, shipmentId:r.shipment_id || null, receiptId:r.receipt_id || null, path:r.path, createdTs:num(r.created_ts)}, base(r))
     }
   };
   /* Порядок важен: сначала модель, потом её размеры и личные цифры, потом ячейки и операции —

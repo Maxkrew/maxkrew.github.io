@@ -41,7 +41,7 @@ async function addPhoto(o, file, alreadyCompressed){
   const id = newUid();
   const path = Sync.ownerId() + '/' + o.supplierId + '/' + id + '.jpg';
   await put('photoBlobs', {id, blob, path, pending: true});
-  await put('photos', {id, supplierId: o.supplierId, kind: o.kind, modelId: o.modelId || null, shipmentId: o.shipmentId || null, path, createdTs: Date.now()});
+  await put('photos', {id, supplierId: o.supplierId, kind: o.kind, modelId: o.modelId || null, shipmentId: o.shipmentId || null, receiptId: o.receiptId || null, path, createdTs: Date.now()});
   return id;
 }
 /* Строка фото уходит на сервер, только когда её файл уже загружен. */

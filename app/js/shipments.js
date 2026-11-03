@@ -201,14 +201,20 @@ async function renderShipments(){
   if(shView === 'history'){ parts.push(await renderArchive()); box.innerHTML = parts.join(''); return; }
   if(!sup && typeof renderReviewBlock === 'function') parts.push(await renderReviewBlock());
   // поставщик заказывает через «Продал» (служба, скриншот, комментарий — там)
-  if(sup) parts.push(`<button class="btn primary sh-sell" id="shStart" onclick="shStart()"><svg class="icon"><use href="#i-out"/></svg>Продал — новый заказ</button>`);
+  if(sup) parts.push(`<div class="sh-sup-btns"><button class="btn primary sh-sell" id="shStart" onclick="shStart()"><svg class="icon"><use href="#i-out"/></svg>Продал — новый заказ</button>
+    <button class="btn ghost sh-sell" id="shReturn" onclick="sellStart('return')"><svg class="icon"><use href="#i-in"/></svg>Возврат</button></div>`);
   else parts.push(`<div class="card">
       <div class="field-row">${sup ? '' : `<select id="shSupplier">${sups.map(s=> `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('')}</select>`}
         <select id="shCarrier">${carrierList().map(c=> `<option>${escapeHtml(c)}</option>`).join('')}</select></div>
-      <div class="field-row" style="margin-top:8px;"><input type="text" id="shTrack" maxlength="60" placeholder="Трек-номер" autocomplete="off" oninput="shTrackGuess(this.value)"></div>
+      <div class="field-row" style="margin-top:8px;"><input type="text" id="shTrack" maxlength="60" placeholder="Трек-номер" autocomplete="off" oninput="shTrackGuess(this.value)">
+        <label class="btn ghost sm" id="shBarcodeBtn" style="width:auto;white-space:nowrap;"><svg class="icon"><use href="#i-upload"/></svg>Штрихкод<input type="file" accept="image/*" hidden onchange="shPickBarcode(this)"></label></div>
+      <div class="sh-new-bc"><div class="sell-thumb" id="shBarcodeThumb"></div><div class="hint sell-detect" id="shDetect" role="status"></div></div>
       <div class="field-row" style="margin-top:8px;"><input type="text" id="shComment" placeholder="Комментарий">
         <button class="btn primary" id="shStart" style="width:auto;white-space:nowrap;" onclick="shStart()"><svg class="icon"><use href="#i-plus"/></svg>${sup ? 'Новый заказ' : 'Новая отправка'}</button></div>
     </div>`);
+  // поставщик: возвраты, которые едут на склад (js/incoming.js)
+  if(sup) for(const r of await returnsOnTheWay()) parts.push(await returnCard(r, 'Возврат едет на склад',
+    `<button class="btn ghost danger-text" style="margin-top:8px;" data-ret-cancel="${escapeAttr(r.id)}" onclick="retCancel(${jsArg(r.id)})">Отменить возврат</button>`));
   // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
   if(!sup) parts.push(await assemblyHeader(open, list));
   if(!sup && typeof statsCard === 'function') parts.push(await statsCard(shFilter));   // статистика и начисления за период
@@ -225,7 +231,11 @@ async function renderShipments(){
   let recent = byCarrier(today.length ? today : done.filter(s=> sup || !shFilter || s.supplierId === shFilter));
   if(!sup && shModelFilter){ const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && l.modelId === shModelFilter).map(l=> l.shipmentId)); recent = recent.filter(s=> has.has(s.id)); }
   if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + recent.length : 'Собраны недавно') + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
+  // экран перерисовывается и после обмена — не теряем то, что склад уже ввёл в новую отправку
+  const keep = ['shSupplier', 'shCarrier', 'shTrack', 'shComment'].map(id=> [id, (document.getElementById(id) || {}).value]);
   box.innerHTML = parts.join('');
+  for(const [id, v] of keep){ const el = document.getElementById(id); if(el && v) el.value = v; }
+  if(!sup) shShowBarcode();
   wireFFScanInputs();
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);
 }
@@ -269,6 +279,8 @@ async function shipmentCard(s, editable){
     for(const mid of [...new Set(lines.map(l=> l.modelId))]){ const mp = await modelPhoto(mid); if(mp) phs.push(photoThumb(mp.id, 'Фото товара')); }
   }
   const phRow = phs.length ? '<div class="ph-row">' + phs.join('') + '</div>' : '';
+  const hasBc = typeof shipmentPhotos === 'function' && (await shipmentPhotos(s.id)).some(p=> p.kind === 'штрихкод');
+  const bcBtn = !sup && !hasBc ? ` <label class="btn ghost sm" style="width:auto;padding:2px 10px;" data-sh-barcode="${escapeAttr(s.id)}">Штрихкод<input type="file" accept="image/*" hidden onchange="shAddBarcodePick(${jsArg(s.id)}, this)"></label>` : '';
   const from = !sup && s.createdBy === 'supplier' ? ' · <span class="tag-sup">от поставщика</span>' : '';
   // склад: собранную отправку можно вернуть в работу (ошиблись) и удалить свою
   const doneTools = !sup && s.status === 'собрана' ? `<div class="sh-tools"><button type="button" class="icon-btn sh-edit-btn" data-reopen="${escapeAttr(s.id)}" onclick="shReopen(${jsArg(s.id)})" aria-label="Вернуть в работу"><svg class="icon"><use href="#i-edit"/></svg></button>${s.createdBy !== 'supplier' ? `<button type="button" class="icon-btn sh-del-btn" data-sh-del="${escapeAttr(s.id)}" onclick="shDeleteDone(${jsArg(s.id)})" aria-label="Удалить отправку"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div>` : '';
@@ -282,7 +294,7 @@ async function shipmentCard(s, editable){
   const selBox = !sup && editable && shSelectMode && canCollect ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
   return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${s.status === 'новая' ? 'забронировано' : escapeHtml(s.status)}</span></div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
-    ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>`}</div>` : ''}
+    ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>${bcBtn}`}</div>` : ''}
     ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;
 }
 async function shStart(){
@@ -290,10 +302,49 @@ async function shStart(){
   if(shIsSupplier() && typeof sellStart === 'function'){ await sellStart(); return; }
   const supEl = document.getElementById('shSupplier');
   if(!shIsSupplier() && !(supEl && supEl.value)){ toast('Выберите поставщика'); return; }
-  await newShipment({supplierId: supEl ? supEl.value : null, carrier: document.getElementById('shCarrier').value, comment: document.getElementById('shComment').value,
+  if(shNew.detecting) await shNew.detecting;
+  let bc = null;
+  if(shNew.barcode){ try{ bc = await compressImage(shNew.barcode); }catch(e){} if(!bc){ toast('Не получилось открыть картинку — сохраните её как JPEG или PNG'); return; } }
+  const id = await newShipment({supplierId: supEl ? supEl.value : null, carrier: document.getElementById('shCarrier').value, comment: document.getElementById('shComment').value,
     track: (document.getElementById('shTrack') || {}).value || ''});
+  if(bc) await addPhoto({supplierId: supEl.value, kind:'штрихкод', shipmentId:id}, bc, true);
+  for(const f of ['shTrack', 'shComment']) document.getElementById(f).value = '';
+  Object.assign(shNew, {barcode: null, detecting: null, text: ''});
   await renderShipments();
 }
+/* Склад: скриншот штрихкода к новой отправке — трек и служба определяются сами, как у поставщика */
+const shNew = {barcode: null, detecting: null, text: ''};
+function shShowBarcode(){
+  const th = document.getElementById('shBarcodeThumb'), d = document.getElementById('shDetect');
+  if(th) th.innerHTML = shNew.barcode ? `<img alt="Скриншот штрихкода" src="${escapeAttr(URL.createObjectURL(shNew.barcode))}">` : '';
+  if(d) d.textContent = shNew.text;
+}
+async function shPickBarcode(input){ const f = input.files && input.files[0]; input.value = ''; if(f) await shSetBarcode(f); }
+async function shSetBarcode(file){
+  shNew.barcode = file; shNew.text = 'Читаю штрихкод…'; shShowBarcode();
+  const job = shNew.detecting = (async ()=>{
+    const track = trackFromCode(await barcodeFromImage(file));
+    if(job !== shNew.detecting) return;
+    const el = document.getElementById('shTrack');
+    if(track && el) el.value = track;
+    const carrier = carrierByTrack(track);
+    if(carrier) document.getElementById('shCarrier').value = carrier;
+    shNew.text = barcodeDetectText(track, carrier); shShowBarcode();
+  })();
+  await job;
+}
+/* Склад: штрихкод к готовой отправке; трека не было — подставим со скриншота */
+async function shAddBarcode(id, file){
+  const sh = await get('shipments', id); if(!sh) return;
+  let bc = null; try{ bc = await compressImage(file); }catch(e){}
+  if(!bc){ toast('Не получилось открыть картинку — сохраните её как JPEG или PNG'); return; }
+  await addPhoto({supplierId: sh.supplierId, kind:'штрихкод', shipmentId:id}, bc, true);
+  const track = trackFromCode(await barcodeFromImage(file)), carrier = carrierByTrack(track);
+  if(track && !sh.track){ sh.track = track; if(carrier) sh.carrier = carrier; await put('shipments', sh); }
+  toast(track ? barcodeDetectText(track, carrier) : 'Штрихкод добавлен');
+  await renderShipments();
+}
+async function shAddBarcodePick(id, input){ const f = input.files && input.files[0]; input.value = ''; if(f) await shAddBarcode(id, f); }
 /* склад вписал трек — служба выбирается сама */
 function shTrackGuess(v){ const c = carrierByTrack(v), el = document.getElementById('shCarrier'); if(c && el) el.value = c; }
 async function shFillSizes(sid){

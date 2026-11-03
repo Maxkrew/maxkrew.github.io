@@ -6,9 +6,10 @@
 const INC_LATE = 'Склад уже принимает поставку';
 
 /* --- данные --- */
-async function newIncoming(){
+async function newIncoming(ret){
   const id = newUid();
-  await put('receipts', {id, supplierId: Sync.mySupplierId(), kind: 'ожидается', weightKg: null, status: 'ожидается', createdTs: Date.now()});
+  await put('receipts', Object.assign({id, supplierId: Sync.mySupplierId(), kind: 'ожидается', weightKg: null, status: 'ожидается', createdTs: Date.now()},
+    ret ? {isReturn: true, carrier: ret.carrier || '', track: String(ret.track || '').trim().slice(0, 60), comment: String(ret.comment || '').slice(0, 500)} : {}));
   return id;
 }
 async function addIncomingLine(receiptId, modelId, sizeId, qty, buyPrice){
@@ -27,6 +28,50 @@ async function submitIncoming(lines){
   const id = await newIncoming();
   for(const l of lines) await addIncomingLine(id, l.modelId, l.sizeId, l.qty, l.price);
   return {ok:true, id};
+}
+/* Возврат от поставщика (FoG, 03.11.2026): покупатель вернул — товар едет на склад. Как поставка,
+   но со службой, треком и скриншотом штрихкода: по нему склад забирает возврат в пункте выдачи.
+   Склад «Принять» → обычный возврат склада (раскладка, брак). */
+async function submitReturn(o){
+  const lines = (o && o.lines) || [];
+  if(!lines.length) return {ok:false, error:'Добавьте товар'};
+  for(const l of lines){ const q = sanitizeQty(l.qty); if(q.error) return {ok:false, error:q.error}; }
+  let barcode = null, photo = null;
+  try{
+    if(o.barcode) barcode = await compressImage(o.barcode);
+    if(o.photo) photo = await compressImage(o.photo);
+  }catch(e){ barcode = null; }
+  if((o.barcode && !barcode) || (o.photo && !photo)) return {ok:false, error:'Не получилось открыть картинку — сохраните её как JPEG или PNG'};
+  const id = await newIncoming({carrier: o.carrier, track: o.track, comment: o.comment});
+  const supplierId = Sync.mySupplierId();
+  if(barcode) await addPhoto({supplierId, kind:'штрихкод', receiptId:id}, barcode, true);
+  if(photo) await addPhoto({supplierId, kind:'заказ', receiptId:id}, photo, true);
+  for(const l of lines) await addIncomingLine(id, l.modelId, l.sizeId, l.qty);
+  return {ok:true, id};
+}
+async function receiptPhotos(receiptId){
+  return (await getAll('photos')).filter(p=> !p.deletedAt && p.receiptId === receiptId).sort((a, b)=> (a.kind === 'штрихкод' ? 0 : 1) - (b.kind === 'штрихкод' ? 0 : 1));
+}
+/* Возвраты, которые едут на склад (у поставщика — только свои). */
+async function returnsOnTheWay(){
+  const mine = isOwnerRole() ? null : Sync.mySupplierId();
+  return (await getAll('receipts')).filter(r=> !r.deletedAt && r.kind === 'ожидается' && r.isReturn && (!mine || r.supplierId === mine)).sort((a, b)=> (b.createdTs || 0) - (a.createdTs || 0));
+}
+/* Карточка возврата: служба, трек, комментарий, скриншот, товары. tools — кнопки снизу. */
+async function returnCard(r, head, tools){
+  const models = await modelsMap(), rows = [];
+  for(const l of await receiptLines(r.id)) rows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b></div><div class="rside"><b>${l.qty} шт.</b></div></div>`);
+  const phs = (await receiptPhotos(r.id)).map(p=> photoThumb(p.id, p.kind === 'штрихкод' ? 'Скриншот штрихкода' : 'Фото к возврату'));
+  const when = new Date(r.createdTs || Date.now()).toLocaleString('ru-RU', {day:'numeric', month:'long', hour:'2-digit', minute:'2-digit'});
+  return `<div class="card ret-card" data-expected="${escapeAttr(r.id)}"><div class="rname sh-head"><span class="sh-carrier">${escapeHtml(r.carrier || 'Возврат')}</span><span class="sh-status st-new">${head}</span></div>
+    <div class="rmeta">${when}${r.comment ? ' · ' + escapeHtml(r.comment) : ''}</div>
+    ${r.track ? '<div class="rmeta sh-track">Трек: <b data-track>' + trackHtml(r.track) + '</b></div>' : ''}
+    ${phs.length ? '<div class="ph-row">' + phs.join('') + '</div>' : ''}<div class="rc-lines">${rows.join('')}</div>${tools}</div>`;
+}
+async function retCancel(id){
+  if(!confirm('Отменить возврат?')) return;
+  const r = await cancelIncoming(id); if(!r.ok){ toast(r.error); return; }
+  toast('Возврат отменён'); if(typeof renderShipments === 'function') await renderShipments();
 }
 async function updateIncomingLine(lineId, qty){
   const l = await get('receiptLines', lineId); if(!l || l.deletedAt) return {ok:false, error:'Нет такой строки'};
@@ -57,7 +102,7 @@ async function cancelIncoming(id){
 async function acceptExpected(receiptId){
   const r = await get('receipts', receiptId);
   if(!r || r.deletedAt) return null;
-  if(r.kind === 'ожидается'){ r.kind = 'приёмка'; r.status = 'черновик'; await put('receipts', r); }
+  if(r.kind === 'ожидается'){ r.kind = r.isReturn ? 'возврат' : 'приёмка'; r.status = 'черновик'; await put('receipts', r); }
   return r.id;
 }
 /* Где пришло не столько, сколько ждали (до раскладки «пришло» — то, что вписал склад). */
@@ -67,7 +112,7 @@ async function deliveryDiff(receiptId){
     .map(l=> ({modelId: l.modelId, sizeId: l.sizeId, expected: Number(l.expectedQty), actual: Number(l.qty)}));
 }
 async function expectedList(){
-  return (await getAll('receipts')).filter(r=> !r.deletedAt && r.kind === 'ожидается').sort((a, b)=> (a.createdTs || 0) - (b.createdTs || 0));
+  return (await getAll('receipts')).filter(r=> !r.deletedAt && r.kind === 'ожидается' && !r.isReturn).sort((a, b)=> (a.createdTs || 0) - (b.createdTs || 0));
 }
 async function renderExpected(){
   const box = document.getElementById('expectedBox');
@@ -80,8 +125,14 @@ async function renderExpected(){
     parts.push(`<div class="row-item exp-row" data-expected="${escapeAttr(r.id)}"><div class="rmain"><span class="exp-sup">${escapeHtml((sups[r.supplierId] || {}).name || '')}</span> <span class="exp-qty">${n} шт.</span><div class="rmeta">${new Date(r.createdTs || Date.now()).toLocaleDateString('ru-RU', {day:'numeric', month:'long'})}</div></div>
       <div class="rside"><button class="btn primary sm" style="width:auto;" data-accept="${escapeAttr(r.id)}" onclick="rcAcceptExpected(${jsArg(r.id)})">Принять</button></div></div>`);
   }
+  // возвраты от поставщиков: штрихкод на виду — по нему забирают в пункте выдачи
+  const rets = [];
+  for(const r of (await returnsOnTheWay()).filter(r=> !supF || r.supplierId === supF))
+    rets.push(await returnCard(r, escapeHtml((sups[r.supplierId] || {}).name || ''), `<button class="btn primary" style="margin-top:8px;" data-accept="${escapeAttr(r.id)}" onclick="rcAcceptExpected(${jsArg(r.id)})">Принять возврат</button>`));
   // заголовок — над карточкой; в строке только поставщик и сколько штук
-  box.innerHTML = parts.length ? `<div class="exp-title">Ожидается поставка</div><div class="card">${parts.join('')}</div>` : '';
+  box.innerHTML = (rets.length ? '<div class="exp-title">Ожидается возврат</div>' + rets.join('') : '') +
+    (parts.length ? `<div class="exp-title">Ожидается поставка</div><div class="card">${parts.join('')}</div>` : '');
+  if(rets.length) fillPhotoThumbs(box);
 }
 async function rcAcceptExpected(id){
   const rid = await acceptExpected(id);
@@ -137,7 +188,7 @@ async function renderIncoming(){
     <button class="btn primary" id="incSend" style="margin-top:10px;" onclick="incSend()"${draft.length ? '' : ' disabled'}><svg class="icon"><use href="#i-out"/></svg>Отправить на склад${total ? ' — ' + total + ' шт.' : ''}</button>
   </div>`];
   // прошлые поставки
-  const mine = (await getAll('receipts')).filter(r=> !r.deletedAt && r.supplierId === mySup && (r.kind === 'ожидается' || (r.kind === 'приёмка' && r.createdTs)))
+  const mine = (await getAll('receipts')).filter(r=> !r.deletedAt && r.supplierId === mySup && !r.isReturn && (r.kind === 'ожидается' || (r.kind === 'приёмка' && r.createdTs)))
     .sort((a, b)=> (b.createdTs || 0) - (a.createdTs || 0)).slice(0, 30);
   const hist = [];
   for(const r of mine){

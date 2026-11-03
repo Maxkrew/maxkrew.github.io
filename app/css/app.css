@@ -1155,3 +1155,9 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .sell-detect:empty{display:none;}
 .sell-detect{margin:-4px 0 10px;}
 .trk-g+.trk-g{margin-left:.35em;}
+.sh-sup-btns{display:flex;gap:8px;}
+.sh-sup-btns .btn{flex:1;}
+.sh-sup-btns #shReturn{flex:0 0 auto;width:auto;}
+.sh-new-bc{display:flex;align-items:center;gap:8px;}
+.sh-new-bc .sell-detect{margin:6px 0 0;}
+.ret-card{margin-bottom:10px;}

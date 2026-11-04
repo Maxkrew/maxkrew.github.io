@@ -101,13 +101,12 @@ async function addShipmentLine(shipmentId, modelId, sizeId, qty, allowMinus){
   }
   return {ok:true, lines: ids};
 }
-/* Поставщик: строка заказа без ячейки, по свободному остатку (без брака, минус резерв). */
+/* Поставщик: строка заказа без ячейки. Можно и больше, чем есть (FoG, 04.11.2026): поставка едет,
+   а заказы падают сегодня — склад видит «не хватает N шт. — ждёт поставки». */
 async function addSupplierOrderLine(shipmentId, modelId, sizeId, qty){
   const q = sanitizeQty(qty); if(q.error) return {ok:false, error:q.error};
   const sh = await get('shipments', shipmentId);
   if(!sh || sh.status !== 'новая') return {ok:false, error:'Заказ уже не меняется'};
-  const free = await freeQty(sizeId);
-  if(q.n > free) return {ok:false, error:'Не хватает ' + (q.n - Math.max(0, free)) + ' шт. — свободно ' + Math.max(0, free)};
   const id = newUid();
   await put('shipmentLines', {id, shipmentId, modelId, sizeId, qty: q.n, cellNumber: null, collected: false});
   return {ok:true, id};
@@ -248,7 +247,9 @@ async function shipmentCard(s, editable){
     let pr = sup && typeof linePrice === 'function' ? await linePrice(l.id) : null;
     if(sup && pr === null) for(const o of lines) if(o.id !== l.id && o.sizeId === l.sizeId){ const p = await linePrice(o.id); if(p !== null){ pr = p; break; } }   // кусок разделённой складом строки
     const name = `<span class="sh-item">${escapeHtml(modelName(models[l.modelId] || {}))} ${escapeHtml(await sizeLabelOf(l.sizeId))}</span> <span class="sh-qty">${l.qty} шт.</span>${pr !== null ? ' <span class="sh-price">' + fmtMoney(pr) + '</span>' : ''}`;
-    if(sup){ rows.push(`<div class="row-item${l.collected ? ' done' : ''}"><div class="rmain">${name}${l.collected ? ' <span class="sh-done">Собрано</span>' : ''}</div></div>`); continue; }
+    // заказано больше, чем есть (FoG, 04.11.2026), — склад отправит, когда приедет поставка
+    const wait = sup && !l.collected && await freeQty(l.sizeId) < 0 ? ' <span class="warn">ждёт поставки</span>' : '';
+    if(sup){ rows.push(`<div class="row-item${l.collected ? ' done' : ''}"><div class="rmain">${name}${wait}${l.collected ? ' <span class="sh-done">Собрано</span>' : ''}</div></div>`); continue; }
     const del = editable && !l.collected && s.createdBy !== 'supplier'
       ? `<button type="button" class="icon-btn sh-del" data-del-line="${escapeAttr(l.id)}" onclick="event.preventDefault();event.stopPropagation();shDelLine(${jsArg(l.id)})" aria-label="Убрать строку"><svg class="icon"><use href="#i-trash"/></svg></button>` : '';
     if(!l.cellNumber && !l.collected){

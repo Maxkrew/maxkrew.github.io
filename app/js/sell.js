@@ -13,16 +13,8 @@ async function submitSale(o){
   if(!lines.length) return {ok:false, error:'Добавьте товар'};
   const carrier = o.carrier || SELL_AVITO;
   if(carrier === SELL_AVITO && !o.barcode) return {ok:false, error: SELL_NEED_BARCODE};
-  // проверяем всё заранее: плохая строка не создаёт полузаказ
-  const need = {};
-  for(const l of lines){
-    const q = sanitizeQty(l.qty); if(q.error) return {ok:false, error:q.error};
-    need[l.sizeId] = (need[l.sizeId] || 0) + q.n;
-  }
-  for(const [sizeId, n] of Object.entries(need)){
-    const free = await freeQty(sizeId);
-    if(n > free) return {ok:false, error:'Не хватает ' + (n - Math.max(0, free)) + ' шт. ' + await sizeLabelOf(sizeId) + ' — свободно ' + Math.max(0, free)};
-  }
+  // проверяем всё заранее: плохая строка не создаёт полузаказ; больше, чем есть, — можно (в минус)
+  for(const l of lines){ const q = sanitizeQty(l.qty); if(q.error) return {ok:false, error:q.error}; }
   // картинки сжимаем до заказа: не открылась (HEIC и т.п.) — заказа нет, человек видит причину
   let barcode = null, photo = null;
   try{
@@ -346,14 +338,7 @@ async function replaceSale(oldId, o){
   const lines = (o && o.lines) || [];
   if(!lines.length) return {ok:false, error:'Добавьте товар'};
   if((o.carrier || SELL_AVITO) === SELL_AVITO && !o.barcode) return {ok:false, error: SELL_NEED_BARCODE};
-  // проверяем заранее, с учётом того, что старый заказ освободит
-  const mine = {}, need = {};
-  for(const l of await shipmentLines(oldId)) mine[l.sizeId] = (mine[l.sizeId] || 0) + (Number(l.qty) || 0);
-  for(const l of lines){ const q = sanitizeQty(l.qty); if(q.error) return {ok:false, error:q.error}; need[l.sizeId] = (need[l.sizeId] || 0) + q.n; }
-  for(const [sizeId, n] of Object.entries(need)){
-    const free = await freeQty(sizeId) + (mine[sizeId] || 0);
-    if(n > free) return {ok:false, error:'Не хватает ' + (n - Math.max(0, free)) + ' шт. ' + await sizeLabelOf(sizeId) + ' — свободно ' + Math.max(0, free)};
-  }
+  for(const l of lines){ const q = sanitizeQty(l.qty); if(q.error) return {ok:false, error:q.error}; }
   try{ if(o.barcode) await compressImage(o.barcode); if(o.photo) await compressImage(o.photo); }
   catch(e){ return {ok:false, error:'Не получилось открыть картинку — сохраните её как JPEG или PNG'}; }
   const c = await cancelShipment(oldId);
@@ -396,14 +381,21 @@ async function sellRender(){
       if(sellIsReturn()){ sz.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" class="${s.id === sell.sizeId ? 'on' : ''}" onclick="sellPickSize(${jsArg(s.id)})">${escapeHtml(sizeText(s.sizeLabel))}</button>`); continue; }
       const inCart = sell.cart.filter(c=> c.sizeId === s.id).reduce((n, c)=> n + c.qty, 0);
       const free = Math.max(0, await freeQty(s.id) - inCart);
-      sz.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" class="${s.id === sell.sizeId ? 'on' : ''}"${free ? '' : ' disabled'} onclick="sellPickSize(${jsArg(s.id)})">${escapeHtml(sizeText(s.sizeLabel))} · свободно ${free}</button>`);
+      sz.push(`<button type="button" data-size-id="${escapeAttr(s.id)}" class="${s.id === sell.sizeId ? 'on' : ''}" onclick="sellPickSize(${jsArg(s.id)})">${escapeHtml(sizeText(s.sizeLabel))} · ${free ? 'свободно ' + free : 'нет на складе'}</button>`);
     }
   }
   document.getElementById('sellSizes').innerHTML = sz.join('') || '<span class="hint">' + (sell.modelId ? 'Нет размеров' : 'Выберите товар') + '</span>';
-  const rows = [];
+  const rows = [], used = {};
   for(let i = 0; i < sell.cart.length; i++){
     const c = sell.cart[i];
-    rows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[c.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(c.sizeId))}</b> × ${c.qty}${c.price !== null ? ' · ' + fmtMoney(c.price) : ''}</div>
+    // сколько из строки сверх свободного (у изменяемого заказа его собственные штуки — свои)
+    let minus = 0;
+    if(!sellIsReturn()){
+      if(!(c.sizeId in used)) used[c.sizeId] = await freeQty(c.sizeId) + (sell.editId ? (await shipmentLines(sell.editId)).filter(l=> l.sizeId === c.sizeId).reduce((n, l)=> n + (Number(l.qty) || 0), 0) : 0);
+      minus = Math.min(c.qty, Math.max(0, c.qty - Math.max(0, used[c.sizeId])));
+      used[c.sizeId] -= c.qty;
+    }
+    rows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[c.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(c.sizeId))}</b> × ${c.qty}${c.price !== null ? ' · ' + fmtMoney(c.price) : ''}${minus ? ` <span class="warn">в минус ${minus} — ждёт поставки</span>` : ''}</div>
       <div class="rside"><button class="icon-btn" onclick="sellRemove(${i})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
   }
   document.getElementById('sellCart').innerHTML = rows.join('');

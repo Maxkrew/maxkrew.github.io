@@ -292,7 +292,13 @@ async function renderReceipts(){
   }
   for(const r of open) parts.push(await receiptCard(r));
   if(!open.length && sups.length) parts.push(emptyState('i-in', 'Открытых приёмок нет', 'Выберите поставщика и нажмите «Приёмка».'));
+  // товар остаётся выбранным: обычно приходит 4–5 размеров одной модели (FoG, 05.11.2026)
+  const keepModel = [...box.querySelectorAll('select[id^="rcModel-"]')].map(el=> [el.id.slice(8), el.value]).filter(([, v])=> v);
   box.innerHTML = parts.join('');
+  for(const [rid, v] of keepModel){
+    const el = document.getElementById('rcModel-' + rid);
+    if(el && [...el.options].some(o=> o.value === v)){ el.value = v; await rcFillSizes(rid); }
+  }
   wireFFScanInputs();
 }
 async function receiptCard(r){

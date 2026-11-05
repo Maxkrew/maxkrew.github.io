@@ -9,7 +9,8 @@ const INC_LATE = 'Склад уже принимает поставку';
 async function newIncoming(ret){
   const id = newUid();
   await put('receipts', Object.assign({id, supplierId: Sync.mySupplierId(), kind: 'ожидается', weightKg: null, status: 'ожидается', createdTs: Date.now()},
-    ret ? {isReturn: true, carrier: ret.carrier || '', track: String(ret.track || '').trim().slice(0, 60), comment: String(ret.comment || '').slice(0, 500)} : {}));
+    ret ? {isReturn: true, carrier: ret.carrier || '', track: String(ret.track || '').trim().slice(0, 60), comment: String(ret.comment || '').slice(0, 500),
+      returnCode: String(ret.returnCode || '').trim().slice(0, 60), pickupAddress: String(ret.pickupAddress || '').trim().slice(0, 300)} : {}));
   return id;
 }
 async function addIncomingLine(receiptId, modelId, sizeId, qty, buyPrice){
@@ -42,7 +43,7 @@ async function submitReturn(o){
     if(o.photo) photo = await compressImage(o.photo);
   }catch(e){ barcode = null; }
   if((o.barcode && !barcode) || (o.photo && !photo)) return {ok:false, error:'Не получилось открыть картинку — сохраните её как JPEG или PNG'};
-  const id = await newIncoming({carrier: o.carrier, track: o.track, comment: o.comment});
+  const id = await newIncoming({carrier: o.carrier, track: o.track, comment: o.comment, returnCode: o.returnCode, pickupAddress: o.pickupAddress});
   const supplierId = Sync.mySupplierId();
   if(barcode) await addPhoto({supplierId, kind:'штрихкод', receiptId:id}, barcode, true);
   if(photo) await addPhoto({supplierId, kind:'заказ', receiptId:id}, photo, true);
@@ -66,6 +67,8 @@ async function returnCard(r, head, tools){
   return `<div class="card ret-card" data-expected="${escapeAttr(r.id)}"><div class="rname sh-head"><span class="sh-carrier">${escapeHtml(r.carrier || 'Возврат')}</span><span class="sh-status st-new">${head}</span></div>
     <div class="rmeta">${when}${r.comment ? ' · ' + escapeHtml(r.comment) : ''}</div>
     ${r.track ? '<div class="rmeta sh-track">Трек: <b data-track>' + trackHtml(r.track) + '</b></div>' : ''}
+    ${r.returnCode ? '<div class="rmeta">Код на возврат: <b>' + escapeHtml(r.returnCode) + '</b></div>' : ''}
+    ${r.pickupAddress ? '<div class="rmeta">Пункт выдачи: ' + escapeHtml(r.pickupAddress) + '</div>' : ''}
     ${phs.length ? '<div class="ph-row">' + phs.join('') + '</div>' : ''}<div class="rc-lines">${rows.join('')}</div>${tools}</div>`;
 }
 async function retCancel(id){
@@ -128,11 +131,17 @@ async function renderExpected(){
   // возвраты от поставщиков: штрихкод на виду — по нему забирают в пункте выдачи
   const rets = [];
   for(const r of (await returnsOnTheWay()).filter(r=> !supF || r.supplierId === supF))
-    rets.push(await returnCard(r, escapeHtml((sups[r.supplierId] || {}).name || ''), `<button class="btn primary" style="margin-top:8px;" data-accept="${escapeAttr(r.id)}" onclick="rcAcceptExpected(${jsArg(r.id)})">Принять возврат</button>`));
+    rets.push(await returnCard(r, escapeHtml((sups[r.supplierId] || {}).name || ''), `<label class="check-row ret-got"><input type="checkbox" data-accept="${escapeAttr(r.id)}" onchange="retGot(${jsArg(r.id)})"><span>Забрал — всё в порядке</span></label>`));
   // заголовок — над карточкой; в строке только поставщик и сколько штук
   box.innerHTML = (rets.length ? '<div class="exp-title">Ожидается возврат</div>' + rets.join('') : '') +
     (parts.length ? `<div class="exp-title">Ожидается поставка</div><div class="card">${parts.join('')}</div>` : '');
   if(rets.length) fillPhotoThumbs(box);
+}
+/* Склад забрал возврат в пункте выдачи — галочка (FoG, 05.11.2026): возврат уходит в «Приёмку» на раскладку. */
+async function retGot(id){
+  if(!(await acceptExpected(id))) return;
+  toast('Возврат забран — разложите его в «Приёмке»');
+  await renderExpected();
 }
 async function rcAcceptExpected(id){
   const rid = await acceptExpected(id);

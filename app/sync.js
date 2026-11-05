@@ -281,9 +281,11 @@
     receipts: {
       table:'receipts', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
       toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind || 'приёмка', weight_kg:x.weightKg == null ? null : num(x.weightKg), status:x.status || 'черновик', created_ts:num(x.createdTs),
-        fee:x.fee == null ? null : num(x.fee), is_return:!!x.isReturn, carrier:x.carrier || '', track:x.track || '', comment:x.comment || ''}, tail(x, ws)),
+        fee:x.fee == null ? null : num(x.fee), is_return:!!x.isReturn, carrier:x.carrier || '', track:x.track || '', comment:x.comment || '',
+        return_code:x.returnCode || '', pickup_address:x.pickupAddress || ''}, tail(x, ws)),
       toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, weightKg:r.weight_kg, status:r.status, createdTs:num(r.created_ts), fee:r.fee == null ? null : num(r.fee),
-        isReturn:!!r.is_return, carrier:r.carrier || '', track:r.track || '', comment:r.comment || ''}, base(r))
+        isReturn:!!r.is_return, carrier:r.carrier || '', track:r.track || '', comment:r.comment || '',
+        returnCode:r.return_code || '', pickupAddress:r.pickup_address || ''}, base(r))
     },
     receiptLines: {
       /* поставщик читает строки через представление без плана раскладки и не шлёт план (этап 2) */

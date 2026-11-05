@@ -275,6 +275,7 @@ async function sellStart(mode){
   sellSetMode(false);
   document.getElementById('sellSearch').value = '';
   document.getElementById('sellComment').value = '';
+  document.getElementById('sellRetCode').value = ''; document.getElementById('sellRetAddr').value = '';
   document.getElementById('sellPrice').value = ''; document.getElementById('sellQty').value = '1';
   document.getElementById('sellBarcode').value = ''; document.getElementById('sellPhoto').value = '';
   const c = document.getElementById('sellCarrier');
@@ -290,6 +291,7 @@ function sellSetMode(edit){
   document.getElementById('sellPriceBox').style.display = ret ? 'none' : '';
   document.getElementById('sellAddText').textContent = ret ? 'Ещё товар в этот возврат' : 'Ещё товар в этот заказ';
   document.getElementById('sellComment').placeholder = ret ? 'Комментарий: причина возврата' : 'Комментарий: номер заказа, адрес';
+  document.getElementById('sellRetBox').hidden = !ret;
 }
 
 /* --- изменить заказ (карандаш) ---
@@ -445,7 +447,8 @@ async function sellSend(){
   const btn = document.getElementById('sellSend'); btn.disabled = true;
   try{
     if(sell.detecting) await sell.detecting;   // скриншот ещё читается — дождёмся трека
-    const o = {lines, carrier: document.getElementById('sellCarrier').value, track: document.getElementById('sellTrack').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo};
+    const o = {lines, carrier: document.getElementById('sellCarrier').value, track: document.getElementById('sellTrack').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo,
+      returnCode: document.getElementById('sellRetCode').value, pickupAddress: document.getElementById('sellRetAddr').value};
     const r = sellIsReturn() ? await submitReturn(o) : sell.editId ? await replaceSale(sell.editId, o) : await submitSale(o);
     if(!r.ok){ err.textContent = r.error; return; }
     closeSell(); toast(sellIsReturn() ? 'Возврат отправлен складу' : sell.editId ? 'Заказ изменён — склад видит новый вариант' : 'Заказ отправлен складу');

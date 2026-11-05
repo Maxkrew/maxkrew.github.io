@@ -185,6 +185,28 @@ async function ffShipmentRejected(store, row, msg){
 }
 
 /* ---------------- экран «Отправки» ---------------- */
+/* Трек для сравнения и поиска: без пробелов и чёрточек, заглавными. */
+const trackKey = t=> String(t || '').replace(/[\s-]/g, '').toUpperCase();
+/* Дубли (FoG, 05.11.2026): живые заказы с одним треком — один и тот же заказ скинули дважды. */
+let shDupKeys = new Set();
+function shFindDups(list){
+  const seen = new Map();
+  for(const s of list){ const k = trackKey(s.track); if(k) seen.set(k, (seen.get(k) || 0) + 1); }
+  shDupKeys = new Set([...seen].filter(([, n])=> n > 1).map(([k])=> k));
+}
+const shIsDup = s=> shDupKeys.has(trackKey(s.track));
+/* Поиск в «Отправках»: трек (пробелы не важны), товар, комментарий. */
+async function shMatches(list, q){
+  q = String(q || '').trim().toLowerCase();
+  if(!q) return list;
+  const models = await modelsMap(), labels = Object.fromEntries((await getAll('sizes')).map(s=> [s.id, s.sizeLabel]));
+  const linesBy = {};
+  for(const l of await getAll('shipmentLines')) if(!l.deletedAt) (linesBy[l.shipmentId] || (linesBy[l.shipmentId] = [])).push(l);
+  const tq = trackKey(q);
+  return list.filter(s=> (tq && trackKey(s.track).includes(tq)) || String(s.comment || '').toLowerCase().includes(q)
+    || (linesBy[s.id] || []).some(l=> (modelName(models[l.modelId] || {}) + ' ' + sizeText(labels[l.sizeId] || '')).toLowerCase().includes(q)));
+}
+const SH_RECENT = 100;   // поставщик видит последние 100 заказов (FoG, 05.11.2026)
 async function renderShipments(){
   const box = document.getElementById('shipmentsBox');
   if(!box) return;
@@ -192,12 +214,14 @@ async function renderShipments(){
   if(!sup) await assignCellsForOrders();
   const sups = Object.values(await ffSuppliersMap()).filter(s=> !s.deletedAt && !s.archived).sort((a, b)=> String(a.name).localeCompare(String(b.name), 'ru'));
   const list = (await getAll('shipments')).filter(s=> !s.deletedAt && s.status !== 'отменена' && (!sup || s.supplierId === Sync.mySupplierId())).sort((a, b)=> b.createdTs - a.createdTs);
+  shFindDups(list);
   const open = list.filter(s=> s.status !== 'собрана');
-  const done = list.filter(s=> s.status === 'собрана').slice(0, 10);
+  const done = list.filter(s=> s.status === 'собрана').slice(0, sup ? SH_RECENT : 10);
+  const q = (document.getElementById('shSearch') || {}).value || '';
   const parts = [];
   // «В работе» / «История» (js/archive.js) — история отправок и возвратов, ничего не пропадает
   parts.push(`<div class="as-chips sh-view"><button type="button" class="as-chip${shView === 'work' ? ' on' : ''}" data-sh-view="work" onclick="shSetView('work')">В работе</button><button type="button" class="as-chip${shView === 'history' ? ' on' : ''}" data-sh-view="history" onclick="shSetView('history')">История</button></div>`);
-  if(shView === 'history'){ parts.push(await renderArchive()); box.innerHTML = parts.join(''); return; }
+  if(shView === 'history'){ parts.push(await renderArchive()); box.innerHTML = parts.join(''); if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box); return; }
   if(!sup && typeof renderReviewBlock === 'function') parts.push(await renderReviewBlock());
   // поставщик заказывает через «Продал» (служба, скриншот, комментарий — там)
   if(sup) parts.push(`<div class="sh-sup-btns"><button class="btn primary sh-sell" id="shStart" onclick="shStart()"><svg class="icon"><use href="#i-out"/></svg>Продал — новый заказ</button>
@@ -214,6 +238,16 @@ async function renderShipments(){
   // поставщик: возвраты, которые едут на склад (js/incoming.js)
   if(sup) for(const r of await returnsOnTheWay()) parts.push(await returnCard(r, 'Возврат едет на склад',
     `<button class="btn ghost danger-text" style="margin-top:8px;" data-ret-cancel="${escapeAttr(r.id)}" onclick="retCancel(${jsArg(r.id)})">Отменить возврат</button>`));
+  parts.push(`<input type="search" id="shSearch" class="sh-search" placeholder="Поиск: трек-номер, товар, комментарий" value="${escapeAttr(q)}" oninput="arRefresh()">`);
+  // поиск — по всем живым заказам, и собранным тоже
+  if(q.trim()){
+    const hits = (await shMatches(list, q)).slice(0, SH_RECENT);
+    for(const s of hits) parts.push(await shipmentCard(s, s.status !== 'собрана'));
+    if(!hits.length) parts.push('<div class="hint">Ничего не найдено</div>');
+    box.innerHTML = parts.join(''); wireFFScanInputs();
+    if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);
+    return;
+  }
   // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
   if(!sup) parts.push(await assemblyHeader(open, list));
   if(!sup && typeof statsCard === 'function') parts.push(await statsCard(shFilter));   // статистика и начисления за период
@@ -229,7 +263,7 @@ async function renderShipments(){
   const today = sup ? [] : await shCollectedToday(list.filter(s=> !shFilter || s.supplierId === shFilter));
   let recent = byCarrier(today.length ? today : done.filter(s=> sup || !shFilter || s.supplierId === shFilter));
   if(!sup && shModelFilter){ const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && l.modelId === shModelFilter).map(l=> l.shipmentId)); recent = recent.filter(s=> has.has(s.id)); }
-  if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + recent.length : 'Собраны недавно') + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
+  if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + recent.length : (sup ? 'Последние заказы · ' + recent.length : 'Собраны недавно')) + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
   // экран перерисовывается и после обмена — не теряем то, что склад уже ввёл в новую отправку
   const keep = ['shSupplier', 'shCarrier', 'shTrack', 'shComment'].map(id=> [id, (document.getElementById(id) || {}).value]);
   box.innerHTML = parts.join('');
@@ -293,7 +327,7 @@ async function shipmentCard(s, editable){
   const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);
   const bigBtn = canCollect && !shSelectMode ? `<button class="btn primary as-collect" data-collect="${escapeAttr(s.id)}" onclick="shCollect(${jsArg(s.id)})"><svg class="icon"><use href="#i-check"/></svg>Собран</button>` : '';
   const selBox = !sup && editable && shSelectMode && canCollect ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
-  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${s.status === 'новая' ? 'забронировано' : escapeHtml(s.status)}</span></div>
+  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${s.deletedAt ? 'удалена' : s.status === 'новая' ? 'забронировано' : escapeHtml(s.status)}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}</div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
     ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>${bcBtn}`}</div>` : ''}
     ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;

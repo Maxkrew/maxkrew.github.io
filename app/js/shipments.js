@@ -321,7 +321,10 @@ async function shipmentCard(s, editable){
   const doneTools = !sup && s.status === 'собрана' ? `<div class="sh-tools"><button type="button" class="icon-btn sh-edit-btn" data-reopen="${escapeAttr(s.id)}" onclick="shReopen(${jsArg(s.id)})" aria-label="Вернуть в работу"><svg class="icon"><use href="#i-edit"/></svg></button>${s.createdBy !== 'supplier' ? `<button type="button" class="icon-btn sh-del-btn" data-sh-del="${escapeAttr(s.id)}" onclick="shDeleteDone(${jsArg(s.id)})" aria-label="Удалить отправку"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div>` : '';
   const pencil = sup && typeof shipmentEditable === 'function' && await shipmentEditable(s)
     ? `<button type="button" class="icon-btn sh-edit" data-edit="${escapeAttr(s.id)}" onclick="sellEditStart(${jsArg(s.id)})" aria-label="Изменить заказ"><svg class="icon"><use href="#i-edit"/></svg></button>` : '';
-  const time = s.createdTs ? new Date(s.createdTs).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}) : '';
+  // дата и время заказа: «5 ноября, 14:38» (год — только если не этот)
+  const cd = s.createdTs ? new Date(s.createdTs) : null;
+  const time = cd ? cd.toLocaleDateString('ru-RU', cd.getFullYear() === new Date().getFullYear() ? {day: 'numeric', month: 'long'} : {day: 'numeric', month: 'long', year: 'numeric'}).replace(' г.', '')
+    + ', ' + cd.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}) : '';
   const meta = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', time ? '🕒 ' + time : '', escapeHtml(s.comment || '')].filter(Boolean).join(' · ');
   // склад: большая кнопка «Собран» и галочка выбора (сборка)
   const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);

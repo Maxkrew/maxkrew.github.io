@@ -4,6 +4,7 @@
 let shFilter = '';                 // поставщик в фильтре; '' — все
 let shSelectMode = false;          // режим «Выбрать»
 let shModelFilter = '';            // товар в фильтре; '' — все
+let shVisible = [];                // заказы, которые сейчас на экране (с учётом фильтров)
 let shCarrierFilter = '';          // служба в фильтре; '' — все
 const shSelected = new Set();
 
@@ -32,8 +33,12 @@ async function assemblyHeader(open, all){
   const mine = list=> list.filter(s=> (!shFilter || s.supplierId === shFilter) && (!shCarrierFilter || s.carrier === shCarrierFilter));
   const left = mine(open).length, done = (await shCollectedToday(mine(all))).length, total = left + done;
   const pct = total ? Math.round(done / total * 100) : 0;
+  const dis = shSelected.size ? '' : ' disabled', allOn = shVisible.length && shVisible.every(id=> shSelected.has(id));
   const selBar = shSelectMode ? `<div class="as-selbar"><span>Выбрано: <b>${shSelected.size}</b></span>
-      <button class="btn primary" style="width:auto;" id="asCollectSel" onclick="shCollectSelected()"${shSelected.size ? '' : ' disabled'}>Собрать выбранные</button></div>` : '';
+      <div class="as-selbtns"><button class="btn ghost sm" style="width:auto;" id="asSelectAll" onclick="shSelectAll()">${allOn ? 'Снять все' : 'Выбрать все'}</button>
+      <button class="btn ghost sm" style="width:auto;" id="asPrintSel" onclick="shPrintSelected()"${dis}>🖨 Печать</button>
+      <button class="btn ghost sm" style="width:auto;" id="asSaveSel" onclick="shSaveBarcodes()"${dis}>В галерею</button>
+      <button class="btn primary" style="width:auto;" id="asCollectSel" onclick="shCollectSelected()"${dis}>Собрать выбранные</button></div></div>` : '';
   // фильтр по службе — службы, у которых есть несобранные заказы (с учётом поставщика)
   const inSup = open.filter(s=> !shFilter || s.supplierId === shFilter), byCarrier = {};
   for(const s of inSup) byCarrier[s.carrier] = (byCarrier[s.carrier] || 0) + 1;
@@ -59,8 +64,80 @@ async function shSetCarrier(id){ shCarrierFilter = id; await renderShipments(); 
 async function shToggleSelect(){ shSelectMode = !shSelectMode; shSelected.clear(); await renderShipments(); }
 async function shSelectOne(id, on){
   if(on) shSelected.add(id); else shSelected.delete(id);
-  const b = document.getElementById('asCollectSel'); if(b) b.disabled = !shSelected.size;
+  shSelBarSync();
+}
+function shSelBarSync(){
+  for(const id of ['asCollectSel', 'asPrintSel', 'asSaveSel']){ const b = document.getElementById(id); if(b) b.disabled = !shSelected.size; }
   const n = document.querySelector('.as-selbar b'); if(n) n.textContent = shSelected.size;
+  const a = document.getElementById('asSelectAll'); if(a) a.textContent = shVisible.length && shVisible.every(id=> shSelected.has(id)) ? 'Снять все' : 'Выбрать все';
+  document.querySelectorAll('input[data-select]').forEach(c=> { c.checked = shSelected.has(c.dataset.select); });
+}
+/* «Выбрать все заказы» — те, что сейчас на экране: фильтры по поставщику, службе и товару действуют (FoG, 17.11.2026) */
+function shSelectAll(){
+  if(shVisible.length && shVisible.every(id=> shSelected.has(id))) shVisible.forEach(id=> shSelected.delete(id));
+  else shVisible.forEach(id=> shSelected.add(id));
+  shSelBarSync();
+}
+
+/* Скриншоты штрихкодов выбранных заказов: [{shipment, photos:[blob-url]}] */
+async function shBarcodeSheets(ids){
+  const sups = await ffSuppliersMap(), models = await modelsMap(), out = [];
+  for(const id of ids){
+    const s = await get('shipments', id); if(!s || s.deletedAt) continue;
+    const imgs = [];
+    for(const p of await shipmentPhotos(id)) if(p.kind === 'штрихкод'){ const u = await photoUrl(p.id); if(u) imgs.push({id: p.id, url: u}); }
+    const items = [];
+    for(const l of await shipmentLines(id)) items.push(modelName(models[l.modelId] || {}) + ' ' + sizeText(((await get('sizes', l.sizeId)) || {}).sizeLabel || '') + ' × ' + l.qty);
+    out.push({shipment: s, supplier: (sups[s.supplierId] || {}).name || '', imgs, items});
+  }
+  return out;
+}
+/* «Печать»: все выбранные заказы — по странице на заказ: штрихкод крупно, под ним служба, трек, что внутри. */
+async function shPrintSelected(){
+  const ids = [...shSelected];
+  if(!ids.length){ toast('Сначала выберите заказы'); return; }
+  const sheets = await shBarcodeSheets(ids), withCode = sheets.filter(x=> x.imgs.length);
+  if(!withCode.length){ toast('У выбранных заказов нет скриншота штрихкода'); return; }
+  const old = document.getElementById('printSheet'); if(old) old.remove();
+  const el = document.createElement('div'); el.id = 'printSheet';
+  el.innerHTML = withCode.map(x=> `<section class="ps-page" data-print-shipment="${escapeAttr(x.shipment.id)}">
+      ${x.imgs.map(i=> `<img src="${escapeAttr(i.url)}" alt="Штрихкод">`).join('')}
+      <div class="ps-meta"><b>${escapeHtml(x.shipment.carrier || '')}</b>${x.supplier ? ' · ' + escapeHtml(x.supplier) : ''}${x.shipment.track ? '<br>Трек: ' + escapeHtml(x.shipment.track) : ''}<br>${x.items.map(escapeHtml).join('<br>')}</div></section>`).join('');
+  document.body.appendChild(el);
+  await Promise.all([...el.querySelectorAll('img')].map(i=> i.complete ? 0 : new Promise(res=> { i.onload = i.onerror = res; setTimeout(res, 4000); })));
+  const skipped = sheets.length - withCode.length;
+  if(skipped) toast('Без штрихкода пропущено: ' + skipped);
+  const done = ()=> { const p = document.getElementById('printSheet'); if(p) p.remove(); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  try{ window.print(); }catch(e){ toast('Печать недоступна на этом устройстве — используйте «В галерею»'); done(); }
+  return {pages: withCode.length, skipped};
+}
+/* «В галерею»: картинки штрихкодов выбранных заказов — в «Поделиться» телефона («Сохранить изображения»); нет — скачиваются. */
+async function shBarcodeFiles(ids){
+  const files = [];
+  for(const x of await shBarcodeSheets(ids)){
+    let k = 0;
+    for(const i of x.imgs){
+      try{
+        const blob = await (await fetch(i.url)).blob();
+        const name = (String(x.shipment.carrier || 'заказ') + '-' + (x.shipment.track || x.shipment.id.slice(0, 6)) + (x.imgs.length > 1 ? '-' + (++k) : '')).replace(/[^0-9A-Za-zА-Яа-я_-]+/g, '_') + '.jpg';
+        files.push(new File([blob], name, {type: blob.type || 'image/jpeg'}));
+      }catch(e){}
+    }
+  }
+  return files;
+}
+async function shSaveBarcodes(){
+  const ids = [...shSelected];
+  if(!ids.length){ toast('Сначала выберите заказы'); return; }
+  const files = await shBarcodeFiles(ids);
+  if(!files.length){ toast('У выбранных заказов нет скриншота штрихкода'); return; }
+  try{
+    if(navigator.canShare && navigator.canShare({files})){ await navigator.share({files}); toast('Выберите «Сохранить изображения» — штрихкоды лягут в галерею'); return files.length; }
+  }catch(e){ if(e && e.name === 'AbortError') return 0; }
+  for(const f of files){ const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); await new Promise(r=> setTimeout(r, 250)); }
+  toast('Скачано штрихкодов: ' + files.length);
+  return files.length;
 }
 /* «Собран»: отметить все строки отправки. Строке без ячейки (товара не хватает) — нельзя. */
 async function shCollectAll(id){

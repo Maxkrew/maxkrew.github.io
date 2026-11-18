@@ -89,21 +89,103 @@ async function correctStock(o){
     type: 'Корректировка', qty: Math.abs(delta), delta});
   return {ok:true, uid: op.uid, delta};
 }
-/* «Все ячейки»: уменьшить — снимаем из ячеек, где лежит размер (сначала пол, потом менее
-   заполненные); чего нет ни в одной ячейке — без ячейки. Добавить — только в выбранную ячейку. */
-async function correctAllCells(size, want, now){
-  const delta = want - now;
-  if(!delta) return {ok:true, unchanged:true};
-  const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
-  if(delta > 0){
-    if(cells.some(c=> !isDefectCell(c) && c.modelId === size.modelId)) return {ok:false, error:'Чтобы добавить штуки, выберите ячейку, куда их положили'};
-    await ffLogOp({supplierId: size.supplierId, modelId: size.modelId, sizeId: size.id, cellNumber: null, type: 'Корректировка', qty: delta, delta});
-    return {ok:true, delta};
+/* Остаток размера по «местам»: {'' — без ячейки, '5' — ячейка 5, 'П1' — пол}.
+   defect = true — только брак, иначе только «можно продать». */
+async function ffSizeBuckets(sizeId, defect){
+  const out = {};
+  for(const op of await opsBy('bySize', sizeId)){
+    if(!ffLive(op) || !!op.defect !== !!defect) continue;
+    const k = op.cellNumber || '';
+    out[k] = (out[k] || 0) + (Number(op.delta) || 0);
   }
+  return out;
+}
+
+/* «Все ячейки»: newQty — сколько всего должно остаться. Минусы (пол, «без ячейки», ячейка в
+   минусе) гасятся плюсом на том же месте, а убирается он из тех, где товар есть (сначала пол,
+   потом менее заполненные) — общая сумма получается ровно newQty, минусов не остаётся.
+   Добавить штуки сверх лежащего можно только в выбранную ячейку, если у модели есть ячейки
+   (FoG, 17.11.2026: «все ячейки» не давали поменять минус на 0). */
+async function correctAllCells(size, want, now){
+  const buckets = await ffSizeBuckets(size.id);
+  const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
+  const liveNum = new Set(cells.map(c=> c.number));
+  const negs = Object.entries(buckets).filter(([, q])=> q < 0);
+  const posTotal = Object.values(buckets).reduce((s, q)=> s + (q > 0 ? q : 0), 0);
+  if(want === now && !negs.length) return {ok:true, unchanged:true};
+  const add = want - posTotal;                       // сколько не хватает сверх лежащего
+  if(add > 0 && cells.some(c=> !isDefectCell(c) && c.modelId === size.modelId))
+    return {ok:false, error:'Чтобы добавить штуки, выберите ячейку, куда их положили'};
   const common = {supplierId: size.supplierId, modelId: size.modelId, sizeId: size.id, type: 'Корректировка'};
-  for(const p of planPick({sizeId: size.id, qty: -delta}, cells, await ffCellStockMap()))
-    await ffLogOp(Object.assign({cellNumber: p.cell, qty: p.qty, delta: -p.qty}, common));
-  return {ok:true, delta};
+  // 1) лишнее убираем оттуда, где товар есть
+  if(add < 0){
+    for(const p of planPick({sizeId: size.id, qty: -add}, cells, await ffCellStockMap()))
+      await ffLogOp(Object.assign({cellNumber: p.cell, qty: p.qty, delta: -p.qty}, common));
+  }
+  // 2) каждый минус гасим плюсом на том же месте (удалённой ячейки нет — без ячейки)
+  for(const [k, q] of negs)
+    await ffLogOp(Object.assign({cellNumber: (k && liveNum.has(k)) ? k : null, qty: -q, delta: -q}, common));
+  // 3) не хватало — кладём (у модели нет ячеек)
+  if(add > 0) await ffLogOp(Object.assign({cellNumber: null, qty: add, delta: add}, common));
+  return {ok:true, delta: want - now};
+}
+
+/* «Обнулить склад поставщика» (FoG, 17.11.2026): отправки, приёмки и история остаются, наличие
+   каждого размера — и «можно продать», и брак, и минусы — по всем местам уходит в 0 корректировками
+   (видно в «Истории»). Освободившиеся ячейки очищаются. */
+async function clearSupplierStock(supplierId){
+  if(ffRole() !== 'owner') return {ok:false, error:'Только склад'};
+  const sizes = (await getAll('sizes')).filter(s=> s.supplierId === supplierId && !s.deletedAt);
+  const live = new Set((await getAll('cells')).filter(c=> !c.deletedAt).map(c=> c.number));
+  let pieces = 0, rows = 0;
+  const touched = new Set();
+  for(const s of sizes) for(const defect of [false, true]){
+    for(const [k, q] of Object.entries(await ffSizeBuckets(s.id, defect))){
+      if(!q) continue;
+      await ffLogOp({supplierId, modelId: s.modelId, sizeId: s.id, cellNumber: (k && live.has(k)) ? k : null,
+        type: 'Корректировка', qty: Math.abs(q), delta: -q, defect});
+      rows++; if(q > 0) pieces += q;
+      if(k) touched.add(k);
+    }
+  }
+  // несобранные строки отправок, бравшие из ячеек: «откуда взять» подберётся заново
+  const mine = new Set((await getAll('shipments')).filter(x=> !x.deletedAt && x.supplierId === supplierId).map(x=> x.id));
+  for(const l of (await getAll('shipmentLines')).filter(l=> !l.deletedAt && !l.collected && l.cellNumber && mine.has(l.shipmentId))){
+    l.cellNumber = null; await put('shipmentLines', l);
+  }
+  await ffFreeEmptyCells(touched);
+  return {ok:true, pieces, rows};
+}
+
+/* Ячейка, где стало 0, сама очищается и готова принять другой или тот же товар (FoG, 17.11.2026).
+   Не трогаем: пол, ячейки брака, «бронь» (её ставит сам хозяин) и ячейки, куда ещё не положили
+   по открытой приёмке. Смотрим только ячейки из onlyCells (где остаток только что ушёл), иначе —
+   ячейку, закреплённую вручную и ещё не заполненную, чистить нельзя. */
+async function ffFreeEmptyCells(onlyCells){
+  if(ffRole() !== 'owner') return 0;
+  const planned = new Set();
+  const openReceipts = new Set((await getAll('receipts')).filter(r=> !r.deletedAt && r.status !== 'разложено').map(r=> r.id));
+  for(const l of (await getAll('receiptLines')).filter(l=> !l.deletedAt && openReceipts.has(l.receiptId)))
+    for(const st of (l.plan || [])) if(st.cell && !(await stepIsDone(st))) planned.add(st.cell);
+  const byCell = (await ffStockIndex()).byCell;
+  let n = 0;
+  for(const c of (await getAll('cells'))){
+    if(onlyCells && !onlyCells.has(c.number)) continue;
+    if(c.deletedAt || !c.modelId || c.reserved || isFloorCell(c) || isDefectCell(c) || planned.has(c.number)) continue;
+    if(Object.values(byCell[c.number] || {}).some(q=> q)) continue;
+    c.modelId = null; c.allowedSizes = null;
+    await put('cells', c); n++;
+  }
+  return n;
+}
+let ffFreeTimer = null; const ffFreeCells = new Set();
+function ffScheduleFree(cellNumber){
+  if(cellNumber) ffFreeCells.add(cellNumber);
+  if(ffFreeTimer) return;
+  ffFreeTimer = setTimeout(async ()=>{
+    ffFreeTimer = null; const only = new Set(ffFreeCells); ffFreeCells.clear();
+    try{ if(await ffFreeEmptyCells(only) && typeof renderCells === 'function') renderCells(); }catch(e){}
+  }, 700);
 }
 
 /* Переложить qty шт. размера из ячейки в ячейку (только склад). Из ячейки брака в обычную —

@@ -253,16 +253,54 @@ async function sellSetBarcode(file){
     const track = trackFromCode(code), el = document.getElementById('sellTrack');
     if(track && (!el.value.trim() || sell.trackAuto)){ el.value = track; sell.trackAuto = true; }
     const carrier = carrierByTrack(el.value);
-    if(carrier) document.getElementById('sellCarrier').value = carrier;
+    if(carrier){ document.getElementById('sellCarrier').value = carrier; sellRetPointsFill(); }
     sellSetDetect(barcodeDetectText(track && el.value, carrier));
   })();
   await sellRender();
   await job;
 }
+/* Пункты выдачи возвратов (список ведёт склад в «Настройках»): поставщик выбирает, где лежит возврат
+   (FoG, 17.11.2026: у склада 2 пункта Авито и 2 Яндекса). Нет списка — адрес пишут руками, как раньше. */
+const pickupPointsList = ()=> (window.settings && Array.isArray(settings.pickupPoints) ? settings.pickupPoints : []).map(x=> String(x || '').trim()).filter(Boolean);
+function sellRetPointsFill(){
+  const pts = pickupPointsList(), box = document.getElementById('sellRetPointBox'), sel = document.getElementById('sellRetPoint'), carrier = (document.getElementById('sellCarrier') || {}).value || '';
+  if(!box || !sel) return;
+  const key = String(carrier).split(/[\s(]/)[0].toLowerCase();
+  const mine = pts.filter(p=> key && p.toLowerCase().includes(key)), rest = pts.filter(p=> !mine.includes(p));
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— выберите пункт —</option>' + mine.concat(rest).map(p=> `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('') + '<option value="__other">Другой адрес…</option>';
+  sel.value = [...sel.options].some(o=> o.value === prev) ? prev : (mine.length === 1 ? mine[0] : '');
+  box.hidden = !pts.length;
+  sellRetPointChange();
+}
+function sellRetPointChange(){
+  const sel = document.getElementById('sellRetPoint'), pts = pickupPointsList();
+  document.getElementById('sellRetAddrBox').hidden = !!pts.length && !!sel && sel.value !== '__other';
+}
+function sellRetAddress(){
+  const sel = document.getElementById('sellRetPoint');
+  if(pickupPointsList().length){
+    // список пунктов есть: адрес — выбранный пункт или, только при «Другой адрес…», вписанный руками (скрытое поле не в счёт)
+    if(!sel || !sel.value) return '';
+    return sel.value === '__other' ? document.getElementById('sellRetAddr').value : sel.value;
+  }
+  return document.getElementById('sellRetAddr').value;
+}
+function renderPickupPointsCard(){
+  const card = document.getElementById('pickupPointsCard'); if(!card) return;
+  card.hidden = !(window.Sync && Sync.role && Sync.role() === 'owner');
+  const t = document.getElementById('setPickupPoints'); if(t) t.value = pickupPointsList().join('\n');
+}
+async function savePickupPoints(){
+  settings.pickupPoints = String(document.getElementById('setPickupPoints').value || '').split('\n').map(x=> x.trim()).filter(Boolean).slice(0, 40);
+  await saveAppSettings();
+  toast(settings.pickupPoints.length ? 'Пунктов выдачи: ' + settings.pickupPoints.length : 'Список пунктов пуст — адрес пишут руками');
+  try{ if(window.Sync && Sync.syncNow) Sync.syncNow('пункты выдачи'); }catch(e){}
+}
 function sellTrackInput(v){
   sell.trackAuto = false;
   const carrier = carrierByTrack(v);
-  if(carrier) document.getElementById('sellCarrier').value = carrier;
+  if(carrier){ document.getElementById('sellCarrier').value = carrier; sellRetPointsFill(); }
 }
 
 /* --- окно «Продал» --- */
@@ -280,6 +318,7 @@ async function sellStart(mode){
   document.getElementById('sellBarcode').value = ''; document.getElementById('sellPhoto').value = '';
   const c = document.getElementById('sellCarrier');
   c.innerHTML = carrierList().map(x=> `<option${x === SELL_AVITO ? ' selected' : ''}>${escapeHtml(x)}</option>`).join('');
+  sellRetPointsFill();
   document.getElementById('sellModalBg').classList.add('show');
   await sellRender();
 }
@@ -448,7 +487,8 @@ async function sellSend(){
   try{
     if(sell.detecting) await sell.detecting;   // скриншот ещё читается — дождёмся трека
     const o = {lines, carrier: document.getElementById('sellCarrier').value, track: document.getElementById('sellTrack').value, comment: document.getElementById('sellComment').value, barcode: sell.barcode, photo: sell.photo,
-      returnCode: document.getElementById('sellRetCode').value, pickupAddress: document.getElementById('sellRetAddr').value};
+      returnCode: document.getElementById('sellRetCode').value, pickupAddress: sellRetAddress()};
+    if(sellIsReturn() && pickupPointsList().length && !o.pickupAddress){ err.textContent = 'Выберите пункт выдачи, где лежит возврат'; return; }
     const r = sellIsReturn() ? await submitReturn(o) : sell.editId ? await replaceSale(sell.editId, o) : await submitSale(o);
     if(!r.ok){ err.textContent = r.error; return; }
     closeSell(); toast(sellIsReturn() ? 'Возврат отправлен складу' : sell.editId ? 'Заказ изменён — склад видит новый вариант' : 'Заказ отправлен складу');

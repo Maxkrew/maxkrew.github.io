@@ -59,7 +59,8 @@ async function renderCells(){
 /* Разметить ячейку. Возвращает {ok, warning?} или {ok:false, error}. */
 async function saveCell(form){
   const number = String(form.number || '').trim();
-  if(!/^[БП]?\d+(\.\d+)?$/.test(number)) return {ok:false, error:'Номер — число, например 4 или 4.1'};
+  // дробных номеров (4.1) больше нет; старые, что уже есть, править можно
+  if(!/^[БП]?\d+$/.test(number) && !(/^[БП]?\d+\.\d+$/.test(number) && await get('cells', number))) return {ok:false, error:'Номер — целое число, например 4'};
   const models = await modelsMap(), sups = await ffSuppliersMap();
   const m = form.modelId ? models[form.modelId] : null;
   if(form.modelId && !m) return {ok:false, error:'Модель не найдена'};
@@ -97,16 +98,6 @@ async function cellAction(number, action){
   return {ok:true};
 }
 
-/* Под-ячейка рядом (4 → 4.1 → 4.2): тот же поставщик и модель. */
-async function createSubCell(number){
-  const c = await get('cells', number);
-  if(!c || c.deletedAt) return {ok:false, error:'Нет такой ячейки'};
-  const all = (await getAll('cells')).filter(x=> !x.deletedAt).map(x=> x.number);
-  const n = nextSubCell(number, all);
-  await put('cells', {number: n, supplierId: c.supplierId, modelId: c.modelId, allowedSizes: null, capacity: c.capacity || null, reserved: false});
-  return {ok:true, number: n};
-}
-
 /* ---------------- окно ячейки ---------------- */
 let cmEditing = null;
 async function openCellModal(number){
@@ -124,7 +115,7 @@ async function openCellModal(number){
   document.getElementById('cmEmptyActions').hidden = !(c && !lying && c.modelId);
   // удалить и очистить можно и ячейку с товаром — товар спишется (владелец, 28.10.2026)
   document.getElementById('cmDelete').hidden = !c;
-  const clr = document.getElementById('cmClear'); clr.hidden = !(c && lying); clr.textContent = 'Очистить ячейку (списать ' + lying + ' шт.)';
+  const clr = document.getElementById('cmClear'); clr.hidden = !(c && lying); clr.textContent = lying < 0 ? 'Обнулить ячейку (убрать минус ' + lying + ' шт.)' : 'Очистить ячейку (списать ' + lying + ' шт.)';
   document.getElementById('cmDefect').checked = !!(c && isDefectCell(c));
   document.getElementById('cmWarn').hidden = true;
   document.getElementById('cmError').classList.remove('show');
@@ -166,12 +157,6 @@ async function cmAction(action){
   if(!r.ok){ toast(r.error); return; }
   closeCellModal(); toast(action === 'reserve' ? 'Ячейка ждёт этот товар' : action === 'delete' ? 'Ячейка удалена' : 'Ячейка свободна'); await renderCells();
 }
-async function cmSubCell(){
-  if(!cmEditing){ toast('Сначала сохраните ячейку'); return; }
-  const r = await createSubCell(cmEditing);
-  if(!r.ok){ toast(r.error); return; }
-  closeCellModal(); toast('Создана ячейка ' + r.number); await renderCells();
-}
 
 /* Очистить ячейку, даже если в ней товар (владелец, 28.10.2026): остаток каждого размера в ней
    уходит в ноль корректировкой (видно в «Истории»), ячейка освобождается (del — удаляется).
@@ -185,8 +170,10 @@ async function clearCell(number, del){
   let n = 0;
   for(const [sid, q] of Object.entries(by)){
     const s = sizes[sid]; if(!q || !s) continue;
-    await ffLogOp({supplierId: s.supplierId, modelId: s.modelId, sizeId: sid, cellNumber: q > 0 ? number : null,
-      type: 'Корректировка', qty: Math.abs(q), delta: -q, defect: q > 0 && isDefectCell(c)});
+    /* минус гасим плюсом В ЭТОЙ ЖЕ ячейке (иначе в ней остаётся минус, а «без ячейки» растёт);
+       только если ячейку сейчас удаляем — без ячейки: в удалённую класть нельзя */
+    await ffLogOp({supplierId: s.supplierId, modelId: s.modelId, sizeId: sid, cellNumber: (q > 0 || !del) ? number : null,
+      type: 'Корректировка', qty: Math.abs(q), delta: -q, defect: isDefectCell(c)});
     if(q > 0) n += q;
   }
   for(const l of (await getAll('shipmentLines')).filter(l=> !l.deletedAt && !l.collected && l.cellNumber === number)){
@@ -200,11 +187,20 @@ async function clearCell(number, del){
   await put('cells', c);
   return {ok:true, n, kept: !!(del && pending)};
 }
+/* Ждём сеть не дольше FF_SYNC_WAIT_MS (8 с): зависшая синхронизация не должна «подвешивать» кнопку
+   (FoG, 17.11.2026: «Удалить все» не реагировала). Не дождались — продолжаем, всё уйдёт позже. */
+function ffSoft(promiseFn){
+  const ms = window.FF_SYNC_WAIT_MS || 8000;
+  return Promise.race([
+    (async ()=>{ try{ return await promiseFn(); }catch(e){ return null; } })(),
+    new Promise(res=> setTimeout(()=> res(null), ms))
+  ]);
+}
 /* «Удалить все»: сначала резервная копия на сервере, потом все ячейки — с товаром в них. */
 async function clearAllCells(){
   let backup = false;
-  try{ if(window.Sync && Sync.takeSnapshot){ const r = await Sync.takeSnapshot('manual'); backup = !!(r && r.ok !== false); } }catch(e){}
-  try{ if(window.Sync && Sync.syncNow) await Sync.syncNow('перед удалением ячеек'); }catch(e){}   // сначала всё на сервер
+  if(window.Sync && Sync.takeSnapshot){ const r = await ffSoft(()=> Sync.takeSnapshot('manual')); backup = !!(r && r.ok !== false); }
+  if(window.Sync && Sync.syncNow) await ffSoft(()=> Sync.syncNow('перед удалением ячеек'));   // сначала всё на сервер
   let cells = 0, pieces = 0, kept = 0;
   for(const c of (await getAll('cells')).filter(c=> !c.deletedAt)){
     const r = await clearCell(c.number, true);
@@ -215,7 +211,7 @@ async function clearAllCells(){
 async function cmClear(del){
   const lying = cellTotal((await cellStockByLabel())[cmEditing]);
   if(!confirm((del ? 'Удалить ячейку ' : 'Очистить ячейку ') + cmEditing + '?' + (lying ? ' Товар в ней (' + lying + ' шт.) спишется со склада — это будет видно в «Истории».' : ''))) return;
-  if(del) try{ if(window.Sync && Sync.syncNow) await Sync.syncNow('перед удалением ячейки'); }catch(e){}
+  if(del && window.Sync && Sync.syncNow) await ffSoft(()=> Sync.syncNow('перед удалением ячейки'));
   const r = await clearCell(cmEditing, !!del);
   if(!r.ok){ toast(r.error); return; }
   closeCellModal(); toast((del && !r.kept ? 'Ячейка удалена' : (r.kept ? 'Нет связи — ячейка очищена, удалите её позже' : 'Ячейка очищена')) + (r.n ? ' · списано ' + r.n + ' шт.' : '')); await renderCells();

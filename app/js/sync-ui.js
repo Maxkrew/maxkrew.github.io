@@ -323,7 +323,7 @@ async function renderSection(name){
   if(name === 'tariffs') await call('renderTariffs');
   if(name === 'admin') await call('renderAdmin');
   if(name === 'history') await (typeof renderHistoryFF === 'function' ? renderHistoryFF() : call('renderHistory'));
-  if(name === 'settings'){ const os = document.getElementById('setOrderSound'); if(os) os.checked = !!settings.orderSound; renderStorageStatus(); renderSyncStatusBox(); renderSoundRows(); renderSnapshots(); if(typeof renderDemoCard === 'function') renderDemoCard(); }
+  if(name === 'settings'){ if(typeof renderPickupPointsCard === 'function') renderPickupPointsCard(); const os = document.getElementById('setOrderSound'); if(os) os.checked = !!settings.orderSound; renderStorageStatus(); renderSyncStatusBox(); renderSoundRows(); renderSnapshots(); if(typeof renderDemoCard === 'function') renderDemoCard(); }
 }
 
 function showSection(name, btn){

@@ -94,6 +94,29 @@ async function addPayment(supplierId, amount){
   await put('payments', {id, supplierId, amount: n, ts: Date.now(), note: ''});
   return {ok:true, id};
 }
+/* «Сбросить переплату» (FoG, 17.11.2026): оплат записано больше, чем начислено (после отката копии отправки
+   пропали, оплаты остались) — убираем лишнее, начиная с самых новых оплат; последняя может уменьшиться
+   частично. Сумма оплат в базе не бывает отрицательной, поэтому «минус» убирается так. */
+async function resetOverpayment(supplierId){
+  const b = await supplierBilling(supplierId);
+  if(!(b.debt < 0)) return {ok:true, removed: 0, cut: 0};
+  let need = -b.debt, removed = 0, cut = 0;
+  for(const p of b.payments){           // от новых к старым
+    if(need <= 0) break;
+    const a = Number(p.amount);
+    if(a <= need){ await removePayment(p.id); need = money2(need - a); removed++; }
+    else { p.amount = money2(a - need); await put('payments', p); need = 0; cut++; }
+  }
+  return {ok:true, removed, cut};
+}
+async function billResetOver(supplierId){
+  const b = await supplierBilling(supplierId);
+  if(!(b.debt < 0)){ toast('Переплаты нет'); return; }
+  if(!confirm('Сбросить переплату ' + fmtMoney(-b.debt) + '? Лишние записи об оплате (начиная с последних) уберутся, долг станет 0 ₽. Если переплата появилась из-за отката копии — лучше сначала вернуть копию «До отката» в «Настройках»: тогда долг посчитается как надо.')) return;
+  const r = await resetOverpayment(supplierId);
+  toast('Переплата сброшена' + (r.removed ? ' · убрано оплат: ' + r.removed : '') + (r.cut ? ' · одна оплата уменьшена' : ''));
+  await renderSuppliers();
+}
 async function removePayment(id){
   const p = await get('payments', id);
   if(p && !p.deletedAt){ p.deletedAt = Date.now(); await put('payments', p); }
@@ -127,7 +150,7 @@ async function billingSupplierBlock(s){
       <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-rate-edit="${escapeAttr(s.id)}" onclick="billRateForm(${jsArg(s.id)})">Изменить</button></div>
     <div id="billRate-${escapeAttr(s.id)}"></div>`;
   return `<div class="bill-box" data-bill="${escapeAttr(s.id)}">${rateLine}
-    <div class="sup-head"><div>Долг: <b class="bill-debt${b.debt > 0 ? ' neg' : ''}">${fmtMoney(b.debt)}</b></div>
+    <div class="sup-head"><div>${b.debt < 0 ? `Переплата: <b class="bill-debt ok" data-overpaid>${fmtMoney(-b.debt)}</b> <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-over-reset="${escapeAttr(s.id)}" onclick="billResetOver(${jsArg(s.id)})">Сбросить</button>` : `Долг: <b class="bill-debt${b.debt > 0 ? ' neg' : ''}">${fmtMoney(b.debt)}</b>`}</div>
       <button class="btn primary sm" style="width:auto;" data-pay="${escapeAttr(s.id)}" onclick="billPay(${jsArg(s.id)})">Оплачено</button></div>
     <div class="rmeta">Отправок ${b.shipN} — ${fmtMoney(b.shipSum)} · приёмка ${b.kg} кг — ${fmtMoney(b.rcSum)} · оплачено ${fmtMoney(b.paid)}</div>
     ${pays}</div>`;

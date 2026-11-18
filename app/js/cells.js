@@ -32,17 +32,6 @@ function sameItem(a, b){
    от 2 до 6 — зелёным, больше 6 — красным. */
 function stockTone(q){ q = Number(q) || 0; return q < 1 ? 'lvl-low' : (q > 4 ? 'lvl-high' : 'lvl-ok'); }
 
-/* Под-ячейка рядом: у «4» и у «4.1» соседняя — следующая свободная «4.N». */
-function nextSubCell(number, existing){
-  const base = String(number).split('.')[0];
-  let max = 0;
-  (existing || []).forEach(n=>{
-    const p = String(n).split('.');
-    if(p[0] === base && p.length === 2) max = Math.max(max, Number(p[1]) || 0);
-  });
-  return base + '.' + (max + 1);
-}
-
 const SIZE_RANK = { XXS:5, XS:10, S:20, M:30, L:40, XL:50, XXL:60, '2XL':60, XXXL:70, '3XL':70, XXXXL:80, '4XL':80, '5XL':90, '6XL':100 };
 /* Буквенные размеры по порядку, числовые (обувь) — по значению, всё прочее — в конец. */
 function sizeOrder(label){
@@ -78,16 +67,16 @@ function sizeAllowed(cell, sizeLabel){
   return cell.allowedSizes.some(s=> sizeKey(s) === k);
 }
 
-/* Куда положить строку «модель + размер + N шт.»:
+/* Куда положить строку «модель + размер + N шт.» (без дробных ячеек — FoG, 17.11.2026):
    1) ячейки этой модели (в т.ч. её бронь), где размер разрешён и есть место — по номеру;
       потом ячейки других цветов этого товара, где есть место;
-   2) у модели уже есть ячейки — излишек в новую под-ячейку рядом с ними (4 → 4.1):
-      так владелец и раскладывает («не помещается — создавай 4.1»);
-   3) модель новая — пустые ячейки поставщика без брони по номеру, с привязкой к модели,
-      а не хватило — под-ячейка рядом с последней из них (7 → 7.1, пример «Хром»). */
+   2) не хватило места (или модель новая) — пустые ячейки поставщика без брони по номеру, с привязкой
+      к модели (ячейка, где стало 0, сама очищается и снова попадает сюда);
+   3) пустых ячеек нет — остаток на пол поставщика ({cell:null, floor:true}: номер пола подставит
+      приёмка), потом его разложат кнопкой «Разложить остаток». */
 function planPlacement(line, cells, cellStock, models){
   const stock = cellStock || {};
-  // ячейка брака — не для годного товара (ни своя, ни пустая, ни как соседняя для под-ячейки)
+  // ячейка брака и пол — не для обычной раскладки
   const own = cells.filter(c=> c.supplierId === line.supplierId && !isDefectCell(c) && !isFloorCell(c)).sort((a,b)=> cmpCellNumber(a.number, b.number));
   const ofModel = own.filter(c=> c.modelId === line.modelId);
   const ofColors = own.filter(c=> c.modelId && c.modelId !== line.modelId && sameItem(models[line.modelId], models[c.modelId]));
@@ -102,24 +91,14 @@ function planPlacement(line, cells, cellStock, models){
     if(n > 0){ steps.push({cell: c.number, qty: n}); left -= n; }
   }
   const modelCap = (models[line.modelId] && models[line.modelId].capacity) || 7;
-  for(const c of (ofModel.length ? [] : empty)){
+  for(const c of empty){
     if(left <= 0) break;
     const n = Math.min(left, c.capacity ? Number(c.capacity) : modelCap);
     steps.push({cell: c.number, qty: n, bind: true}); left -= n;
   }
-  const all = cells.map(c=> c.number);
-  const created = [];
-  while(left > 0){
-    if(steps.length > 500) throw new Error('Слишком много штук для раскладки за один раз');
-    const anchor = steps.length ? steps[steps.length - 1].cell
-                 : (ofModel.length ? ofModel[ofModel.length - 1].number : (own.length ? own[own.length - 1].number : '1'));
-    const num = nextSubCell(anchor, all.concat(created));
-    created.push(num);
-    const n = Math.min(left, modelCap);
-    steps.push({cell: num, qty: n, isNew: true}); left -= n;
-  }
+  if(left > 0) steps.push({cell: null, qty: left, floor: true, noRoom: true});
   /* Подтверждение «Закрепить модель за ячейками…» — только для модели без своих ячеек. */
-  const needsConfirm = ofModel.length === 0 && steps.some(s=> s.bind || s.isNew);
+  const needsConfirm = ofModel.length === 0 && steps.some(s=> s.bind);
   return {steps, needsConfirm};
 }
 

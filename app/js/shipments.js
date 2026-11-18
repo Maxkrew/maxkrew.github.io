@@ -10,6 +10,7 @@ function carrierList(){
 /* Служба по формату трек-номера (образцы владельца, 01.11.2026). Нашли — вернём название из списка служб, иначе null. */
 const TRACK_RULES = [
   [/^\d{10}$/, /авито/i],                 // 513 097 4601
+  [/^\d{9}$/, /5\s*post|5\s*пост/i],      // 094 410 690 — QR-код 5Post (FoG, 17.11.2026)
   [/^103\d{8}$/, /сдэк|cdek/i],           // 103 426 84587: всегда начинается со 103
   [/^\d{14}$/, /почта/i],                 // 805 135 253 33813
   [/^[A-Z]{2}\d{9}[A-Z]{2}$/, /почта/i],  // международный: RA123456789RU
@@ -248,15 +249,18 @@ async function renderShipments(){
     if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);
     return;
   }
-  // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
-  if(!sup) parts.push(await assemblyHeader(open, list));
-  if(!sup && typeof statsCard === 'function') parts.push(await statsCard(shFilter));   // статистика и начисления за период
   const byCarrier = list=> !sup && shCarrierFilter ? list.filter(s=> s.carrier === shCarrierFilter) : list;
   let shown = byCarrier(!sup && shFilter ? open.filter(s=> s.supplierId === shFilter) : open);
   if(!sup && shModelFilter){   // фильтр по товару: «только Суприм» — собрали, выбрали следующий
     const has = new Set((await getAll('shipmentLines')).filter(l=> !l.deletedAt && !l.collected && l.modelId === shModelFilter).map(l=> l.shipmentId));
     shown = shown.filter(s=> has.has(s.id));
   }
+  // «Выбрать все»/«Печать» работают только с тем, что на экране: фильтр сменили — невидимое из выбора уходит
+  shVisible = shown.map(s=> s.id);
+  for(const id of [...shSelected]) if(!shVisible.includes(id)) shSelected.delete(id);
+  // склад: «Сборка» — фильтр по поставщику, счётчик, «Выбрать» (js/assembly.js)
+  if(!sup) parts.push(await assemblyHeader(open, list));
+  if(!sup && typeof statsCard === 'function') parts.push(await statsCard(shFilter));   // статистика и начисления за период
   for(const s of shown) parts.push(await shipmentCard(s, true));
   if(!shown.length) parts.push(emptyState('i-out', sup ? 'Заказов в работе нет' : 'Несобранных отправок нет', sup ? 'Выберите службу доставки и нажмите «Новый заказ» — склад соберёт.' : 'Выберите поставщика и службу, нажмите «Новая отправка».'));
   // склад: «Собранные сегодня» (нет сегодняшних — последние собранные)
@@ -329,7 +333,7 @@ async function shipmentCard(s, editable){
   // склад: большая кнопка «Собран» и галочка выбора (сборка)
   const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);
   const bigBtn = canCollect && !shSelectMode ? `<button class="btn primary as-collect" data-collect="${escapeAttr(s.id)}" onclick="shCollect(${jsArg(s.id)})"><svg class="icon"><use href="#i-check"/></svg>Собран</button>` : '';
-  const selBox = !sup && editable && shSelectMode && canCollect ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
+  const selBox = !sup && editable && shSelectMode ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
   return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${s.deletedAt ? 'удалена' : s.status === 'новая' ? 'забронировано' : escapeHtml(s.status)}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}</div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
     ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>${bcBtn}`}</div>` : ''}

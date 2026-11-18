@@ -61,6 +61,7 @@ async function renderSuppliers(){
       <div class="btn-row sup-actions">
         <button class="btn ghost sm" onclick="assignCellsPrompt(${jsArg(s.id)})">Ячейки</button>
         ${s.memberId && !s.archived ? `<button class="btn alt sm" data-sup-reset="${escapeAttr(s.id)}" onclick="resetSupplierPasswordUI(${jsArg(s.id)})">Сброс пароля</button>` : ''}
+        ${s.archived ? '' : `<button class="btn danger sm" data-zero-supplier="${escapeAttr(s.id)}" onclick="zeroSupplierStockUI(${jsArg(s.id)})">Очистить склад</button>`}
         <button class="btn amber sm" data-sup-archive="${escapeAttr(s.id)}" onclick="toggleSupplierArchive(${jsArg(s.id)})">${s.archived ? 'Вернуть из архива' : 'В архив'}</button>
       </div>
     </div>`;
@@ -119,6 +120,25 @@ async function resetSupplierPasswordUI(id){
   if(!r.ok){ toast('Не вышло: ' + r.error); return; }
   supTempPw[id] = r.password;          // только в памяти этого экрана — не в базу и не на сервер
   await renderSuppliers();
+}
+/* «Очистить склад»: всё наличие поставщика (и минусы, и брак) — в 0; отправки, приёмки и история
+   остаются. Сначала резервная копия (ждём её не дольше 8 с). */
+let zeroBusy = false;
+async function zeroSupplierStockUI(id){
+  if(zeroBusy) return;
+  const s = await get('suppliers', id); if(!s) return;
+  const idx = await ffStockIndex(), sizes = (await getAll('sizes')).filter(z=> z.supplierId === id && !z.deletedAt);
+  const lying = sizes.reduce((n, z)=> n + Math.max(0, (idx.bySize[z.id] || 0)), 0), minus = sizes.reduce((n, z)=> n + Math.min(0, (idx.bySize[z.id] || 0)), 0);
+  if(!confirm('Очистить склад поставщика «' + s.name + '»? Наличие каждого товара станет 0 (лежит ' + lying + ' шт.' + (minus ? ', в минусе ' + (-minus) + ' шт.' : '') + '). Отправки и история останутся. Перед этим сделаю резервную копию.')) return;
+  zeroBusy = true;
+  try{
+    let backup = false;
+    if(window.Sync && Sync.takeSnapshot){ const b = await ffSoft(()=> Sync.takeSnapshot('manual')); backup = !!(b && b.ok !== false); }
+    const r = await clearSupplierStock(id);
+    if(!r.ok){ toast(r.error); return; }
+    toast('Склад «' + s.name + '» очищен' + (r.pieces ? ' · списано ' + r.pieces + ' шт.' : '') + (backup ? ' · копия сделана' : ''));
+    await renderSuppliers();
+  }finally{ zeroBusy = false; }
 }
 async function toggleSupplierArchive(id){
   const s = await get('suppliers', id);

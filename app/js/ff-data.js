@@ -30,6 +30,7 @@ async function ffLogOp(o){
     review: supplier ? 'на проверке' : (o.review || null)
   };
   await put('ops', row);
+  if(!supplier && row.cellNumber && row.delta < 0 && typeof ffScheduleFree === 'function') ffScheduleFree(row.cellNumber);   // ячейка в 0 сама очистится
   return row;
 }
 
@@ -56,7 +57,7 @@ function ffStockIndex(){
   return cachedByVersion('ffStockIndex', async ()=>{
     /* bySize — всё (сверка с сервером); sellableBySize — «можно продать» (без брака);
        defectBySize — брак; pendingBySize — сколько правок поставщика ждут проверки (этап 2) */
-    const bySize = {}, byCell = {}, sellableBySize = {}, defectBySize = {}, pendingBySize = {};
+    const bySize = {}, byCell = {}, sellableBySize = {}, defectBySize = {}, pendingBySize = {}, noCellBySize = {};
     for(const op of await getAll('ops')){
       if(!ffLive(op)) continue;
       const d = Number(op.delta) || 0;
@@ -67,9 +68,9 @@ function ffStockIndex(){
       if(op.cellNumber){
         const c = byCell[op.cellNumber] || (byCell[op.cellNumber] = {});
         c[op.sizeId] = (c[op.sizeId] || 0) + d;
-      }
+      }else if(!op.defect) noCellBySize[op.sizeId] = (noCellBySize[op.sizeId] || 0) + d;   // «без ячейки» — в ячейках не видно
     }
-    return {bySize, byCell, sellableBySize, defectBySize, pendingBySize};
+    return {bySize, byCell, sellableBySize, defectBySize, pendingBySize, noCellBySize};
   });
 }
 

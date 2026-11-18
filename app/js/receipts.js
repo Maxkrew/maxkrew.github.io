@@ -65,16 +65,16 @@ async function finishReceipt(receiptId, weightKg, toFloor){
     }
     const label = await sizeLabelOf(line.sizeId);
     const res = planPlacement({supplierId: r.supplierId, modelId: line.modelId, sizeLabel: label, qty: line.qty - cover}, cells, virtual, models);
+    for(const s of res.steps) if(s.floor && !s.cell) s.cell = await floorCellFor(r.supplierId);   // свободных ячеек нет — остаток на пол
     line.plan = pre.concat(res.steps).map((s, i)=> Object.assign({}, s, {uid: line.id + ':' + i, done: false}));
     for(const s of res.steps){
       (virtual[s.cell] || (virtual[s.cell] = {}))[label] = ((virtual[s.cell] || {})[label] || 0) + s.qty;
-      if(s.isNew) cells.push({number: s.cell, supplierId: r.supplierId, modelId: line.modelId, allowedSizes: null, capacity: null, reserved: false});
       if(s.bind){ const c = cells.find(x=> x.number === s.cell); if(c) c.modelId = line.modelId; }
     }
     if(res.needsConfirm){
       const m = models[line.modelId];
       confirm.push({modelId: line.modelId, question: 'Товар новый. Закрепить модель «' + modelName(m) + '» за ячейками ' +
-        joinRu(res.steps.map(s=> s.cell + ' (' + s.qty + ' шт.)')) + '?'});
+        joinRu(res.steps.filter(s=> s.bind).map(s=> s.cell + ' (' + s.qty + ' шт.)')) + '?'});
     }
     await put('receiptLines', line);
   }
@@ -86,7 +86,79 @@ async function finishReceipt(receiptId, weightKg, toFloor){
   return {confirm};
 }
 
-/* Создать новые под-ячейки и привязать пустые ячейки к моделям — по плану приёмки. */
+/* «Куда положить» сразу, пока приёмка ещё черновик (FoG, 17.11.2026): та же раскладка, что у
+   «Куда класть», но ничего не записывается. Возвращает {lineId: [шаги]}; у шага — cell или floor. */
+async function receiptPreview(r, lines){
+  const out = {};
+  const models = await modelsMap();
+  const cells = (await getAll('cells')).filter(c=> !c.deletedAt).map(c=> Object.assign({}, c));
+  const virtual = JSON.parse(JSON.stringify(await cellStockByLabel()));
+  const floor = cells.filter(c=> isFloorCell(c) && c.supplierId === r.supplierId).sort((a, b)=> cmpCellNumber(a.number, b.number))[0];
+  const bySize = await ffCellStockMap(), debt = {};
+  if(floor && r.kind !== 'с пола') for(const [sid, q] of Object.entries(bySize[floor.number] || {})) if(q < 0) debt[sid] = -q;
+  for(const line of lines){
+    if(line.defect){ out[line.id] = [{defect: true, qty: line.qty, cell: await previewDefectCell(r.supplierId, line.qty)}]; continue; }
+    const cover = Math.min(line.qty, debt[line.sizeId] || 0);
+    if(cover) debt[line.sizeId] -= cover;
+    const steps = cover ? [{cover: true, floor: true, qty: cover}] : [];
+    if(line.qty - cover > 0){
+      const label = await sizeLabelOf(line.sizeId);
+      const res = planPlacement({supplierId: r.supplierId, modelId: line.modelId, sizeLabel: label, qty: line.qty - cover}, cells, virtual, models);
+      for(const s of res.steps){
+        if(s.cell){
+          (virtual[s.cell] || (virtual[s.cell] = {}))[label] = ((virtual[s.cell] || {})[label] || 0) + s.qty;
+          if(s.bind){ const c = cells.find(x=> x.number === s.cell); if(c) c.modelId = line.modelId; }
+        }
+        steps.push(s);
+      }
+    }
+    out[line.id] = steps;
+  }
+  return out;
+}
+/* номер ячейки брака без создания: есть своя — её номер, нет — «брака» */
+async function previewDefectCell(supplierId, qty){
+  const mine = (await getAll('cells')).filter(c=> !c.deletedAt && isDefectCell(c) && c.supplierId === supplierId);
+  return mine.length ? await defectCellFor(supplierId, qty) : '';
+}
+function previewText(steps){
+  return steps.map(s=> s.cover ? s.qty + ' шт. — уже отправлено в минус, класть не нужно'
+    : s.defect ? 'ячейка брака' + (s.cell ? ' ' + s.cell : '') + ' (' + s.qty + ' шт.)'
+    : s.floor ? 'на пол (' + s.qty + ' шт.)' + (s.noRoom ? ' — свободных ячеек нет' : '')
+    : 'ячейка ' + s.cell + ' (' + s.qty + ' шт.)').join(', ');
+}
+
+/* История приёмок: что и сколько приехало в каждой поставке. */
+let rcHistLimit = 10;
+async function receiptHistoryBlock(openIds){
+  const sups = await ffSuppliersMap(), models = await modelsMap();
+  const all = (await getAll('receipts')).filter(r=> !r.deletedAt && !openIds.has(r.id) && r.kind !== 'ожидается' && r.kind !== 'с пола')
+    .sort((a, b)=> b.createdTs - a.createdTs);
+  const rows = [];
+  for(const r of all){
+    const lines = await receiptLines(r.id);
+    if(!lines.length) continue;
+    rows.push({r, lines});
+    if(rows.length >= rcHistLimit) break;
+  }
+  if(!rows.length) return '';
+  const cards = [];
+  for(const {r, lines} of rows){
+    let pieces = 0; const items = [];
+    for(const l of lines){
+      pieces += l.qty;
+      const where = (l.plan || []).map(s=> s.cover ? 'в минус' : (s.floor ? 'пол' : s.cell)).join(', ');
+      items.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b>${l.defect ? ' · <span class="warn">брак</span>' : ''}</div><div class="rside"><b>${l.qty} шт.</b>${where ? ` <span class="rmeta">→ ${escapeHtml(where)}</span>` : ''}</div></div>`);
+    }
+    const kind = r.kind === 'возврат' ? 'Возврат' : 'Поставка';
+    cards.push(`<details class="card rc-hist" data-rc-hist="${escapeAttr(r.id)}"><summary><b>${kind} · ${escapeHtml((sups[r.supplierId] || {}).name || '')}</b>
+      <span class="rmeta">${new Date(r.createdTs).toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})} · ${lines.length} поз. · ${pieces} шт.${r.weightKg ? ' · ' + r.weightKg + ' кг' : ''}</span></summary>${items.join('')}</details>`);
+  }
+  const more = all.length > rows.length ? `<button class="btn ghost" id="rcHistMore" onclick="rcHistLimit += 20; renderReceipts()">Показать ещё</button>` : '';
+  return `<div class="grp-title" id="rcHistTitle">История приёмок</div>${cards.join('')}${more}`;
+}
+
+/* привязать пустые ячейки к моделям — по плану приёмки (старые планы ещё могут создавать под-ячейки). */
 async function applyPlanCells(receiptId){
   const r = await get('receipts', receiptId);
   for(const line of await receiptLines(receiptId)){
@@ -149,6 +221,7 @@ async function tickReceiptStep(lineId, idx){
     const res = step.defect ? {steps: [{cell: await defectCellFor(r.supplierId, step.qty), qty: step.qty, defect: true}]}
       : step.floor ? {steps: [{cell: await floorCellFor(r.supplierId), qty: step.qty, floor: true, cover: step.cover}]}
       : planPlacement({supplierId: r.supplierId, modelId: line.modelId, sizeLabel: label, qty: step.qty}, cells, await cellStockByLabel(), models);
+    for(const s of res.steps) if(s.floor && !s.cell) s.cell = await floorCellFor(r.supplierId);
     const fresh = res.steps.map(s=> Object.assign({}, s, {uid: line.id + ':' + newUid(), done: false}, step.from ? {from: step.from} : {}));
     line.plan.splice(idx, 1, ...fresh);
     await put('receiptLines', line);
@@ -292,6 +365,7 @@ async function renderReceipts(){
   }
   for(const r of open) parts.push(await receiptCard(r));
   if(!open.length && sups.length) parts.push(emptyState('i-in', 'Открытых приёмок нет', 'Выберите поставщика и нажмите «Приёмка».'));
+  parts.push(await receiptHistoryBlock(new Set(open.map(r=> r.id))));
   // товар остаётся выбранным: обычно приходит 4–5 размеров одной модели (FoG, 05.11.2026)
   const keepModel = [...box.querySelectorAll('select[id^="rcModel-"]')].map(el=> [el.id.slice(8), el.value]).filter(([, v])=> v);
   box.innerHTML = parts.join('');
@@ -311,7 +385,8 @@ async function receiptCard(r){
   if(r.status === 'черновик'){
     const ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === r.supplierId).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
     const lineRows = [];
-    for(const l of lines) lineRows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b>${l.defect ? ' · <span class="warn">брак</span>' : ''}</div><div class="rside">${l.expectedQty != null ? `<span class="rmeta">ждали ${l.expectedQty} · пришло</span> <input type="number" min="0" style="width:72px;" value="${l.qty}" data-rc-qty="${escapeAttr(l.id)}" onchange="rcSetQty(${jsArg(l.id)}, this.value)"> шт.` : `<b>${l.qty} шт.</b>`} <button class="icon-btn" onclick="rcRemoveLine(${jsArg(l.id)})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
+    const preview = lines.length ? await receiptPreview(r, lines) : {};
+    for(const l of lines) lineRows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b>${l.defect ? ' · <span class="warn">брак</span>' : ''}<div class="rc-where go" data-rc-where="${escapeAttr(l.id)}">➡ ${escapeHtml(previewText(preview[l.id] || []))}</div></div><div class="rside">${l.expectedQty != null ? `<span class="rmeta">ждали ${l.expectedQty} · пришло</span> <input type="number" min="0" style="width:72px;" value="${l.qty}" data-rc-qty="${escapeAttr(l.id)}" onchange="rcSetQty(${jsArg(l.id)}, this.value)"> шт.` : `<b>${l.qty} шт.</b>`} <button class="icon-btn" onclick="rcRemoveLine(${jsArg(l.id)})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
     return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}
       <div class="field-row scan-row"><input type="text" data-scan-receipt="${escapeAttr(r.id)}" placeholder="Скан штрихкода" autocomplete="off">
         <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanReceipt(${jsArg(r.id)}, c))">Камера</button></div>
@@ -342,7 +417,7 @@ async function receiptCard(r){
     const defCells = (l.plan || []).some(s=> s.defect) ? (await getAll('cells')).filter(c=> !c.deletedAt && isDefectCell(c) && c.supplierId === r.supplierId).sort((x, y)=> cmpCellNumber(x.number, y.number)) : [];
     (l.plan || []).forEach((s0, i)=>{
       const s = Object.assign({}, s0, {done: doneArr[i]});
-      const where = s.cover ? 'уже отправлено в минус — класть не нужно' : (s.floor ? 'На пол' : null);
+      const where = s.cover ? 'уже отправлено в минус — класть не нужно' : (s.floor ? 'На пол' + (s.noRoom ? ' — свободных ячеек нет' : '') : null);
       const from = s.from ? 'с пола ' : '';
       tasks.push(`<label class="task${s.done ? ' done' : ''}"><input type="checkbox"${s.done ? ' checked disabled' : ''} onchange="rcTick(${jsArg(l.id)}, ${i})">
         <span><b>${escapeHtml(name)} ${escapeHtml(label)}</b> — ${s.qty} шт.<br><span class="${s.isNew || s.defect ? 'warn' : 'go'}">➡ ${where ? where : s.isNew ? from + 'создай ячейку ' + escapeHtml(s.cell) + ' и положи туда' : (s.defect && !s.done && defCells.length > 1 ? 'Ячейка брака: <select data-step-cell="' + escapeAttr(l.id + ':' + i) + '" onclick="event.stopPropagation()" onchange="rcStepCell(' + jsArg(l.id) + ', ' + i + ', this.value)">' + defCells.map(c=> '<option value="' + escapeAttr(c.number) + '"' + (c.number === s.cell ? ' selected' : '') + '>' + escapeHtml(c.number) + '</option>').join('') + '</select>' : from + (from ? 'в ячейку ' : 'Ячейка ') + escapeHtml(s.cell) + (s.defect ? ' (брак)' : ''))}</span>${!s.done && overArr[i] ? `<br><span class="over-warn">⚠ переполнит ячейку на ${overArr[i]} шт.</span>` : ''}</span></label>`);
@@ -358,7 +433,7 @@ async function rcConfirmText(receiptId){
   const models = await modelsMap(); const out = [];
   for(const l of await receiptLines(receiptId)){
     if((l.plan || []).some(s=> s.bind || s.isNew) && !(await getAll('cells')).some(c=> !c.deletedAt && c.modelId === l.modelId)){
-      out.push('Товар новый. Закрепить модель «' + modelName(models[l.modelId] || {}) + '» за ячейками ' + joinRu(l.plan.map(s=> s.cell + ' (' + s.qty + ' шт.)')) + '?');
+      out.push('Товар новый. Закрепить модель «' + modelName(models[l.modelId] || {}) + '» за ячейками ' + joinRu(l.plan.filter(s=> s.bind || s.isNew).map(s=> s.cell + ' (' + s.qty + ' шт.)')) + '?');
     }
   }
   return out.join(' ');

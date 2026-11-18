@@ -101,6 +101,41 @@ async function ffSizeBuckets(sizeId, defect){
   return out;
 }
 
+/* Сервер примет плюс по этому размеру в эту ячейку? (guard_cell_model: ячейка есть, она этого поставщика,
+   пол и брак — для любых моделей, обычная — пустая, этой модели или другого её цвета). */
+function cellAcceptsPlus(c, size, models){
+  if(!c || c.deletedAt || c.supplierId !== size.supplierId) return false;
+  if(isFloorCell(c) || isDefectCell(c) || !c.modelId || c.modelId === size.modelId) return true;
+  return sameItem(models[c.modelId], models[size.modelId]);
+}
+/* Довести одно «место» размера до нуля: key — номер ячейки или '' («без ячейки»), defect — брак.
+   Плюс — операция −q там же. Минус — операция +q там же, но если сервер её не примет (ячейка закреплена за
+   другой моделью, удалена и т. п. — тогда минус бы остался навсегда), убираем сами минусовые записи этого места
+   (отправки и корректировки; приёмки и возвраты не трогаем). Возвращает, на сколько изменился общий остаток. */
+async function ffZeroBucket(size, key, defect, opt){
+  const ops = (await opsBy('bySize', size.id)).filter(o=> ffLive(o) && !!o.defect === !!defect && (o.cellNumber || '') === key);
+  let q = ops.reduce((n, o)=> n + (Number(o.delta) || 0), 0);
+  const before = q;
+  if(!q) return 0;
+  const common = {supplierId: size.supplierId, modelId: size.modelId, sizeId: size.id, type: 'Корректировка', defect: !!defect};
+  if(q < 0){
+    const cell = key ? await get('cells', key) : null;
+    const plusOk = !key || (!(opt && opt.noPlus) && cellAcceptsPlus(cell, size, await modelsMap()));
+    if(plusOk){
+      await ffLogOp(Object.assign({cellNumber: key || null, qty: -q, delta: -q}, common));
+      return -q;
+    }
+    const now = Date.now();
+    for(const o of ops.filter(o=> Number(o.delta) < 0 && o.type !== 'Приход' && o.type !== 'Возврат').sort((a, b)=> (b.ts || 0) - (a.ts || 0))){
+      if(q >= 0) break;
+      o.deletedAt = now; await put('ops', o); q -= Number(o.delta);
+    }
+    if(q < 0){ await ffLogOp(Object.assign({cellNumber: null, qty: -q, delta: -q}, common)); q = 0; }   // остались одни приёмки — без ячейки
+  }
+  if(q > 0) await ffLogOp(Object.assign({cellNumber: key || null, qty: q, delta: -q}, common));
+  return -before;
+}
+
 /* «Все ячейки»: newQty — сколько всего должно остаться. Минусы (пол, «без ячейки», ячейка в
    минусе) гасятся плюсом на том же месте, а убирается он из тех, где товар есть (сначала пол,
    потом менее заполненные) — общая сумма получается ровно newQty, минусов не остаётся.
@@ -123,8 +158,7 @@ async function correctAllCells(size, want, now){
       await ffLogOp(Object.assign({cellNumber: p.cell, qty: p.qty, delta: -p.qty}, common));
   }
   // 2) каждый минус гасим плюсом на том же месте (удалённой ячейки нет — без ячейки)
-  for(const [k, q] of negs)
-    await ffLogOp(Object.assign({cellNumber: (k && liveNum.has(k)) ? k : null, qty: -q, delta: -q}, common));
+  for(const [k] of negs) await ffZeroBucket(size, k, false);
   // 3) не хватало — кладём (у модели нет ячеек)
   if(add > 0) await ffLogOp(Object.assign({cellNumber: null, qty: add, delta: add}, common));
   return {ok:true, delta: want - now};
@@ -136,14 +170,15 @@ async function correctAllCells(size, want, now){
 async function clearSupplierStock(supplierId){
   if(ffRole() !== 'owner') return {ok:false, error:'Только склад'};
   const sizes = (await getAll('sizes')).filter(s=> s.supplierId === supplierId && !s.deletedAt);
-  const live = new Set((await getAll('cells')).filter(c=> !c.deletedAt).map(c=> c.number));
   let pieces = 0, rows = 0;
   const touched = new Set();
-  for(const s of sizes) for(const defect of [false, true]){
-    for(const [k, q] of Object.entries(await ffSizeBuckets(s.id, defect))){
-      if(!q) continue;
-      await ffLogOp({supplierId, modelId: s.modelId, sizeId: s.id, cellNumber: (k && live.has(k)) ? k : null,
-        type: 'Корректировка', qty: Math.abs(q), delta: -q, defect});
+  for(const z of sizes) for(const defect of [false, true]){
+    const buckets = await ffSizeBuckets(z.id, defect);
+    // сначала плюсы (товар лежит) — потом минусы: так общий остаток по пути не уходит в минус
+    const keys = Object.keys(buckets).filter(k=> buckets[k]).sort((x, y)=> buckets[y] - buckets[x]);
+    for(const k of keys){
+      const q = buckets[k];
+      await ffZeroBucket(z, k, defect);
       rows++; if(q > 0) pieces += q;
       if(k) touched.add(k);
     }
@@ -170,7 +205,7 @@ async function ffFreeEmptyCells(onlyCells){
   const byCell = (await ffStockIndex()).byCell;
   let n = 0;
   for(const c of (await getAll('cells'))){
-    if(onlyCells && !onlyCells.has(c.number)) continue;
+    if(onlyCells ? !onlyCells.has(c.number) : !byCell[c.number]) continue;   // без списка — только ячейки, где товар уже лежал (закреплённую вручную и ещё пустую не трогаем)
     if(c.deletedAt || !c.modelId || c.reserved || isFloorCell(c) || isDefectCell(c) || planned.has(c.number)) continue;
     if(Object.values(byCell[c.number] || {}).some(q=> q)) continue;
     c.modelId = null; c.allowedSizes = null;

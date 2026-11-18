@@ -19,6 +19,7 @@ async function modelsMap(){ return Object.fromEntries((await getAll('models')).m
 async function renderCells(){
   const box = document.getElementById('cellsBox');
   if(!box) return;
+  try{ await ffFreeEmptyCells(); }catch(e){}   // ячейки, где товара уже нет, освобождаются (в том числе после синхронизации)
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt).sort((a, b)=> cmpCellNumber(a.number, b.number));
   const models = await modelsMap(), sups = await ffSuppliersMap(), stock = await cellStockByLabel();
   const bySizeId = await ffCellStockMap(), modelOf = Object.fromEntries((await getAll('sizes')).map(z=> [z.id, z.modelId]));
@@ -172,7 +173,8 @@ async function clearCell(number, del){
     const s = sizes[sid]; if(!q || !s) continue;
     /* минус гасим плюсом В ЭТОЙ ЖЕ ячейке (иначе в ней остаётся минус, а «без ячейки» растёт);
        только если ячейку сейчас удаляем — без ячейки: в удалённую класть нельзя */
-    await ffLogOp({supplierId: s.supplierId, modelId: s.modelId, sizeId: sid, cellNumber: (q > 0 || !del) ? number : null,
+    if(q < 0){ await ffZeroBucket(s, number, isDefectCell(c), {noPlus: !!del}); continue; }   // минус: плюсом, а не принимает сервер — убрать сами минусовые записи
+    await ffLogOp({supplierId: s.supplierId, modelId: s.modelId, sizeId: sid, cellNumber: number,
       type: 'Корректировка', qty: Math.abs(q), delta: -q, defect: isDefectCell(c)});
     if(q > 0) n += q;
   }

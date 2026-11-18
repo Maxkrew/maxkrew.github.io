@@ -47,7 +47,9 @@ async function renderSuppliers(){
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
   const bills = {};
   for(const s of sups) if(!s.archived) bills[s.id] = await billingSupplierBlock(s);
-  box.innerHTML = billingTariffCard() + sups.map(s=>{
+  const zeroAll = sups.some(s=> !s.archived) ? `<div class="card"><button class="btn danger sm" id="zeroAllBtn" style="width:auto;" onclick="zeroAllStockUI()">Очистить склад у всех поставщиков</button>
+    <div class="hint" style="margin-top:6px;">Всё наличие и все минусы — в ноль. Отправки, приёмки, долги и история остаются.</div></div>` : '';
+  box.innerHTML = zeroAll + billingTariffCard() + sups.map(s=>{
     const mine = cells.filter(c=> c.supplierId === s.id).map(c=> c.number).sort(cmpCellNumber);
     const status = s.archived ? '<span class="pill g">в архиве</span>' : (s.memberId ? '<span class="pill">вошёл</span>' : '<span class="pill w">ждёт входа</span>');
     const codeLine = !s.archived && !s.memberId ? `<div class="rmeta sup-line">Код для входа: <b class="sup-code" data-sup-code>${escapeHtml(s.inviteCode || '…')}</b></div>` : '';
@@ -137,6 +139,22 @@ async function zeroSupplierStockUI(id){
     const r = await clearSupplierStock(id);
     if(!r.ok){ toast(r.error); return; }
     toast('Склад «' + s.name + '» очищен' + (r.pieces ? ' · списано ' + r.pieces + ' шт.' : '') + (backup ? ' · копия сделана' : ''));
+    await renderSuppliers();
+  }finally{ zeroBusy = false; }
+}
+/* «Очистить склад у всех»: то же, что у одного поставщика, но по всем действующим (FoG, 17.11.2026: «все по нолям просто»). */
+async function zeroAllStockUI(){
+  if(zeroBusy) return;
+  const sups = (await getAll('suppliers')).filter(s=> !s.deletedAt && !s.archived);
+  if(!sups.length) return;
+  if(!confirm('Очистить склад у ВСЕХ поставщиков (' + sups.length + ')? Наличие каждого товара станет 0, минусы уйдут. Отправки, приёмки, долги и история останутся. Перед этим сделаю резервную копию.')) return;
+  zeroBusy = true;
+  try{
+    let backup = false;
+    if(window.Sync && Sync.takeSnapshot){ const b = await ffSoft(()=> Sync.takeSnapshot('manual')); backup = !!(b && b.ok !== false); }
+    let pieces = 0;
+    for(const s of sups){ const r = await clearSupplierStock(s.id); if(r.ok) pieces += r.pieces; }
+    toast('Склад очищен у всех поставщиков' + (pieces ? ' · списано ' + pieces + ' шт.' : '') + (backup ? ' · копия сделана' : ''));
     await renderSuppliers();
   }finally{ zeroBusy = false; }
 }

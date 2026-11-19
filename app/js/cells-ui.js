@@ -20,8 +20,11 @@ async function renderCells(){
   const box = document.getElementById('cellsBox');
   if(!box) return;
   try{ await ffFreeEmptyCells(); }catch(e){}   // ячейки, где товара уже нет, освобождаются (в том числе после синхронизации)
-  const cells = (await getAll('cells')).filter(c=> !c.deletedAt).sort((a, b)=> cmpCellNumber(a.number, b.number));
   const models = await modelsMap(), sups = await ffSuppliersMap(), stock = await cellStockByLabel();
+  /* удалённая ячейка, в которой по операциям ещё лежит товар (П1 у FoG, 19.11.2026), — видна: иначе
+     товар «пропадал» из ячеек, а итог по товару его считал. Открыть и «Сохранить» — вернуть ячейку. */
+  const cells = (await getAll('cells')).filter(c=> !c.deletedAt || cellTotal(stock[c.number])).sort((a, b)=> cmpCellNumber(a.number, b.number));
+  const gone = c=> c.deletedAt ? ' · <b>удалена</b>, откройте и сохраните — вернётся' : '';
   const bySizeId = await ffCellStockMap(), modelOf = Object.fromEntries((await getAll('sizes')).map(z=> [z.id, z.modelId]));
   const head = `<div class="card head-row"><span class="rmeta">Ячеек: ${cells.length} · пустых: ${cells.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length}</span>
     <span style="display:flex;gap:6px;"><button class="btn danger sm" style="width:auto;" id="cellsDelAll" onclick="cellsDeleteAll()"${cells.length ? '' : ' hidden'}><svg class="icon"><use href="#i-trash"/></svg>Удалить все</button>
@@ -37,9 +40,9 @@ async function renderCells(){
     if(isFloorCell(c)){
       const lyingF = cellTotal(stock[c.number]);
       return `<button type="button" class="cell-tile floor${lyingF < 0 ? ' over' : ''}" data-cell="${escapeAttr(c.number)}" onclick="openCellModal(${jsArg(c.number)})">
-      <b>Пол</b><span class="ct-sup">${escapeHtml((sups[c.supplierId] || {}).name || '')}</span>
+      <b>Пол${/^П\d/.test(c.number) ? ' ' + escapeHtml(c.number) : ''}</b><span class="ct-sup">${escapeHtml((sups[c.supplierId] || {}).name || '')}</span>
       <span class="ct-model">${inside.length ? 'товаров: ' + inside.length : '—'}</span>
-      <span class="ct-qty">${lyingF} шт.${lyingF < 0 ? ' · в минусе' : ''}</span></button>`;
+      <span class="ct-qty">${lyingF} шт.${lyingF < 0 ? ' · в минусе' : ''}${gone(c)}</span></button>`;
     }
     const free = cellFree(c, stock[c.number], models);
     const lying = cellTotal(stock[c.number]);
@@ -51,7 +54,7 @@ async function renderCells(){
       <b>Ячейка ${escapeHtml(c.number)}</b>
       <span class="ct-sup">${escapeHtml((sups[c.supplierId] || {}).name || 'без поставщика')}</span>
       <span class="ct-model">${m ? escapeHtml(modelName(m)) + ' · ' + escapeHtml(sizesLabel(c.allowedSizes)) : '—'}${inside.length ? ' + ' + inside.map(id=> escapeHtml((models[id] || {}).color || modelName(models[id] || {}))).join(', ') : ''}</span>
-      <span class="ct-qty">${lying} / ${cap} · ${label}</span>
+      <span class="ct-qty">${lying} / ${cap} · ${label}${gone(c)}</span>
       <span class="bar"><i style="width:${pct}%"></i></span>
     </button>`;
   }).join('') + '</div>';
@@ -60,6 +63,7 @@ async function renderCells(){
 /* Разметить ячейку. Возвращает {ok, warning?} или {ok:false, error}. */
 async function saveCell(form){
   const number = String(form.number || '').trim();
+  if(!number) return {ok:false, error:'Укажите номер ячейки (поле «Номер» вверху)'};   // FoG: вводил 10 во «Вместимость», номер был пуст
   // дробных номеров (4.1) больше нет; старые, что уже есть, править можно
   if(!/^[БП]?\d+$/.test(number) && !(/^[БП]?\d+\.\d+$/.test(number) && await get('cells', number))) return {ok:false, error:'Номер — целое число, например 4'};
   const models = await modelsMap(), sups = await ffSuppliersMap();

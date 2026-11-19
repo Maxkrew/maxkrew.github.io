@@ -278,7 +278,9 @@ async function fullResyncFromSettings(){
   toast('Пересинхронизация…');
   const ws = Sync.ownerId();
   if(ws) for(const r of await getAll('settings')) if(r.key === 'ffSeq:' + ws || String(r.key).startsWith('ffSeq:' + ws + ':')) await put('settings', {key: r.key, value: 0});   // курсоры всех таблиц
-  const r = await Sync.syncNow('полная пересинхронизация');
+  let r = await Sync.syncNow('полная пересинхронизация');
+  /* операции — ровно как на сервере (ячейки тоже), неотправленное не трогаем */
+  if(r.ok && Sync.freshOps){ const f = await Sync.freshOps(); if(!f.ok) r = {ok:false, error: f.error}; }
   toast(r.ok ? 'Готово' : ('Не вышло: ' + r.error));
   await renderSyncStatusBox();
   await refreshAfterSync();

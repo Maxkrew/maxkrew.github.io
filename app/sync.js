@@ -470,12 +470,19 @@
   // приём — по порядковому номеру правки на сервере (seq), а не по часам телефона:
   // правка, сделанная давно без сети, всё равно доедет до всех
   // ------------------------------------------------------------------
-  async function pullStore(store, ws, rl, sinceSeq){
+  /* Номер правки сервер выдаёт при записи, а видна она становится, когда запись закончится: правка
+     с меньшим номером может появиться ПОСЛЕ соседних с большим (FoG, 19.11.2026: несколько телефонов
+     и поставщики пишут разом). Поэтому каждый раз берём и последние OVERLAP номеров до курсора —
+     уже известные строки пропускаются без записи. */
+  const OVERLAP = 1000;
+  async function pullStore(store, ws, rl, sinceSeq, opts){
+    opts = opts || {};
     const spec = MAP[store];
+    const from0 = Math.max(0, sinceSeq - (opts.noOverlap ? 0 : OVERLAP));
     const table = (spec.pullTable && spec.pullTable[rl]) || spec.table;
     const PAGE = 1000, data = [];
     for(let from = 0; ; from += PAGE){
-      const page = await client.from(table).select('*').eq('owner_id', ws).gt('seq', sinceSeq)
+      const page = await client.from(table).select('*').eq('owner_id', ws).gt('seq', from0)
         .order('seq', {ascending:true}).range(from, from + PAGE - 1);
       if(page.error){
         if(isAuthError(page.error, page.status)) await onAuthTrouble();
@@ -489,6 +496,11 @@
       maxSeq = Math.max(maxSeq, num(row.seq));
       const incoming = spec.toLocal(row);
       const existing = await window.get(store, localKeyOf(store, incoming));
+      /* force — сверка нашла расхождение: всё, что уже отправлено, берём как на сервере */
+      if(opts.force && existing && !existing.dirty && !existing.rejected){
+        if(num(existing.updatedAt) === num(incoming.updatedAt) && !existing.deletedAt === !incoming.deletedAt && JSON.stringify(spec.toRow(existing, ws, rl)) === JSON.stringify(spec.toRow(incoming, ws, rl))) continue;
+        await window.put(store, incoming, {fromSync:true}); applied++; continue;
+      }
       if(existing && num(existing.updatedAt) > num(incoming.updatedAt)) continue;          // наша правка свежее (едет или уедет)
       if(existing && !existing.dirty && num(existing.updatedAt) === num(incoming.updatedAt) &&
          !existing.deletedAt === !incoming.deletedAt && !existing.rejected) continue;           // это наша же правка вернулась — ничего нового
@@ -521,6 +533,31 @@
     return map;
   }
 
+  /* Остаток по ячейкам с сервера (только склад): {ячейка: {размер: шт}} */
+  async function serverCellStock(ws){
+    const map = {}, PAGE = 1000;
+    for(let from = 0; ; from += PAGE){
+      const {data, error} = await client.from('cell_stock').select('cell_number,size_id,stock').eq('owner_id', ws).order('cell_number', {ascending:true}).order('size_id', {ascending:true}).range(from, from + PAGE - 1);
+      if(error) return null;
+      (data || []).forEach(r=>{ const q = num(r.stock); if(q){ const c = map[r.cell_number] || (map[r.cell_number] = {}); c[r.size_id] = (c[r.size_id] || 0) + q; } });
+      if(!data || data.length < PAGE) break;
+    }
+    return map;
+  }
+  /* Разница по ячейкам: итог по размеру мог совпасть, а по ячейкам — нет (FoG, 19.11.2026:
+     минусы в ячейках, «пустая» ячейка, где на сервере лежит товар). */
+  async function cellDiffs(ws){
+    if(typeof window.ffCellStockMap !== 'function') return [];
+    const server = await serverCellStock(ws);
+    if(!server) return [];
+    const local = await window.ffCellStockMap(), out = [];
+    const cells = new Set(Object.keys(server).concat(Object.keys(local)));
+    for(const c of cells){
+      const a = local[c] || {}, b = server[c] || {};
+      for(const z of new Set(Object.keys(a).concat(Object.keys(b)))) if((num(a[z])) !== (num(b[z]))) out.push(c + '/' + z + ':' + num(a[z]) + ':' + num(b[z]));
+    }
+    return out;
+  }
   /* Самопроверка: сумма своих операций должна совпасть с сервером. Разовая разница бывает
      (чужая правка пришла между приёмом и сверкой), поэтому лечим, только если та же разница
      держится два обмена подряд: перекачать операции и убрать «отправленные», которых нет. */
@@ -530,17 +567,18 @@
     const server = await serverSizeStock(ws);
     if(!server || typeof window.ffCompareWithServer !== 'function') return;
     const diffs = await window.ffCompareWithServer(server);
-    const sig = diffs.map(d=> d.sizeId + ':' + d.local + ':' + d.server).sort().join('|');
-    if(!diffs.length){ lastDiffSig = ''; return; }
+    const cdiffs = rl === 'owner' ? await cellDiffs(ws) : [];
+    const sig = diffs.map(d=> d.sizeId + ':' + d.local + ':' + d.server).concat(cdiffs).sort().join('|');
+    if(!diffs.length && !cdiffs.length){ lastDiffSig = ''; return; }
     if(sig !== lastDiffSig){ lastDiffSig = sig; return; }
     lastDiffSig = '';
-    await reloadOps(ws, rl);
+    await reloadOps(ws, rl, true);
     const after = await window.ffCompareWithServer(server);
     if(typeof window.toast === 'function') window.toast('Остатки сверены с сервером' + (after.length ? '' : ' и исправлены'));
   }
   /* операции с сервера целиком; «отправленные», которых там нет, — убрать */
-  async function reloadOps(ws, rl){
-    await pullStore('ops', ws, rl, 0);
+  async function reloadOps(ws, rl, force){
+    await pullStore('ops', ws, rl, 0, {force: !!force, noOverlap: true});
     const live = new Set();
     const table = (MAP.ops.pullTable && MAP.ops.pullTable[rl]) || MAP.ops.table;
     for(let from = 0; ; from += 1000){
@@ -562,7 +600,7 @@
     if(left) return {ok:false, error: NO + 'на этом телефоне ' + left + ' правок ещё не дошли до сервера. Повторите через минуту'};
     while(currentRun){ try{ await currentRun; }catch(e){} }
     let resolveRun; currentRun = new Promise(res=>{ resolveRun = res; });
-    try{ await reloadOps(ownerId(), role()); return {ok:true}; }
+    try{ await reloadOps(ownerId(), role(), true); return {ok:true}; }
     catch(e){ return {ok:false, error: NO + 'не удалось взять остатки с сервера (' + e.message + ')'}; }
     finally{ currentRun = null; resolveRun(); }
   }

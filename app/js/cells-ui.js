@@ -27,10 +27,10 @@ async function renderCells(){
   const goneInfo = await goneCellsStock();
   const gone = c=> c.deletedAt ? ' · <b>удалена</b>, откройте и сохраните — вернётся' : '';
   const bySizeId = await ffCellStockMap(), modelOf = Object.fromEntries((await getAll('sizes')).map(z=> [z.id, z.modelId]));
-  const head = `<div class="card head-row"><span class="rmeta">Ячеек: ${cells.length} · пустых: ${cells.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length}</span>
-    <span style="display:flex;gap:6px;"><button class="btn danger sm" style="width:auto;" id="cellsDelAll" onclick="cellsDeleteAll()"${cells.length ? '' : ' hidden'}><svg class="icon"><use href="#i-trash"/></svg>Удалить все</button>
-    <button class="btn danger sm" style="width:auto;" id="cellsWriteOffGone" onclick="clearGoneCellsUI()"${goneInfo.cells.length ? '' : ' hidden'}>Списать из удалённых ячеек (${goneInfo.pieces} шт.)</button>
-    <button class="btn primary sm" style="width:auto;" onclick="openCellModal()"><svg class="icon"><use href="#i-plus"/></svg>Ячейка</button></span></div>`;
+  const head = `<div class="card cells-head"><span class="rmeta">Ячеек: ${cells.length} · пустых: ${cells.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length}</span>
+    <button class="btn primary sm cells-add" onclick="openCellModal()"><svg class="icon"><use href="#i-plus"/></svg>Ячейка</button>
+    <span class="cells-head-btns"><button class="btn danger sm" id="cellsDelAll" onclick="cellsDeleteAll()"${cells.length ? '' : ' hidden'}>Удалить все</button>
+    <button class="btn danger sm" id="cellsWriteOffGone" onclick="clearGoneCellsUI()"${goneInfo.pieces > 0 ? '' : ' hidden'}>Списать удалённые: ${goneInfo.pieces} шт.</button></span></div>`;
   if(!cells.length){
     box.innerHTML = head + emptyState('i-grid', 'Ячеек пока нет', 'Назначьте ячейки поставщику в «Поставщиках» («1-12») или добавьте кнопкой «Ячейка».');
     return;

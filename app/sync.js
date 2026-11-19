@@ -497,7 +497,10 @@
       const incoming = spec.toLocal(row);
       const existing = await window.get(store, localKeyOf(store, incoming));
       /* force — сверка нашла расхождение: всё, что уже отправлено, берём как на сервере */
-      if(opts.force && existing && !existing.dirty && !existing.rejected){
+      /* «не принято сервером» тоже: правка до сервера не дошла, а на сервере живая версия строки —
+         иначе телефон навсегда считал без неё (FoG, 19.11.2026: у одного 7, у остальных 269) */
+      if(opts.force && existing && !existing.dirty){
+        if(existing.rejected){ await window.put(store, incoming, {fromSync:true}); applied++; continue; }
         if(num(existing.updatedAt) === num(incoming.updatedAt) && !existing.deletedAt === !incoming.deletedAt && JSON.stringify(spec.toRow(existing, ws, rl)) === JSON.stringify(spec.toRow(incoming, ws, rl))) continue;
         await window.put(store, incoming, {fromSync:true}); applied++; continue;
       }
@@ -520,6 +523,40 @@
     if(error || !data || !data.length) return false;
     await window.put(store, spec.toLocal(data[0]), {fromSync:true});
     return true;
+  }
+
+  /* Сверка числа строк (FoG, 19.11.2026: зашли в тот же аккаунт с другого телефона — «0 товаров»,
+     а у основного телефона не было 59 правок поставщиков). Телефон мог потерять строки (данные
+     стёрлись посреди обмена, а «скачано до номера N» осталось) — тогда сам он их больше никогда не
+     попросит. Раз в несколько минут сравниваем, сколько живых строк в каждой таблице у телефона и на
+     сервере; не сходится — таблица качается заново целиком и берётся как на сервере. Таблицу с
+     неотправленными правками не трогаем; одно и то же расхождение не качаем по кругу. */
+  const COUNT_EVERY = 3 * 60 * 1000;
+  async function countCheck(ws, rl){
+    const at = 'ffCountAt:' + ws, last = await window.get('settings', at);
+    if(last && Date.now() - num(last.value) < COUNT_EVERY) return 0;
+    await window.put('settings', {key: at, value: Date.now()});
+    let fixed = 0;
+    for(const s of ORDER){
+      const spec = MAP[s];
+      if(!spec.pull.includes(rl) || (spec.bossOnly && isStaff())) continue;
+      try{
+        const rows = await window.getAll(s);
+        if(rows.some(r=> r.dirty && !r.rejected)) continue;
+        const local = rows.filter(r=> !r.deletedAt).length;
+        const table = (spec.pullTable && spec.pullTable[rl]) || spec.table;
+        const {count, error} = await client.from(table).select(spec.key, {count:'exact', head:true}).eq('owner_id', ws).is('deleted_at', null);
+        if(error || typeof count !== 'number' || count === local) continue;
+        const memoKey = 'ffCountMiss:' + ws + ':' + s, memo = await window.get('settings', memoKey);
+        if(memo && memo.value === count + '/' + local) continue;          // уже качали — расхождение не от потери
+        const r = await pullStore(s, ws, rl, 0, {force: true, noOverlap: true});
+        const after = (await window.getAll(s)).filter(x=> !x.deletedAt).length;
+        await window.put('settings', {key: memoKey, value: count + '/' + after});
+        await window.put('settings', {key: 'ffSeq:' + ws + ':' + s, value: r.maxSeq});   // скачали с нуля — номер как на сервере (старый мог убежать вперёд)
+        fixed += r.applied;
+      }catch(e){ if(e instanceof SessionLost) throw e; }
+    }
+    return fixed;
   }
 
   async function serverSizeStock(ws){
@@ -756,6 +793,7 @@
         await window.put('settings', {key, value: Math.max(since, r.maxSeq)});
       }
       received += await pullSettings(ws);
+      received += await countCheck(ws, rl);
 
       if(!pushErr) await selfCheck(ws, rl);
       const pending = await pendingCount();
@@ -820,6 +858,17 @@
     if(!ready() || role() !== 'owner') return {ok:false, error:'только склад'};
     const {data, error} = await client.rpc('take_snapshot', {p_kind: kind || 'manual'});
     return error ? {ok:false, error:error.message} : {ok:true, id:data};
+  }
+  /* «Обнулить все остатки»: считает сервер по своим данным (телефон мог разойтись), потом новая
+     «эпоха» — каждый телефон стирает своё и качает с сервера. Свои неотправленные правки — сначала. */
+  async function zeroAllStock(){
+    if(!ready() || role() !== 'owner') return {ok:false, error:'только склад'};
+    if(!navigator.onLine) return {ok:false, error:'нет сети'};
+    await syncNow('перед обнулением');
+    const {data, error} = await client.rpc('zero_all_stock');
+    if(error) return {ok:false, error:error.message};
+    const r = await syncNow('обнуление');
+    return Object.assign({ok:true}, data || {}, r && r.ok === false ? {syncError: r.error} : {});
   }
   async function listSnapshots(){
     if(!ready() || role() !== 'owner') return [];
@@ -968,7 +1017,7 @@
     adminDelete: async id=>{ const {error} = await client.rpc('admin_delete_warehouse', {p_owner: id}); if(error) throw new Error(error.message); },
     adminBlock: async (id, on)=>{ const {error} = await client.rpc('admin_block', {p_owner: id, p_blocked: !!on}); if(error) throw new Error(error.message); },
     adminSetTariffs: async list=>{ const {error} = await client.rpc('admin_set_tariffs', {p_value: list}); if(error) throw new Error(error.message); },
-    takeSnapshot, listSnapshots, restoreSnapshot, startRealtime, stopRealtime,
+    takeSnapshot, listSnapshots, restoreSnapshot, zeroAllStock, startRealtime, stopRealtime,
     // совместимость со старыми экранами «Склада» (уходят в задачах 5–7)
     joinWorkspace: code=> joinByCode(code), listMembers: async()=> [], removeMember: async()=> ({ok:false, error:'нет'}),
     ensureInviteCode: async()=> null, rotateInviteCode: async()=> ({ok:false, error:'нет'}), inviteCode: ()=> null,

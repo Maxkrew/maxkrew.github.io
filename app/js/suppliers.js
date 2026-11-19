@@ -47,8 +47,8 @@ async function renderSuppliers(){
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
   const bills = {};
   for(const s of sups) if(!s.archived) bills[s.id] = await billingSupplierBlock(s);
-  const zeroAll = sups.some(s=> !s.archived) ? `<div class="card"><button class="btn danger sm" id="zeroAllBtn" style="width:auto;" onclick="zeroAllStockUI()">Очистить склад у всех поставщиков</button>
-    <div class="hint" style="margin-top:6px;">Всё наличие и все минусы — в ноль. Отправки, приёмки, долги и история остаются.</div></div>` : '';
+  const zeroAll = sups.some(s=> !s.archived) ? `<div class="card"><button class="btn danger sm" id="zeroAllBtn" style="width:auto;" onclick="zeroAllStockUI()">Обнулить все остатки у всех поставщиков</button>
+    <div class="hint" style="margin-top:6px;">Всё наличие и все минусы — в ноль на сервере и на всех телефонах (ваших и поставщиков). Отправки, приёмки, долги и история остаются.</div></div>` : '';
   box.innerHTML = zeroAll + billingTariffCard() + sups.map(s=>{
     const mine = cells.filter(c=> c.supplierId === s.id).map(c=> c.number).sort(cmpCellNumber);
     const status = s.archived ? '<span class="pill g">в архиве</span>' : (s.memberId ? '<span class="pill">вошёл</span>' : '<span class="pill w">ждёт входа</span>');
@@ -158,23 +158,8 @@ async function zeroSupplierStockUI(id){
     await renderSuppliers();
   }finally{ zeroBusy = false; }
 }
-/* «Очистить склад у всех»: то же, что у одного поставщика, но по всем действующим (FoG, 17.11.2026: «все по нолям просто»). */
-async function zeroAllStockUI(){
-  if(zeroBusy) return;
-  const sups = (await getAll('suppliers')).filter(s=> !s.deletedAt && !s.archived);
-  if(!sups.length) return;
-  if(!confirm('Очистить склад у ВСЕХ поставщиков (' + sups.length + ')? Наличие каждого товара станет 0, минусы уйдут. Отправки, приёмки, долги и история останутся. Перед этим сделаю резервную копию.')) return;
-  zeroBusy = true;
-  try{
-    let backup = false;
-    if(window.Sync && Sync.takeSnapshot){ const b = await ffSoft(()=> Sync.takeSnapshot('manual')); backup = !!(b && b.ok !== false); }
-    const fresh = await zeroFresh(); if(!fresh) return;
-    let pieces = 0;
-    for(const s of sups){ const r = await clearSupplierStock(s.id); if(r.ok) pieces += r.pieces; }
-    toast('Склад очищен у всех поставщиков' + (pieces ? ' · списано ' + pieces + ' шт.' : '') + (backup ? ' · копия сделана' : '') + await zeroCheck(sups.map(x=> x.id)));
-    await renderSuppliers();
-  }finally{ zeroBusy = false; }
-}
+/* «Очистить у всех» — теперь одна кнопка с «Настройками»: zeroAllStockUI (backup-labels.js) — считает сервер,
+   все телефоны склада и поставщиков берут результат с сервера (FoG, 19.11.2026: телефоны разошлись). */
 async function toggleSupplierArchive(id){
   const s = await get('suppliers', id);
   if(!s) return;

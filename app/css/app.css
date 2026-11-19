@@ -729,7 +729,7 @@ aside.side{display:none;}
 @media (min-width:1024px){ .sub-banner{max-width:1200px;margin:12px auto 0;width:calc(100% - 2*var(--sp-7));} }
 body.readonly #ffAddModelBtn, body.readonly #supAddBtn, body.readonly #supNewName, body.readonly .rc-card .field-row,
 body.readonly #receiptsBox > .card:first-child, body.readonly #shipmentsBox > .card:first-child, body.readonly #mmSaveBtn,
-body.readonly #mmDeleteBtn, body.readonly [data-del-op], body.readonly .sup-actions, body.readonly #cellsBox .head-row .btn{display:none !important;}
+body.readonly #mmDeleteBtn, body.readonly [data-del-op], body.readonly .sup-actions, body.readonly #cellsBox .cells-head .btn{display:none !important;}
 body.readonly .task input{pointer-events:none;opacity:.5;}
 .auth-strong{color:var(--accent) !important;font-weight:700;}
 
@@ -1183,3 +1183,12 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .adm-tile-label{font-size:13px;color:var(--text-secondary);}
 .adm-tile-val{font-size:26px;font-weight:700;line-height:1.2;margin-top:2px;font-variant-numeric:tabular-nums;}
 .adm-tile-sub{font-size:12px;color:var(--text-tertiary);margin-top:4px;}
+
+/* «Ячейки»: счётчик и «+ Ячейка» в строку, под ними маленькие красные кнопки (FoG, 19.11.2026: большие кнопки расползались) */
+#cellsBox .cells-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+#cellsBox .cells-head .rmeta{flex:1 1 auto;min-width:0;}
+#cellsBox .cells-head .btn.sm{width:auto;min-height:32px;padding:5px 10px;font-size:12.5px;border-radius:10px;white-space:nowrap;gap:4px;box-shadow:none;flex:0 0 auto;}
+#cellsBox .cells-head .btn.sm .icon{width:14px;height:14px;}
+.cells-head-btns{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;}
+.cells-head-btns .btn.sm{font-size:12px;padding:5px 9px;}
+.cells-head-btns:not(:has(.btn:not([hidden]))){display:none;}

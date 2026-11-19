@@ -187,12 +187,14 @@ function importBackup(e){
   e.target.value='';
 }
 /* ---- копии на сервере ---- */
-const SNAP_KIND = {daily:'Ежедневная', manual:'Вручную', 'before-restore':'До отката'};
+const SNAP_KIND = {daily:'Ежедневная', manual:'Вручную', 'before-restore':'До отката', 'before-zero':'До обнуления'};
 async function renderSnapshots(){
   const card = document.getElementById('snapshotsCard'), box = document.getElementById('snapshotsList');
   if(!card || !box) return;
   const can = window.Sync && Sync.isConfigured() && !isEmployee();
   card.hidden = !can;
+  const zero = document.getElementById('zeroAllCard');
+  if(zero) zero.hidden = !(can && Sync.role && Sync.role() === 'owner');
   if(!can) return;
   if(!(await Sync.currentUser())){ box.innerHTML = emptyLine('i-alert', 'Войдите в аккаунт, чтобы видеть копии'); return; }
   let list;
@@ -209,6 +211,23 @@ async function renderSnapshots(){
       <button class="btn ghost sm" style="width:auto;" ${master ? '' : 'disabled'} onclick="restoreSnapshotUI(${Number(s.id)}, ${jsArg(when)})">Откатить</button>
     </div>`;
   }).join('') + (master ? '' : `<div class="t-caption" style="margin-top:8px;color:var(--text-secondary);">Откатить можно только на главном устройстве (галочка выше).</div>`);
+}
+/* «Обнулить все остатки» (FoG, 19.11.2026): телефоны разошлись — склад начинает с нуля. Считает сервер. */
+async function zeroAllStockUI(){
+  if(!window.Sync || !Sync.zeroAllStock){ toast('Сервер не настроен'); return; }
+  if(!confirm('Обнулить ВСЕ остатки у всех поставщиков?\n\nКаждый товар в каждой ячейке — и на полу, и в браке, и минусы — станет 0 (корректировкой, она видна в «Истории»). Ячейки освободятся, правки поставщиков «на проверке» отменятся. Модели, ячейки, поставщики, приёмки, отправки и оплаты останутся.\n\nВсе телефоны — ваши и поставщиков — при следующей связи сотрут свои данные и скачают с сервера, поэтому цифры везде станут одинаковыми. Неотправленные правки на других телефонах пропадут.\n\nПеред этим сохранится копия «До обнуления» — её можно откатить.')) return;
+  const word = prompt('Чтобы подтвердить, напишите слово ОБНУЛИТЬ');
+  if(String(word || '').trim().toUpperCase() !== 'ОБНУЛИТЬ'){ toast('Отменено — ничего не изменилось'); return; }
+  const btns = ['zeroAllBtn', 'zeroAllSettingsBtn'].map(id=> document.getElementById(id)).filter(Boolean);
+  btns.forEach(b=> b.disabled = true);
+  toast('Обнуляю…');
+  let r;
+  try{ r = await Sync.zeroAllStock(); }catch(e){ r = {ok:false, error:e.message}; }
+  btns.forEach(b=> b.disabled = false);
+  toast(r.ok ? ('Готово: все остатки 0 (убрано ' + (Number(r.pieces) || 0) + ' шт.). Другие телефоны обновятся сами.') : ('Не вышло: ' + r.error));
+  if(typeof refreshAfterSync === 'function') await refreshAfterSync();
+  if(typeof renderSuppliers === 'function') try{ await renderSuppliers(); }catch(e){}
+  await renderSnapshots();
 }
 async function snapshotNow(){
   const r = await Sync.takeSnapshot('manual');

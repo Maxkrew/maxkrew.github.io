@@ -21,13 +21,24 @@ function describeSync(state, detail){
 }
 
 /* Синхронизация привезла чужие правки — перерисовать открытый раздел. */
+/* Пока человек листает, не перерисовываем — список дёргался под пальцем (FoG, 19.11.2026):
+   ждём 1,5 с тишины, несколько обменов подряд дают одну перерисовку, место в списке сохраняем. */
+let lastScrollTs = 0, refreshLater = null;
+const markScroll = ()=>{ lastScrollTs = Date.now(); };
+addEventListener('scroll', markScroll, {passive:true, capture:true});
+addEventListener('touchmove', markScroll, {passive:true, capture:true});
 async function refreshAfterSync(){
+  const wait = 1500 - (Date.now() - lastScrollTs);
+  clearTimeout(refreshLater);
+  if(wait > 0){ refreshLater = setTimeout(refreshAfterSync, wait + 50); return; }
+  const y = scrollY;
   if(typeof checkNewOrders === 'function') try{ await checkNewOrders(); }catch(e){}   // звук нового заказа (склад)
   const active = document.querySelector('main section.active');
   /* Человек сейчас что-то вводит в этом разделе — не перерисовываем у него под руками. */
   const f = document.activeElement;
   if(active && f && active.contains(f) && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName)){ await updateProductCountPill(); return; }
   if(active) await renderSection(active.id.replace('sec-', ''));
+  if(Math.abs(scrollY - y) > 1 && Date.now() - lastScrollTs > 1500) scrollTo(0, y);
   await updateProductCountPill();
 }
 

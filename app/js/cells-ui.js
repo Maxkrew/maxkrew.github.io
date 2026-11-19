@@ -24,10 +24,12 @@ async function renderCells(){
   /* удалённая ячейка, в которой по операциям ещё лежит товар (П1 у FoG, 19.11.2026), — видна: иначе
      товар «пропадал» из ячеек, а итог по товару его считал. Открыть и «Сохранить» — вернуть ячейку. */
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt || cellTotal(stock[c.number])).sort((a, b)=> cmpCellNumber(a.number, b.number));
+  const goneInfo = await goneCellsStock();
   const gone = c=> c.deletedAt ? ' · <b>удалена</b>, откройте и сохраните — вернётся' : '';
   const bySizeId = await ffCellStockMap(), modelOf = Object.fromEntries((await getAll('sizes')).map(z=> [z.id, z.modelId]));
   const head = `<div class="card head-row"><span class="rmeta">Ячеек: ${cells.length} · пустых: ${cells.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length}</span>
     <span style="display:flex;gap:6px;"><button class="btn danger sm" style="width:auto;" id="cellsDelAll" onclick="cellsDeleteAll()"${cells.length ? '' : ' hidden'}><svg class="icon"><use href="#i-trash"/></svg>Удалить все</button>
+    <button class="btn danger sm" style="width:auto;" id="cellsWriteOffGone" onclick="clearGoneCellsUI()"${goneInfo.cells.length ? '' : ' hidden'}>Списать из удалённых ячеек (${goneInfo.pieces} шт.)</button>
     <button class="btn primary sm" style="width:auto;" onclick="openCellModal()"><svg class="icon"><use href="#i-plus"/></svg>Ячейка</button></span></div>`;
   if(!cells.length){
     box.innerHTML = head + emptyState('i-grid', 'Ячеек пока нет', 'Назначьте ячейки поставщику в «Поставщиках» («1-12») или добавьте кнопкой «Ячейка».');
@@ -169,7 +171,9 @@ async function cmAction(action){
    Минус в ячейке (отправляли в минус) списывается без ячейки: в удалённую ячейку класть нельзя. */
 async function clearCell(number, del){
   const c = await get('cells', number);
-  if(!c || c.deletedAt) return {ok:false, error:'Нет такой ячейки'};
+  if(!c) return {ok:false, error:'Нет такой ячейки'};
+  /* удалённая ячейка, где по операциям ещё числится товар (FoG, 19.11.2026), — тоже чистится; остаётся удалённой */
+  const gone = !!c.deletedAt;
   const by = (await ffCellStockMap())[number] || {};
   const sizes = Object.fromEntries((await getAll('sizes')).map(s=> [s.id, s]));
   let n = 0;
@@ -177,7 +181,7 @@ async function clearCell(number, del){
     const s = sizes[sid]; if(!q || !s) continue;
     /* минус гасим плюсом В ЭТОЙ ЖЕ ячейке (иначе в ней остаётся минус, а «без ячейки» растёт);
        только если ячейку сейчас удаляем — без ячейки: в удалённую класть нельзя */
-    if(q < 0){ await ffZeroBucket(s, number, isDefectCell(c), {noPlus: !!del}); continue; }   // минус: плюсом, а не принимает сервер — убрать сами минусовые записи
+    if(q < 0){ await ffZeroBucket(s, number, isDefectCell(c), {noPlus: !!del || gone}); continue; }   // минус: плюсом, а не принимает сервер — убрать сами минусовые записи
     await ffLogOp({supplierId: s.supplierId, modelId: s.modelId, sizeId: sid, cellNumber: number,
       type: 'Корректировка', qty: Math.abs(q), delta: -q, defect: isDefectCell(c)});
     if(q > 0) n += q;
@@ -185,6 +189,7 @@ async function clearCell(number, del){
   for(const l of (await getAll('shipmentLines')).filter(l=> !l.deletedAt && !l.collected && l.cellNumber === number)){
     l.cellNumber = null; await put('shipmentLines', l);
   }
+  if(gone) return {ok:true, n, kept:false};
   /* в ячейку положили товар, а на сервер он ещё не ушёл — удалённую ячейку сервер не примет:
      такую ячейку не удаляем, а только очищаем */
   const pending = (await getAll('ops')).some(o=> o.cellNumber === number && o.dirty && !o.deletedAt && Number(o.delta) > 0);
@@ -213,6 +218,29 @@ async function clearAllCells(){
     if(r.ok){ if(r.kept) kept++; else cells++; pieces += r.n; }
   }
   return {ok:true, cells, pieces, backup, kept};
+}
+/* Товар, который числится в удалённых ячейках (у FoG — старый «пол» П1 и дробные ячейки: после
+   инвентаризации его нет, а поставщик его видит), — списать одной кнопкой, с резервной копией. */
+async function goneCellsStock(){
+  const stock = await cellStockByLabel();
+  const cells = (await getAll('cells')).filter(c=> c.deletedAt && Object.values(stock[c.number] || {}).some(q=> q));
+  return {cells, pieces: cells.reduce((n, c)=> n + Object.values(stock[c.number]).reduce((a, q)=> a + (q > 0 ? q : 0), 0), 0)};
+}
+async function clearGoneCells(){
+  const {cells} = await goneCellsStock();
+  let backup = false, pieces = 0;
+  if(window.Sync && Sync.takeSnapshot){ const r = await ffSoft(()=> Sync.takeSnapshot('manual')); backup = !!(r && r.ok !== false); }
+  for(const c of cells){ const r = await clearCell(c.number, false); if(r.ok) pieces += r.n; }
+  if(window.Sync && Sync.syncNow) ffSoft(()=> Sync.syncNow('списание из удалённых ячеек'));
+  return {ok:true, cells: cells.length, pieces, backup};
+}
+async function clearGoneCellsUI(){
+  const g = await goneCellsStock();
+  if(!g.cells.length){ toast('В удалённых ячейках товара нет'); return; }
+  if(!confirm('Списать товар из удалённых ячеек (' + g.cells.map(c=> c.number).join(', ') + ') — ' + g.pieces + ' шт.?\n\nЭтих ячеек на складе уже нет, а товар в них числится и виден поставщикам. Перед списанием сделаю резервную копию, в «Истории» будет видно.')) return;
+  const r = await clearGoneCells();
+  toast('Списано из удалённых ячеек: ' + r.pieces + ' шт.' + (r.backup ? ' · копия сделана' : ''));
+  await renderCells();
 }
 async function cmClear(del){
   const lying = cellTotal((await cellStockByLabel())[cmEditing]);

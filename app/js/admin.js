@@ -14,6 +14,8 @@ async function renderAdmin(){
   let list = [], tariffs = [];
   try{ list = await Sync.adminList(); }catch(e){ box.innerHTML = emptyState('i-alert', 'Не удалось загрузить склады', e.message); return; }
   try{ tariffs = await Sync.loadTariffs(); }catch(e){}
+  let st = null;
+  try{ st = await Sync.adminStats(); }catch(e){}
   const rows = list.map(w=> `<div class="card adm-card">
       <div class="adm-head"><div class="adm-title">${escapeHtml(w.title)}</div>${admStatus(w)}</div>
       <div class="adm-mail">${escapeHtml(w.email || '')}</div>
@@ -37,7 +39,21 @@ async function renderAdmin(){
       ${fld(i, 'features', 'Что входит', 'ячейки, приёмка, поставщики', t.features)}
     </div>`).join('')}
     <button class="btn primary" id="tfSave" onclick="admSaveTariffs()"><svg class="icon"><use href="#i-check"/></svg>Сохранить тарифы</button>`;
-  box.innerHTML = `<div class="adm-sec-title">Склады · ${list.length}</div>` + rows + editor;
+  box.innerHTML = admSummary(st) + `<div class="adm-sec-title">Склады · ${list.length}</div>` + rows + editor;
+}
+/* «Сводка»: сколько людей, складов (фулфилментов) и поставщиков подключилось (19.11.2026) */
+function admSummary(st){
+  if(!st) return '';
+  const n = k=> Number(st[k]) || 0;
+  const tile = (label, val, sub)=> `<div class="adm-tile"><div class="adm-tile-label">${label}</div><div class="adm-tile-val">${val}</div>${sub ? `<div class="adm-tile-sub">${sub}</div>` : ''}</div>`;
+  return `<div class="adm-sec-title">Сводка</div><div class="adm-summary" id="admSummary">
+    ${tile('Всего людей', n('users'), 'новых: ' + n('users_new7') + ' за 7 дн. · ' + n('users_new30') + ' за 30 дн.')}
+    ${tile('Заходили за 7 дней', n('active7'))}
+    ${tile('Складов', n('wh'), 'работают: ' + n('wh_active') + (n('wh_trial') ? ' (пробных ' + n('wh_trial') + ')' : '') + (n('wh_blocked') ? ' · заблок.: ' + n('wh_blocked') : '') + ' · новых за 30 дн.: ' + n('wh_new30'))}
+    ${tile('Поставщиков подключилось', n('sup_joined') + ' из ' + n('sup'), 'остальные ещё не вошли по приглашению')}
+    ${tile('Сотрудников поставщиков', n('staff_joined'))}
+    ${tile('Отправок за 30 дней', n('ships30'), 'по всем складам')}
+  </div>`;
 }
 async function admRun(p, okText){
   try{ await p; toast(okText); }catch(e){ toast('Не вышло: ' + e.message); }

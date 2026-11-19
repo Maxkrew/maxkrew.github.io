@@ -1177,3 +1177,9 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .sh-search{margin-bottom:10px;}
 .ar-date{font-size:12px;opacity:.65;margin:12px 4px 4px;}
 .ar-cards .sh-card{margin-bottom:0;}
+/* «Сводка» в панели владельца сервиса */
+.adm-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-2,8px);margin-bottom:var(--sp-4,16px);}
+.adm-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md,12px);padding:12px;min-width:0;}
+.adm-tile-label{font-size:13px;color:var(--text-secondary);}
+.adm-tile-val{font-size:26px;font-weight:700;line-height:1.2;margin-top:2px;font-variant-numeric:tabular-nums;}
+.adm-tile-sub{font-size:12px;color:var(--text-tertiary);margin-top:4px;}

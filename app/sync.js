@@ -874,6 +874,7 @@
     createSupplier, resetSupplierPassword, pendingCount, wipeLocalData, registerWarehouse, subscription,
     isAdmin: ()=> !!(membership && membership.isAdmin),
     loadTariffs: async ()=>{ if(!init()) return []; const {data, error} = await client.from('service_settings').select('value').eq('key', 'tariffs').limit(1); if(error) throw new Error(error.message); return (data && data[0] && data[0].value) || []; },
+    adminStats: async ()=>{ const {data, error} = await client.rpc('admin_stats'); if(error) throw new Error(error.message); return data || {}; },
     adminList: async ()=>{ const {data, error} = await client.rpc('admin_list_warehouses'); if(error) throw new Error(error.message); return data || []; },
     adminExtend: async (id, days)=>{ const {error} = await client.rpc('admin_extend', {p_owner: id, p_days: days}); if(error) throw new Error(error.message); },
     adminUnlimited: async id=>{ const {error} = await client.rpc('admin_set_unlimited', {p_owner: id}); if(error) throw new Error(error.message); },

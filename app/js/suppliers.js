@@ -126,6 +126,21 @@ async function resetSupplierPasswordUI(id){
 /* «Очистить склад»: всё наличие поставщика (и минусы, и брак) — в 0; отправки, приёмки и история
    остаются. Сначала резервная копия (ждём её не дольше 8 с). */
 let zeroBusy = false;
+/* Чистим по остаткам сервера, а не по памяти телефона: она могла разойтись, и тогда у склада
+   становилось 0, а у остальных оставался «хвост» (FoG, 19.11.2026). Без связи — не чистим. */
+async function zeroFresh(){
+  if(!(window.Sync && Sync.freshOps)) return true;
+  toast('Беру остатки с сервера…');
+  const f = await Sync.freshOps();
+  if(!f.ok){ toast(f.error); return false; }
+  return true;
+}
+async function zeroCheck(supIds){
+  if(!(window.Sync && Sync.serverZero)) return '';
+  const set = new Set(supIds), ids = (await getAll('sizes')).filter(z=> set.has(z.supplierId)).map(z=> z.id);
+  const r = await Sync.serverZero(ids);
+  return r.ok ? ' · на сервере тоже 0 — у всех обнулится' : ' · ВНИМАНИЕ: ' + r.error + ' — нажмите «Очистить» ещё раз';
+}
 async function zeroSupplierStockUI(id){
   if(zeroBusy) return;
   const s = await get('suppliers', id); if(!s) return;
@@ -136,9 +151,10 @@ async function zeroSupplierStockUI(id){
   try{
     let backup = false;
     if(window.Sync && Sync.takeSnapshot){ const b = await ffSoft(()=> Sync.takeSnapshot('manual')); backup = !!(b && b.ok !== false); }
+    const fresh = await zeroFresh(); if(!fresh) return;
     const r = await clearSupplierStock(id);
     if(!r.ok){ toast(r.error); return; }
-    toast('Склад «' + s.name + '» очищен' + (r.pieces ? ' · списано ' + r.pieces + ' шт.' : '') + (backup ? ' · копия сделана' : ''));
+    toast('Склад «' + s.name + '» очищен' + (r.pieces ? ' · списано ' + r.pieces + ' шт.' : '') + (backup ? ' · копия сделана' : '') + await zeroCheck([id]));
     await renderSuppliers();
   }finally{ zeroBusy = false; }
 }
@@ -152,9 +168,10 @@ async function zeroAllStockUI(){
   try{
     let backup = false;
     if(window.Sync && Sync.takeSnapshot){ const b = await ffSoft(()=> Sync.takeSnapshot('manual')); backup = !!(b && b.ok !== false); }
+    const fresh = await zeroFresh(); if(!fresh) return;
     let pieces = 0;
     for(const s of sups){ const r = await clearSupplierStock(s.id); if(r.ok) pieces += r.pieces; }
-    toast('Склад очищен у всех поставщиков' + (pieces ? ' · списано ' + pieces + ' шт.' : '') + (backup ? ' · копия сделана' : ''));
+    toast('Склад очищен у всех поставщиков' + (pieces ? ' · списано ' + pieces + ' шт.' : '') + (backup ? ' · копия сделана' : '') + await zeroCheck(sups.map(x=> x.id)));
     await renderSuppliers();
   }finally{ zeroBusy = false; }
 }

@@ -516,18 +516,47 @@
     if(!diffs.length){ lastDiffSig = ''; return; }
     if(sig !== lastDiffSig){ lastDiffSig = sig; return; }
     lastDiffSig = '';
+    await reloadOps(ws, rl);
+    const after = await window.ffCompareWithServer(server);
+    if(typeof window.toast === 'function') window.toast('Остатки сверены с сервером' + (after.length ? '' : ' и исправлены'));
+  }
+  /* операции с сервера целиком; «отправленные», которых там нет, — убрать */
+  async function reloadOps(ws, rl){
     await pullStore('ops', ws, rl, 0);
     const live = new Set();
     const table = (MAP.ops.pullTable && MAP.ops.pullTable[rl]) || MAP.ops.table;
     for(let from = 0; ; from += 1000){
       const {data, error} = await client.from(table).select('uid').eq('owner_id', ws).order('uid', {ascending:true}).range(from, from + 999);
-      if(error) return;
+      if(error) throw new Error(table + ': ' + error.message);
       (data || []).forEach(r=> live.add(r.uid));
       if(!data || data.length < 1000) break;
     }
     for(const op of await window.getAll('ops')){ if(!op.dirty && !op.rejected && !live.has(op.uid)) await window.del('ops', op.uid); }
-    const after = await window.ffCompareWithServer(server);
-    if(typeof window.toast === 'function') window.toast('Остатки сверены с сервером' + (after.length ? '' : ' и исправлены'));
+  }
+  /* Перед «Очистить склад» (FoG, 19.11.2026): склад обнулял по своей памяти, а она разошлась с
+     сервером — у него стало 0, у остальных остался «хвост». Сначала отправляем свои правки,
+     потом берём операции с сервера целиком. Без связи — не чистим вовсе. */
+  async function freshOps(){
+    const NO = 'Очистку не делаю: ';
+    const r = await syncNow('перед очисткой склада');
+    if(!r.ok) return {ok:false, error: NO + 'нет связи с сервером (' + (r.error || '') + '). Повторите, когда будет интернет'};
+    const left = (await window.getDirty('ops')).filter(x=> !x.rejected).length;
+    if(left) return {ok:false, error: NO + 'на этом телефоне ' + left + ' правок ещё не дошли до сервера. Повторите через минуту'};
+    while(currentRun){ try{ await currentRun; }catch(e){} }
+    let resolveRun; currentRun = new Promise(res=>{ resolveRun = res; });
+    try{ await reloadOps(ownerId(), role()); return {ok:true}; }
+    catch(e){ return {ok:false, error: NO + 'не удалось взять остатки с сервера (' + e.message + ')'}; }
+    finally{ currentRun = null; resolveRun(); }
+  }
+  /* после очистки: отправить и проверить, что на сервере у этих размеров 0 */
+  async function serverZero(sizeIds){
+    const r = await syncNow('после очистки склада');
+    if(!r.ok) return {ok:false, error:'нет связи с сервером'};
+    if((await window.getDirty('ops')).some(x=> !x.rejected)) return {ok:false, error:'правки ещё отправляются'};
+    const server = await serverSizeStock(ownerId());
+    if(!server) return {ok:false, error:'не удалось проверить остатки на сервере'};
+    const left = sizeIds.filter(id=> num(server[id]));
+    return left.length ? {ok:false, error:'на сервере не ноль у ' + left.length + ' размеров', left} : {ok:true};
   }
 
   // ------------------------------------------------------------------
@@ -874,6 +903,7 @@
     createSupplier, resetSupplierPassword, pendingCount, wipeLocalData, registerWarehouse, subscription,
     isAdmin: ()=> !!(membership && membership.isAdmin),
     loadTariffs: async ()=>{ if(!init()) return []; const {data, error} = await client.from('service_settings').select('value').eq('key', 'tariffs').limit(1); if(error) throw new Error(error.message); return (data && data[0] && data[0].value) || []; },
+    freshOps, serverZero,
     adminStats: async ()=>{ const {data, error} = await client.rpc('admin_stats'); if(error) throw new Error(error.message); return data || {}; },
     adminList: async ()=>{ const {data, error} = await client.rpc('admin_list_warehouses'); if(error) throw new Error(error.message); return data || []; },
     adminExtend: async (id, days)=>{ const {error} = await client.rpc('admin_extend', {p_owner: id, p_days: days}); if(error) throw new Error(error.message); },

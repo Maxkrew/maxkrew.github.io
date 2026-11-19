@@ -32,6 +32,8 @@
     });
     /* Ссылка из письма «Забыли пароль?» — открываем окно «Новый пароль». */
     client.auth.onAuthStateChange((event)=>{
+      /* вход пропал не по кнопке «Выйти» (вышли везде с другого телефона, сессию сбросили) */
+      if(event === 'SIGNED_OUT' && !signingOut) setTimeout(sessionLost, 0);
       if(event === 'PASSWORD_RECOVERY' && typeof window.openNewPasswordModal === 'function') window.openNewPasswordModal('recovery');
     });
     return client;
@@ -130,11 +132,24 @@
     const u = await currentUser();
     return !!(u && u.user_metadata && u.user_metadata.must_change_password);
   }
+  /* Вход на этом телефоне закончился сам (FoG, 19.11.2026: «Выйти» на одном телефоне обрывал вход
+     на всех, остальные молча показывали старое). Данные и неотправленные правки не трогаем —
+     человек входит заново той же почтой, и всё уходит на сервер. */
+  let signingOut = false;
+  function sessionLost(){
+    if(signingOut || !membership || membership.role === 'none') return false;
+    stopRealtime();
+    emit('session-lost');
+    return true;
+  }
+  /* «Выйти» — только на этом телефоне: без scope Supabase выходит на ВСЕХ устройствах учётки. */
   async function signOut(){
+    signingOut = true;
     stopRealtime();
     await wipeLocalData();          // данные склада не остаются на устройстве для следующего, кто войдёт
     membership = null; writeCachedMembership(null);
-    if(client){ try{ await client.auth.signOut(); }catch(e){} }
+    try{ if(client){ try{ await client.auth.signOut({scope: 'local'}); }catch(e){} } }
+    finally{ signingOut = false; }
     emit('signed-out');
   }
 
@@ -345,6 +360,7 @@
   const localKeyOf = (store, x)=> x[MAP[store].localKey || MAP[store].key];
 
   class AccessClosed extends Error {}
+  class SessionLost extends Error {}   // вход закончился — просим войти, а не «обмен не удался»
   /* Ошибки различаем по коду и статусу, а не по словам в тексте: раньше «В ячейке 401
      другая модель» принималась за «нет доступа» (в тексте есть «401»). */
   const errCode = e => String(e && e.code || '');
@@ -375,7 +391,9 @@
     if(marked && typeof window.toast === 'function') window.toast('Сервер не принял правку — нет прав на эту запись');
   }
   async function onAuthTrouble(){
-    try{ await client.auth.refreshSession(); }catch(e){}
+    let alive = false;
+    try{ const r = await client.auth.refreshSession(); alive = !r.error && !!(r.data && r.data.session); }catch(e){}
+    if(!alive && sessionLost()) throw new SessionLost('Вход на этом телефоне закончился — войдите снова');
     throw new Error('Вход устарел — обновили, обмен повторится');
   }
 
@@ -653,7 +671,7 @@
   async function runSyncInner(reason){
     if(!navigator.onLine){ emit('offline'); return {ok:false, error:'нет сети'}; }
     const user = await currentUser();
-    if(!user){ emit('signed-out'); return {ok:false, error:'не выполнен вход'}; }
+    if(!user){ if(!sessionLost()) emit('signed-out'); return {ok:false, error:'не выполнен вход'}; }
     if(role() === 'none') await resolveMembership();
     const rl = role();
     if(rl !== 'owner' && rl !== 'supplier') return {ok:false, error:'нет доступа к складу'};
@@ -682,7 +700,7 @@
         for(const s of ORDER) if(MAP[s].push.includes(rl) && !(MAP[s].bossOnly && isStaff())) sent += await pushStore(s, ws, rl);
         if(rl === 'owner') sent += await pushSettings(ws);
         if(photoErr) throw photoErr;
-      }catch(e){ if(e instanceof AccessClosed) throw e; pushErr = e; }
+      }catch(e){ if(e instanceof AccessClosed || e instanceof SessionLost) throw e; pushErr = e; }
 
       /* Номер правки на сервере один на все таблицы, а таблицы принимаются по очереди: пока
          принимали размеры, другой телефон мог записать модель с номером меньше — с общим
@@ -709,6 +727,7 @@
       return {ok:true, sent, received};
     }catch(e){
       if(e instanceof AccessClosed){ await onAccessClosed(); return {ok:false, error:'Доступ закрыт хозяином', accessClosed:true}; }
+      if(e instanceof SessionLost) return {ok:false, error: e.message, sessionLost:true};
       emit('error', {message: e.message});
       return {ok:false, error: e.message};
     }

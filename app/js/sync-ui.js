@@ -10,6 +10,7 @@ function describeSync(state, detail){
   if(state === 'syncing') return 'Синхронизация…';
   if(state === 'offline') return (detail.pending ? 'Нет сети · ждут: '+detail.pending : 'Нет сети');
   if(state === 'signed-out') return 'Вход не выполнен';
+  if(state === 'session-lost') return 'Данные не обновляются — войдите заново';
   if(state === 'access-closed') return 'Доступ закрыт';
   if(state === 'error') return 'Обмен не удался';
   if(state === 'idle'){
@@ -288,9 +289,20 @@ async function syncSignOut(){
   toast('Вы вышли из аккаунта');
 }
 
+/* Вход на этом телефоне закончился сам (вышли «везде» с другого телефона, сессию сбросили):
+   не показываем молча старые данные — сразу просим войти той же почтой. Данные на телефоне
+   и неотправленные правки остаются и уйдут после входа. */
+function onSessionLost(){
+  const bg = document.getElementById('authModalBg');
+  if(!bg || (bg.classList.contains('show') && bg.dataset.mode === 'login')) return;
+  authWho = null;
+  openAuth('login');
+  authInfo('Вход на этом телефоне закончился (например, вышли из аккаунта на другом устройстве), поэтому данные здесь не обновлялись. Войдите заново — всё подтянется, ваши правки не пропадут.');
+}
+
 async function initSync(){
   if(!window.Sync || !Sync.isConfigured()){ setSyncLine(describeSync('signed-out')); return; }
-  Sync.onStatus((state, detail)=>{ setSyncLine(describeSync(state, detail)); if(state === 'idle' && typeof ffAfterSync === 'function') ffAfterSync(); });
+  Sync.onStatus((state, detail)=>{ setSyncLine(describeSync(state, detail)); if(state === 'idle' && typeof ffAfterSync === 'function') ffAfterSync(); if(state === 'session-lost') onSessionLost(); });
   window.refreshAfterSync = refreshAfterSync;
   const started = await Sync.start();
   await applyRoleUI();

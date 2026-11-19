@@ -6,31 +6,35 @@ async function reviewItems(){
   return (await getAll('ops')).filter(o=> !o.deletedAt && !o.rejected && o.review === 'на проверке').sort((a, b)=> (a.ts || 0) - (b.ts || 0));
 }
 
-/* ячейка по умолчанию: минус — откуда взять (planPick), плюс — куда положить (planPlacement) */
+/* '__floor' — «Пол» (FoG, 18.11.2026): ячейки не указаны или их нет — правка поставщика ложится на пол его склада */
+const REVIEW_FLOOR = '__floor';
+/* ячейка по умолчанию: минус — откуда взять (planPick), плюс — куда положить (planPlacement); нет ячейки — пол */
 async function reviewDefaultCell(op){
   const label = await sizeLabelOf(op.sizeId);
   const cells = (await getAll('cells')).filter(c=> !c.deletedAt);
   const stock = await cellStockByLabel();
   if(op.delta < 0){
     const p = planPick({sizeId: op.sizeId, qty: -op.delta}, cells, await ffCellStockMap());
-    return (p.find(x=> x.cell) || {}).cell || '';
+    return (p.find(x=> x.cell) || {}).cell || REVIEW_FLOOR;
   }
   const p = planPlacement({supplierId: op.supplierId, modelId: op.modelId, sizeLabel: label, qty: op.delta}, cells, stock, await modelsMap());
-  return ((p.steps || p || []).find(x=> x.cell && !x.isNew) || {}).cell || '';
+  return ((p.steps || p || []).find(x=> x.cell && !x.isNew && !x.floor) || {}).cell || REVIEW_FLOOR;
 }
 
 async function confirmReview(uid, cellNumber){
   const op = await get('ops', uid);
   if(!op || op.deletedAt) return {ok:false, error:'Поставщик уже убрал эту правку'};
   if(op.review !== 'на проверке') return {ok:true, already:true};
-  const num = String(cellNumber || '').trim();
-  if(!num) return {ok:false, error:'Выберите ячейку'};
+  let num = String(cellNumber || '').trim();
+  /* ячейка не выбрана или её нет — пол поставщика (заводим, если ещё нет); на полу минус бывает — недостача */
+  const auto = !num || num === REVIEW_FLOOR;
+  if(auto) num = await floorCellFor(op.supplierId);
   const c = await get('cells', num);
   if(!c || c.deletedAt || isDefectCell(c) || c.supplierId !== op.supplierId) return {ok:false, error:'Ячейка ' + num + ' не подходит'};
   if(!isFloorCell(c) && !(await cellTakesModel(c, op.modelId))) return {ok:false, error:'В ячейке ' + num + ' другая модель'};
   if(op.delta < 0){
     const have = await cellSizeQty(num, op.sizeId);
-    if(have < -op.delta) return {ok:false, error:'В ячейке ' + num + ' нет столько — там ' + have + ' шт.'};
+    if(!auto && have < -op.delta) return {ok:false, error:'В ячейке ' + num + ' нет столько — там ' + have + ' шт.'};
   } else if(!isFloorCell(c)){
     const free = cellFree(c, (await cellStockByLabel())[num], await modelsMap()).free;
     if(free < op.delta) return {ok:false, error:'Ячейка ' + num + ' не вмещает — свободно ' + Math.max(0, free) + ' шт.'};
@@ -58,10 +62,12 @@ async function renderReviewBlock(){
   for(const op of items){
     const now = idx.sellableBySize[op.sizeId] || 0;
     const def = await reviewDefaultCell(op);
-    const opts = cells.filter(c=> c.supplierId === op.supplierId && (isFloorCell(c) || !c.modelId || sameItem(models[c.modelId], models[op.modelId])))
-      .map(c=> `<option value="${escapeAttr(c.number)}"${c.number === def ? ' selected' : ''}>${isFloorCell(c) ? 'Пол' : 'Ячейка ' + escapeHtml(c.number)}</option>`).join('');
+    const mine = cells.filter(c=> c.supplierId === op.supplierId && (isFloorCell(c) || !c.modelId || sameItem(models[c.modelId], models[op.modelId])));
+    const hasFloor = mine.some(isFloorCell);
+    const opts = mine.map(c=> `<option value="${escapeAttr(c.number)}"${c.number === def ? ' selected' : ''}>${isFloorCell(c) ? 'Пол' : 'Ячейка ' + escapeHtml(c.number)}</option>`).join('')
+      + (hasFloor ? '' : `<option value="${REVIEW_FLOOR}"${def === REVIEW_FLOOR ? ' selected' : ''}>Пол</option>`);
     rows.push(`<div class="row-item review-row" data-review="${escapeAttr(op.uid)}"><div class="rmain">${escapeHtml((sups[op.supplierId] || {}).name || '')}, ${escapeHtml(modelName(models[op.modelId] || {}))} ${escapeHtml(await sizeLabelOf(op.sizeId))}: <b>${now - op.delta} → ${now}</b></div>
-      <div class="rside review-acts"><select data-review-cell="${escapeAttr(op.uid)}" aria-label="В какой ячейке">${opts || '<option value="">нет ячеек</option>'}</select>
+      <div class="rside review-acts"><select data-review-cell="${escapeAttr(op.uid)}" aria-label="В какой ячейке">${opts}</select>
         <button class="btn primary sm" style="width:auto;" data-review-ok="${escapeAttr(op.uid)}" onclick="rvConfirm(${jsArg(op.uid)})">Подтвердить</button>
         <button class="btn ghost sm" style="width:auto;" data-review-no="${escapeAttr(op.uid)}" onclick="rvReject(${jsArg(op.uid)})">Отменить</button></div></div>`);
   }

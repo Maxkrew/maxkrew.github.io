@@ -66,7 +66,7 @@ async function returnCard(r, head, tools){
   const when = new Date(r.createdTs || Date.now()).toLocaleString('ru-RU', {day:'numeric', month:'long', hour:'2-digit', minute:'2-digit'});
   return `<div class="card ret-card" data-expected="${escapeAttr(r.id)}"><div class="rname sh-head"><span class="sh-carrier">${escapeHtml(r.carrier || 'Возврат')}</span><span class="sh-status st-new">${head}</span></div>
     <div class="rmeta">${when}${r.comment ? ' · ' + escapeHtml(r.comment) : ''}</div>
-    ${r.track ? '<div class="rmeta sh-track">Трек: <b data-track>' + trackHtml(r.track) + '</b></div>' : ''}
+    ${r.track ? '<div class="rmeta sh-track">Трек: <b data-track data-copy="' + escapeAttr(String(r.track).trim()) + '" role="button" title="Нажмите — скопировать">' + trackHtml(r.track) + '</b></div>' : ''}
     ${r.returnCode ? '<div class="rmeta">Код на возврат: <b>' + escapeHtml(r.returnCode) + '</b></div>' : ''}
     ${r.pickupAddress ? '<div class="rmeta">Пункт выдачи: ' + escapeHtml(r.pickupAddress) + '</div>' : ''}
     ${phs.length ? '<div class="ph-row">' + phs.join('') + '</div>' : ''}<div class="rc-lines">${rows.join('')}</div>${tools}</div>`;

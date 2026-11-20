@@ -113,8 +113,8 @@ async function renderStockFF(){
       : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b class="${stockTone(s.stock)}">${s.stock}</b>${s.booked ? ` <span class="hint">+${s.booked} брон.</span>` : ''}${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
     // штуки «без ячейки» (старые отправки в минус, корректировки) в ячейках не видны — показываем отдельно
     const noCell = owner ? sz.reduce((n, s)=> n + (idx.noCellBySize[s.id] || 0), 0) : 0;
-    const cellParts = owner ? v.cells.map(c=> `${c.floor ? 'Пол' : 'Ячейка ' + escapeHtml(c.number) + ' (' + escapeHtml(sizesLabel(c.allowedSizes)) + ')'} — <span class="${c.stock < 0 ? 'neg' : ''}">${c.stock} шт.</span>${c.reserved && !c.stock ? ' · бронь' : ''}`) : [];
-    if(noCell) cellParts.push(`Без ячейки — <span class="${noCell < 0 ? 'neg' : ''}" data-no-cell>${noCell} шт.</span>`);
+    const cellParts = owner ? v.cells.map(c=> `${c.floor ? 'Пол' : 'Ячейка ' + escapeHtml(c.number) + ' (' + escapeHtml(sizesLabel(c.allowedSizes)) + ')'}: <span class="${c.stock < 0 ? 'neg' : ''}">${c.stock} шт.</span>${c.reserved && !c.stock ? ' · бронь' : ''}`) : [];
+    if(noCell) cellParts.push(`Без ячейки: <span class="${noCell < 0 ? 'neg' : ''}" data-no-cell>${noCell} шт.</span>`);
     const cellsLine = cellParts.length ? '<div class="cells-line">' + cellParts.join(' · ') + '</div>' : '';
     const sup = owner ? `<span class="rmeta">${escapeHtml((sups[m.supplierId] || {}).name || '')}${m.sku ? ' · ' + escapeHtml(m.sku) : ''} · ${escapeHtml(m.category || '')}</span>` : (m.sku ? `<span class="rmeta">${escapeHtml(m.sku)}</span>` : '');
     if(!owner){ parts.push(`<div class="card model-card mc-big${sz.some(s=> s.fitNote || s.measureNote) ? ' has-notes' : ''}" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">

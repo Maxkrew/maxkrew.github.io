@@ -102,7 +102,7 @@ async function shPrintSelected(){
   const el = document.createElement('div'); el.id = 'printSheet';
   el.innerHTML = withCode.map(x=> `<section class="ps-page" data-print-shipment="${escapeAttr(x.shipment.id)}">
       ${x.imgs.map(i=> `<img src="${escapeAttr(i.url)}" alt="Штрихкод">`).join('')}
-      <div class="ps-meta"><b>${escapeHtml(x.shipment.carrier || '')}</b>${x.supplier ? ' · ' + escapeHtml(x.supplier) : ''}${x.shipment.track ? '<br>Трек: ' + escapeHtml(x.shipment.track) : ''}<br>${x.items.map(escapeHtml).join('<br>')}</div></section>`).join('');
+      <div class="ps-meta"><b>${escapeHtml(x.shipment.carrier || '')}</b>${x.supplier ? ' · ' + escapeHtml(x.supplier) : ''}${x.shipment.track ? '<br>Трек: <b data-track data-copy="' + escapeAttr(String(x.shipment.track).trim()) + '" role="button">' + escapeHtml(x.shipment.track) + '</b>' : ''}<br>${x.items.map(escapeHtml).join('<br>')}</div></section>`).join('');
   document.body.appendChild(el);
   await Promise.all([...el.querySelectorAll('img')].map(i=> i.complete ? 0 : new Promise(res=> { i.onload = i.onerror = res; setTimeout(res, 4000); })));
   const skipped = sheets.length - withCode.length;

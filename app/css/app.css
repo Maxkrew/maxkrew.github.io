@@ -1192,3 +1192,16 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .cells-head-btns{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;}
 .cells-head-btns .btn.sm{font-size:12px;padding:5px 9px;}
 .cells-head-btns:not(:has(.btn:not([hidden]))){display:none;}
+
+/* Аккуратнее и меньше (FoG, 20.11.2026: «большие кнопки — чуть уменьшим», кнопки поставщика налезали друг на друга) */
+.btn{min-height:44px;font-size:14.5px;}
+.btn.sm{min-height:34px;font-size:13px;border-radius:10px;padding:6px 12px;}
+.as-chip{padding:6px 12px;font-size:13.5px;}
+.sup-card .sup-actions{flex-wrap:wrap;gap:6px;}
+.sup-card .sup-actions .btn{flex:1 1 auto;min-width:0;white-space:nowrap;padding:6px 10px;font-size:13px;}
+/* строка возврата/приёмки: название — во всю ширину, «ждали · пришло» — под ним справа */
+.row-item.rc-line{flex-wrap:wrap;row-gap:6px;}
+.row-item.rc-line .rmain{flex:1 1 100%;}
+.row-item.rc-line .rside{flex:1 1 100%;justify-content:flex-end;}
+[data-track][data-copy]{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;-webkit-tap-highlight-color:transparent;}
+.sup-card .sup-actions .btn{flex:1 1 calc(50% - 3px);}

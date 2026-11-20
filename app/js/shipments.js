@@ -30,6 +30,23 @@ function trackGroups(track){
   if(g[g.length - 1].length === 1) g.push(g.splice(-2).join(''));
   return g;
 }
+/* Нажал на трек — он скопирован (Rayaz, 20.11.2026: «чтобы трек копировался и надпись «трек скопирован»»). */
+async function ffCopyText(v){
+  try{ await navigator.clipboard.writeText(v); return true; }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = v; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;'; document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(_){}
+    ta.remove(); return ok;
+  }
+}
+document.addEventListener('click', async e=>{
+  const t = e.target && e.target.closest ? e.target.closest('[data-track][data-copy]') : null;
+  if(!t) return;
+  e.preventDefault(); e.stopPropagation();
+  const ok = await ffCopyText(t.dataset.copy);
+  if(typeof toast === 'function') toast(ok ? 'Трек скопирован' : 'Не удалось скопировать трек');
+}, true);
 const trackHtml = track=> trackGroups(track).map(p=> '<span class="trk-g">' + escapeHtml(p) + '</span>').join('');
 const shIsSupplier = ()=> ffRole() === 'supplier';
 const CANCEL_LATE = 'Склад уже начал собирать — отменить нельзя';
@@ -336,7 +353,7 @@ async function shipmentCard(s, editable){
   const selBox = !sup && editable && shSelectMode ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
   return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${s.deletedAt ? 'удалена' : s.status === 'новая' ? 'забронировано' : escapeHtml(s.status)}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}</div>
     ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
-    ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track>' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>${bcBtn}`}</div>` : ''}
+    ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track data-copy="' + escapeAttr(String(s.track).trim()) + '" role="button" title="Нажмите — скопировать">' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>${bcBtn}`}</div>` : ''}
     ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;
 }
 async function shStart(){

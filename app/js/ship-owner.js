@@ -51,6 +51,8 @@ async function renderShipmentsOwner(box, list, open, done, q){
   } else {
     if(typeof renderReviewBlock === 'function') parts.push(await renderReviewBlock());
     parts.push(progress);
+    /* 21.11.2026: сборка «один заказ на весь экран» (js/pick-run.js) */
+    if(shown.length && !shSelectMode) parts.push(`<button class="btn primary pr-start" id="prStartBtn" onclick="prStart()"><svg class="icon"><use href="#i-check"/></svg>Собирать по одному · ${shown.length}</button>`);
     for(const s of shown) parts.push(await shItem(s, true));
     if(!shown.length) parts.push(emptyState('i-out', 'Несобранных отправок нет', 'Нажмите «+» внизу — новая отправка.'));
   }

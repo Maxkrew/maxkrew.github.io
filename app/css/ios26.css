@@ -633,3 +633,54 @@ body.no-cells .rc-where{display:none !important;}
 .model-card .model-photo{margin-right:14px;}
 .model-card .model-head{align-items:flex-start;}
 .model-card .sizes-line{margin-top:10px;}
+
+/* ================================================================
+   21.11.2026 — сборка «один заказ на весь экран» (js/pick-run.js) и «Отменить» вместо «Точно?»
+   ================================================================ */
+.pr-start{width:100%;margin:0 0 12px;}
+html.pr-open,html.pr-open body{overflow:hidden;}
+.pr-run{position:fixed;inset:0;z-index:84;background:var(--bg-a);display:flex;flex-direction:column;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));}
+.pr-run[hidden]{display:none;}
+.pr-top{display:flex;align-items:center;gap:12px;min-height:44px;}
+.pr-top b{font-size:17px;white-space:nowrap;}
+.pr-x{width:44px;height:44px;border-radius:50%;border:0;background:var(--surface);color:var(--text);display:grid;place-items:center;cursor:pointer;flex-shrink:0;}
+.pr-x .icon{width:20px;height:20px;}
+.pr-bar{flex:1;height:6px;border-radius:3px;background:var(--field);overflow:hidden;}
+.pr-bar i{display:block;height:100%;background:var(--accent);}
+.pr-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:12px 0;}
+.pr-head{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:18px;padding:14px;}
+.pr-head > div{min-width:0;display:flex;flex-direction:column;gap:2px;}
+.pr-head b{font-size:20px;font-variant-numeric:tabular-nums;}
+.pr-head b .trk-g + .trk-g{margin-left:.3em;}
+.pr-head .pr-sub{color:var(--text-secondary);font-size:14px;}
+.pr-head b{color:var(--text);}
+.pr-err{margin-top:10px;padding:14px;border-radius:16px;background:var(--danger);color:#fff;font-weight:700;font-size:16px;}
+.pr-lines{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+.pr-line{display:flex;align-items:center;gap:14px;background:var(--surface);border-radius:20px;padding:12px;}
+.pr-line.done{background:var(--success-soft);}
+.pr-ph{width:120px;height:120px;border-radius:16px;overflow:hidden;background:var(--field);display:grid;place-items:center;flex-shrink:0;color:var(--text-tertiary);}
+.pr-ph img{width:100%;height:100%;object-fit:cover;display:block;}
+.pr-ph .icon{width:36px;height:36px;}
+.pr-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.pr-info b{font-size:17px;line-height:1.25;}
+.pr-size{font-size:22px;font-weight:800;color:var(--accent);}
+.pr-cell{align-self:flex-start;font-size:15px;font-weight:700;padding:4px 10px;border-radius:10px;background:var(--accent-soft);color:var(--accent);}
+.pr-check{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;border:2px solid var(--border);}
+.pr-line.done .pr-check{background:var(--success);border-color:var(--success);color:#fff;}
+.pr-check .icon{width:18px;height:18px;}
+.pr-scan{margin-top:12px;}
+.pr-foot{display:flex;gap:10px;padding-top:8px;}
+.pr-foot .btn{flex:1;}
+.pr-foot #prDone{flex:2;}
+.pr-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;}
+.pr-done > .icon{width:56px;height:56px;color:var(--success);}
+.pr-done b{font-size:22px;}
+.pr-done span{color:var(--text-secondary);}
+.pr-done .btn{width:auto;padding:0 28px;margin-top:10px;}
+/* «Отменить» внизу на 5 секунд */
+.ui-undo{position:fixed;z-index:95;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;transition:transform .2s ease,opacity .2s ease;
+  display:flex;align-items:center;gap:14px;max-width:calc(100vw - 32px);padding:8px 8px 8px 16px;border-radius:16px;background:#1C1C1E;color:#fff;box-shadow:var(--shadow-pop);font-weight:600;}
+.ui-undo.show{transform:translate(-50%,0);opacity:1;}
+.ui-undo span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.ui-undo button{flex-shrink:0;height:36px;padding:0 14px;border:0;border-radius:10px;background:rgba(255,255,255,.16);color:#7DB8FF;font:inherit;font-weight:700;cursor:pointer;}

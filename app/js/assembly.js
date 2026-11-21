@@ -151,7 +151,9 @@ async function shCollectAll(id){
 async function shCollect(id){
   const r = await shCollectAll(id);
   if(!r.ok){ toast(r.error); return; }
-  toast('Собрано'); await renderShipments();
+  /* 21.11.2026: вместо «Точно?» — 5 секунд «Отменить» */
+  if(typeof uiUndo === 'function') uiUndo('Собрано', async ()=>{ await shUncollectAll(id); toast('Сборка отменена'); await renderShipments(); }); else toast('Собрано');
+  await renderShipments();
 }
 async function shCollectSelected(){
   let ok = 0, bad = 0;

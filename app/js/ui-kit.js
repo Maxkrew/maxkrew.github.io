@@ -51,6 +51,7 @@ async function renderTopSheet(){
   const rows = [];
   if(rl === 'owner') rows.push(row('suppliers', 'i-users', 'Поставщики'));
   if(rl === 'owner' || rl === 'supplier') rows.push(row('history', 'i-clock', 'История операций'));
+  if(Sync.isAdmin && Sync.isAdmin()) rows.push(row('admin', 'i-chart', 'Панель сервиса: все склады'));   // только владелец сервиса
   rows.push(row('settings', 'i-gear', 'Настройки'));
   rows.push(row('logout', 'i-x', 'Выйти из аккаунта', ' danger'));
   box.innerHTML = `<div class="ts-head"><span class="hav big">${escapeHtml(uiInitials(rl === 'supplier' ? supName : (wh || email)))}</span>
@@ -76,7 +77,7 @@ async function topSheetAction(id){
   closeTopSheet();
   if(id === 'sync'){ if(window.Sync && Sync.syncNow){ toast('Обновляю…'); const r = await Sync.syncNow('вручную'); toast(r && r.ok ? 'Готово' : 'Не вышло: ' + ((r && r.error) || 'нет сети')); } return; }
   if(id === 'stock') return showSection('stock');
-  if(id === 'suppliers' || id === 'history') return showSection(id);
+  if(id === 'suppliers' || id === 'history' || id === 'admin') return showSection(id);
   if(id === 'settings' || id === 'sub' || id === 'wh') return openSettings();
   if(id === 'logout') return syncSignOut();
 }

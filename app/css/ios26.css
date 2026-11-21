@@ -535,3 +535,15 @@ body.kb-open .sh-dock{bottom:calc(10px + env(safe-area-inset-bottom,0px));}
 .sh-mini-ph{display:block;width:28px;height:28px;border-radius:8px;overflow:hidden;background:var(--field);}
 .sh-mini-ph img{width:100%;height:100%;object-fit:cover;display:block;}
 #pickSheetBg{z-index:95 !important;}   /* выбор товара открывается и из шторок (проект v3) */
+/* 21.11.2026: шапка карточки отправки — служба и дата слева, статус справа вверху; плашки и «⋯» — одной строкой */
+.sh-card .sh-head{display:flex;align-items:center;gap:10px;}
+.sh-card .sh-hname{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2;}
+.sh-card .sh-hname .sh-carrier{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sh-card .sh-hname .sh-time{margin:2px 0 0 !important;font-size:12.5px !important;color:var(--text-tertiary);font-weight:500;position:static !important;}
+.sh-card .sh-hstat{flex-shrink:0;margin-left:auto;}
+.sh-card .sh-hstat .sh-status{margin:0 !important;font-size:13px;padding:4px 11px;}
+.sh-card .sh-meta2{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+.sh-card .sh-meta2 > :first-child{flex:1;min-width:0;}
+.sh-card .sh-meta2 .sh-right{flex-shrink:0;margin-left:auto;display:flex;align-items:center;gap:6px;}
+.sh-card .sh-meta2 .sh-right .sh-tools{display:flex;gap:6px;}
+.sh-card .sh-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0;}

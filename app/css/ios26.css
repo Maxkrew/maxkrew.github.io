@@ -628,3 +628,8 @@ body.no-cells .rc-where{display:none !important;}
 .auth-back{background:var(--field-solid) !important;color:var(--text) !important;}
 .auth-back .icon{stroke:currentColor;}
 .auth-choice{background:var(--field-solid);color:var(--text);}
+/* 21.11.2026 (владелец): фото на «Складе» — вдвое больше (было 44, плохо видно) */
+.model-card .model-photo .ph-add,.model-card .model-photo .ph-thumb,.model-card .model-photo .ph-thumb img{width:88px !important;height:88px !important;border-radius:16px;}
+.model-card .model-photo{margin-right:14px;}
+.model-card .model-head{align-items:flex-start;}
+.model-card .sizes-line{margin-top:10px;}

@@ -61,9 +61,9 @@ async function renderTopSheet(){
     <div class="ts-list">${rows.join('')}</div>`;
 }
 /* тема: 'light' | 'dark' | 'auto' (как в телефоне) — хранится на этом телефоне */
-function uiTheme(){ try{ const t = localStorage.getItem('ff-theme'); return t === 'light' || t === 'dark' ? t : 'auto'; }catch(e){ return 'auto'; } }
+function uiTheme(){ try{ const t = localStorage.getItem('ff-theme'); return t === 'dark' || t === 'auto' ? t : 'light'; }catch(e){ return 'light'; } }   // по умолчанию — светлая
 function uiSetTheme(v){
-  try{ if(v === 'auto') localStorage.removeItem('ff-theme'); else localStorage.setItem('ff-theme', v); }catch(e){}
+  try{ localStorage.setItem('ff-theme', v); }catch(e){}
   if(v === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', v);
   renderTopSheet();
 }

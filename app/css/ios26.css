@@ -621,3 +621,10 @@ body.no-cells .rc-card .rc-start-btns,body.no-cells .rc-card .rc-start-hint{disp
 body.no-cells .rc-defect span{font-size:0;} body.no-cells .rc-defect span::after{content:"Брак";font-size:15px;}
 .rc-accept{width:100%;margin-top:8px;}
 body.no-cells .rc-where{display:none !important;}
+/* 21.11.2026: экран входа — карточка в цвет темы (в тёмной теме был белый текст на белой карточке: «Вход» и стрелку не видно) */
+.auth-card{background:var(--surface) !important;}
+.auth-card h2{color:var(--text) !important;}
+.auth-field input{background:var(--field-solid) !important;color:var(--text) !important;border-color:transparent !important;}
+.auth-back{background:var(--field-solid) !important;color:var(--text) !important;}
+.auth-back .icon{stroke:currentColor;}
+.auth-choice{background:var(--field-solid);color:var(--text);}

@@ -356,3 +356,16 @@ nav.bottom button.active{color:var(--accent);}
 .td-grid{grid-auto-rows:1fr;}
 .td-tile{height:100%;min-height:136px;justify-content:flex-start;box-sizing:border-box;}
 .td-tile em:empty{display:none;}
+
+/* 21.11.2026 (владелец): плашка «Подключено к складу» синяя, одной строкой; счётчик товаров — вправо к шестерёнке */
+.wh-band{background:var(--accent-soft);padding:9px 14px;}
+.wh-band .icon{color:var(--accent);}
+header.top .status-pill{margin-left:auto;}
+/* настройки: вход одной строкой в маленькой плашке; «Сменить пароль» синяя, «Выйти» красная */
+#syncStatusBox.acc-box{padding:9px 12px;font-size:13px;align-items:center;}
+#syncStatusBox.acc-box > span{min-width:0;}
+#syncStatusBox .acc-line{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.btn.danger.solid{background:var(--danger);color:#fff;}
+#syncStatusBox .acc-line{display:flex;gap:4px;}
+#syncStatusBox .acc-mail{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+#syncStatusBox .acc-role{flex-shrink:0;}

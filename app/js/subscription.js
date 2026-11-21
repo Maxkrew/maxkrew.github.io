@@ -19,12 +19,10 @@ function renderWhBand(){
   if(rl !== "supplier"){ el.hidden = true; return; }
   const sub = Sync.subscription ? Sync.subscription() : null;
   const title = String((sub && sub.title) || "").trim();
-  const who = Sync.memberName ? Sync.memberName() : "";
-  const staff = Sync.isStaff && Sync.isStaff();
   const n = Sync.warehouses ? Sync.warehouses().length : 1;
   el.className = "wh-band";
   el.hidden = false;
-  el.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span><b>Подключено к складу ${title ? "«" + escapeHtml(title) + "»" : ""}</b><br><span class="wh-who">${staff ? "Вы — сотрудник поставщика" : "Вы — поставщик"} «${escapeHtml(who || "Поставщик")}»${n > 1 ? " · складов у вас: " + n : ""}</span></span>`;
+  el.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span><b>Подключено к складу ${title ? "«" + escapeHtml(title) + "»" : ""}</b>${n > 1 ? " <span class=\"wh-who\">· складов: " + n + "</span>" : ""}</span>`;
 }
 
 function renderSubBanner(){

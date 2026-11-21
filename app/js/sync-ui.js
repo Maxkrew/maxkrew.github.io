@@ -258,11 +258,12 @@ async function renderSyncStatusBox(){
   }
   let pending = 0;
   for(const s of Object.keys(FF_STORES)) pending += (await getDirty(s)).filter(r=> !r.rejected).length;
-  const role = Sync.role() === 'supplier' ? ('поставщик: ' + (Sync.memberName() || '')) : (Sync.role() === 'owner' ? 'склад' : 'нет доступа');
-  el.className = pending ? 'alert' : 'alert success';
+  /* 21.11.2026 (владелец): одной строкой «Вход: почта (Макс Фонари)», «Всё синхронизировано» не пишем */
+  const role = Sync.role() === 'supplier' ? (Sync.memberName() || 'поставщик') : (Sync.role() === 'owner' ? 'склад' : 'нет доступа');
+  el.className = (pending ? 'alert' : 'alert success') + ' acc-box';
   el.innerHTML = '<svg class="icon"><use href="#i-' + (pending ? 'clock' : 'check-circle') + '"/></svg><span>'
-               + 'Вход: <b>' + escapeHtml(user.email || '') + '</b> (' + escapeHtml(role) + ')<br>'
-               + (pending ? ('Не отправлено на сервер: ' + pending + '. Уйдут при первой связи.') : 'Всё синхронизировано с сервером.')
+               + '<span class="acc-line"><span class="acc-mail">Вход: <b>' + escapeHtml(user.email || '') + '</b></span><span class="acc-role">(' + escapeHtml(role) + ')</span></span>'
+               + (pending ? ('<br>Не отправлено на сервер: ' + pending + '. Уйдут при первой связи.') : '')
                + '</span>';
 }
 async function syncNowFromSettings(){

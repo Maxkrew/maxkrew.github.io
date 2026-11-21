@@ -23,14 +23,24 @@ async function renderCells(){
   const models = await modelsMap(), sups = await ffSuppliersMap(), stock = await cellStockByLabel();
   /* удалённая ячейка, в которой по операциям ещё лежит товар (П1 у FoG, 19.11.2026), — видна: иначе
      товар «пропадал» из ячеек, а итог по товару его считал. Открыть и «Сохранить» — вернуть ячейку. */
-  const cells = (await getAll('cells')).filter(c=> !c.deletedAt || cellTotal(stock[c.number])).sort((a, b)=> cmpCellNumber(a.number, b.number));
+  /* 20.11.2026 (владелец): удалённые — не в общей сетке, а по «⋯ → Показать удалённые»; без длинной фразы */
+  const all = await getAll('cells');
+  const goneWithStock = all.filter(c=> c.deletedAt && cellTotal(stock[c.number]));
+  const live = all.filter(c=> !c.deletedAt);
+  const cells = live.concat(cellsShowGone ? goneWithStock : []).sort((a, b)=> cmpCellNumber(a.number, b.number));
   const goneInfo = await goneCellsStock();
-  const gone = c=> c.deletedAt ? ' · <b>удалена</b>, откройте и сохраните — вернётся' : '';
+  const gone = c=> c.deletedAt ? ' · <span class="cell-gone">удалена</span>' : '';
+  const empty = live.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length;
   const bySizeId = await ffCellStockMap(), modelOf = Object.fromEntries((await getAll('sizes')).map(z=> [z.id, z.modelId]));
-  const head = `<div class="card cells-head"><span class="rmeta">Ячеек: ${cells.length} · пустых: ${cells.filter(c=> !c.modelId && !cellTotal(stock[c.number])).length}</span>
+  /* шапка в одну строку: крупно «60 ячеек», мелко «5 пустых»; редкое — в «⋯» */
+  const head = `<div class="card cells-head"><div class="ch-count"><b>${live.length} ${ruPlural(live.length, 'ячейка', 'ячейки', 'ячеек')}</b><span>· ${empty} ${ruPlural(empty, 'пустая', 'пустых', 'пустых')}</span></div>
     <button class="btn primary sm cells-add" onclick="openCellModal()"><svg class="icon"><use href="#i-plus"/></svg>Ячейка</button>
-    <span class="cells-head-btns"><button class="btn danger sm" id="cellsDelAll" onclick="cellsDeleteAll()"${cells.length ? '' : ' hidden'}>Удалить все</button>
-    <button class="btn danger sm" id="cellsWriteOffGone" onclick="clearGoneCellsUI()"${goneInfo.pieces > 0 ? '' : ' hidden'}>Списать удалённые: ${goneInfo.pieces} шт.</button></span></div>`;
+    <button type="button" class="icon-btn cells-more-btn" id="cellsMoreBtn" aria-label="Ещё" aria-haspopup="menu" aria-expanded="${cellsMoreOpen ? 'true' : 'false'}" onclick="event.stopPropagation();cellsMoreToggle()"><svg class="icon"><use href="#i-dots"/></svg></button>
+    <div class="cells-more" id="cellsMore" role="menu"${cellsMoreOpen ? '' : ' hidden'}>
+      ${goneWithStock.length ? `<button type="button" class="cm-item" id="cellsShowGone" onclick="cellsToggleGone()">${cellsShowGone ? 'Скрыть удалённые ячейки' : 'Показать удалённые ячейки (' + goneWithStock.length + ')'}</button>` : ''}
+      <button type="button" class="cm-item danger" id="cellsWriteOffGone" onclick="clearGoneCellsUI()"${goneInfo.pieces > 0 ? '' : ' hidden'}>Списать из удалённых: ${goneInfo.pieces} шт.</button>
+      <button type="button" class="cm-item danger" id="cellsDelAll" onclick="cellsDeleteAll()"${live.length ? '' : ' hidden'}>Удалить все ячейки</button>
+    </div></div>`;
   if(!cells.length){
     box.innerHTML = head + emptyState('i-grid', 'Ячеек пока нет', 'Назначьте ячейки поставщику в «Поставщиках» («1-12») или добавьте кнопкой «Ячейка».');
     return;
@@ -221,6 +231,17 @@ async function clearAllCells(){
 }
 /* Товар, который числится в удалённых ячейках (у FoG — старый «пол» П1 и дробные ячейки: после
    инвентаризации его нет, а поставщик его видит), — списать одной кнопкой, с резервной копией. */
+let cellsShowGone = false, cellsMoreOpen = false;
+function cellsMoreToggle(){ cellsMoreOpen = !cellsMoreOpen; const m = document.getElementById('cellsMore'); if(m) m.hidden = !cellsMoreOpen; const b = document.getElementById('cellsMoreBtn'); if(b) b.setAttribute('aria-expanded', cellsMoreOpen ? 'true' : 'false'); }
+async function cellsToggleGone(){ cellsShowGone = !cellsShowGone; cellsMoreOpen = false; await renderCells(); }
+document.addEventListener('click', e=>{
+  if(!cellsMoreOpen) return;
+  const m = document.getElementById('cellsMore');
+  if(m && m.contains(e.target) && !e.target.closest('.cm-item')) return;
+  cellsMoreOpen = false; if(m) m.hidden = true;
+  const b = document.getElementById('cellsMoreBtn'); if(b) b.setAttribute('aria-expanded', 'false');
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && cellsMoreOpen){ cellsMoreOpen = false; const m = document.getElementById('cellsMore'); if(m) m.hidden = true; } });
 async function goneCellsStock(){
   const stock = await cellStockByLabel();
   const cells = (await getAll('cells')).filter(c=> c.deletedAt && Object.values(stock[c.number] || {}).some(q=> q));

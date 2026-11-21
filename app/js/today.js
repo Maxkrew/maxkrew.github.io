@@ -19,15 +19,16 @@ async function renderToday(){
     if(typeof floorLeftovers === 'function') for(const x of await floorLeftovers(s.id)) floor += x.qty;
     if(typeof supplierBilling === 'function') debt += Math.max(0, (await supplierBilling(s.id)).debt);
   }
+  /* 20.11.2026 (владелец): подписи короткие, в одну строку; пояснения убраны */
   const tile = (id, icon, n, label, sub, go, warn)=> `<button type="button" class="td-tile${warn && n ? ' warn' : ''}" data-today="${id}" onclick="showSection(${jsArg(go)})">
       <svg class="icon"><use href="#${icon}"/></svg><b>${n}</b><span>${label}</span>${sub ? `<em>${sub}</em>` : ''}</button>`;
   box.innerHTML = `<div class="td-grid">
-    ${tile('new', 'i-out', newToday, 'новых заказов сегодня', 'от поставщиков', 'shipments')}
+    ${tile('new', 'i-out', newToday, 'новых заказов', '', 'shipments')}
     ${tile('open', 'i-box', open.length, 'не собрано', 'собрано сегодня: ' + doneToday, 'shipments', true)}
-    ${tile('review', 'i-check', review, 'проверить', review ? 'поставщик поправил остаток' : 'всё проверено', 'shipments', true)}
-    ${tile('expected', 'i-in', expected, 'ожидается поставок', 'нажмите «Принять» на складе', 'stock')}
-    ${tile('receipts', 'i-in', notPlaced, 'не разложено', 'открытые приёмки', 'receipts', true)}
-    ${tile('floor', 'i-grid', floor, 'шт. лежит на полу', 'сверх заказов', 'receipts', true)}
-    ${tile('debt', 'i-coins', fmtMoney(debt), 'долг поставщиков', 'за отправки и приёмку', 'suppliers')}
+    ${tile('review', 'i-check', review, 'проверить', review ? '' : 'всё проверено', 'shipments', true)}
+    ${tile('expected', 'i-in', expected, 'ожидается поставок', '', 'stock')}
+    ${tile('receipts', 'i-in', notPlaced, 'не разложено', '', 'receipts', true)}
+    ${tile('floor', 'i-grid', floor, 'шт. лежит на полу', '', 'receipts', true)}
+    ${tile('debt', 'i-coins', fmtMoney(debt), 'долг поставщиков', '', 'suppliers')}
   </div>`;
 }

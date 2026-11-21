@@ -1,0 +1,358 @@
+/* ================================================================
+   Fulbro — дизайн iOS 26 (владелец, 20.11.2026: «синий, как в макете»).
+   Слой поверх app.css: меняет только вид — цвета, шрифт, скругления,
+   стеклянное нижнее меню, тёмная тема по настройке телефона.
+   Макет: https://claude.ai/artifact/ELRoRhaGbHVPSPbcaaHpXM
+   ================================================================ */
+:root{
+  --bg-a:#F2F2F7; --bg-b:#F2F2F7; --bg-c:#F2F2F7;
+  --surface:#FFFFFF; --surface-2:#FFFFFF; --surface-3:#FFFFFF;
+  --field:rgba(118,118,128,.12); --field-hover:rgba(118,118,128,.18); --field-solid:#EEEEF0;
+  --border:rgba(60,60,67,.18); --border-soft:rgba(60,60,67,.12);
+  --text:#000000; --text-secondary:#6C6C70; --text-tertiary:#8A8A8E;
+  --accent:#0066D6; --accent-strong:#0055B3; --accent-ink:#FFFFFF;
+  --accent-soft:rgba(0,122,255,.11); --accent-border:rgba(0,102,214,.35);
+  --success:#248A3D; --success-soft:rgba(52,199,89,.14); --success-border:rgba(52,199,89,.32);
+  --danger:#D70015; --danger-soft:rgba(255,59,48,.11); --danger-border:rgba(255,59,48,.3);
+  --warning:#C24E00; --warning-soft:rgba(255,149,0,.14); --warning-border:rgba(255,149,0,.32);
+  --glass:rgba(255,255,255,.62); --glass-edge:rgba(255,255,255,.9);
+  --glass-shadow:0 10px 34px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.95);
+  --glass-active:rgba(118,118,128,.14);
+  --sep:rgba(60,60,67,.18);
+  --r-sm:12px; --r-md:16px; --r-lg:22px;
+  --shadow-card:none; --shadow-pop:0 18px 50px -12px rgba(0,0,0,.25);
+  --font-display:-apple-system,'SF Pro Display',BlinkMacSystemFont,'Inter',system-ui,sans-serif;
+  --font-body:-apple-system,'SF Pro Text',BlinkMacSystemFont,'Inter',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg-a:#000000; --bg-b:#000000; --bg-c:#000000;
+    --surface:#1C1C1E; --surface-2:#1C1C1E; --surface-3:#2C2C2E;
+    --field:rgba(118,118,128,.24); --field-hover:rgba(118,118,128,.32); --field-solid:#2C2C2E;
+    --border:rgba(84,84,88,.6); --border-soft:rgba(84,84,88,.4);
+    --text:#FFFFFF; --text-secondary:#98989F; --text-tertiary:#8D8D93;
+    --accent:#0A84FF; --accent-strong:#409CFF; --accent-ink:#FFFFFF;
+    --accent-soft:rgba(10,132,255,.2); --accent-border:rgba(10,132,255,.45);
+    --success:#32D35C; --success-soft:rgba(48,209,88,.16); --success-border:rgba(48,209,88,.35);
+    --danger:#FF6961; --danger-soft:rgba(255,69,58,.18); --danger-border:rgba(255,69,58,.4);
+    --warning:#FFB340; --warning-soft:rgba(255,159,10,.18); --warning-border:rgba(255,159,10,.4);
+    --glass:rgba(42,42,46,.6); --glass-edge:rgba(255,255,255,.13);
+    --glass-shadow:0 10px 34px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12);
+    --glass-active:rgba(255,255,255,.13);
+    --sep:rgba(84,84,88,.6);
+    --shadow-pop:0 18px 50px -12px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+
+/* основа */
+html,body{background:var(--bg-a);color:var(--text);}
+body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+h1,h2,h3,.page-head h2,.modal h3{font-family:var(--font-display);}
+
+/* шапка: на фоне экрана, без зелёной плашки; кнопки — стеклянные кружки */
+header.top{background:transparent;border-radius:0;margin-bottom:4px;padding-bottom:6px;}
+header.top h1,header.top .brand-word{color:var(--text);}
+header.top .sub{color:var(--text-secondary);}
+header.top .status-pill{background:var(--glass);border:.5px solid var(--glass-edge);color:var(--text);box-shadow:var(--glass-shadow);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);}
+header.top #productCountPill,header.top #productCountPill *{color:var(--text);}
+header.top .icon-btn-lg{background:var(--glass);border:.5px solid var(--glass-edge);color:var(--text);border-radius:50%;box-shadow:var(--glass-shadow);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);}
+
+/* крупные заголовки разделов, как в приложениях Apple */
+.page-head h2{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.2;color:var(--text);}
+.page-head p{color:var(--text-secondary);font-size:15px;}
+
+/* карточки и окна */
+.card{background:var(--surface);border-radius:22px;}
+.modal{background:var(--surface);border-top-left-radius:30px;border-top-right-radius:30px;}
+.modal .card{background:var(--field);}
+.modal-bg{background:rgba(0,0,0,.32);}
+.an-tile,.tariff-card,.cell-tile,.abc button,.size-pick button,.an-seg button{background:var(--surface);color:var(--text);}
+.cell-tile{border-color:var(--border-soft);border-radius:16px;}
+.task{background:var(--field);color:var(--text);}
+.row-item{border-bottom:.5px solid var(--sep);}
+
+/* поля */
+input[type=text],input[type=number],input[type=date],input[type=search],input[type=email],input[type=tel],input[type=password],select,textarea{background-color:var(--field);color:var(--text);border-radius:12px;}
+input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[type=search]:focus,input[type=email]:focus,input[type=tel]:focus,input[type=password]:focus,select:focus,textarea:focus{background-color:var(--surface);}
+.modal .card input,.modal .card select,.tf-row input[type=text]:focus{background-color:var(--surface);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238A8A8E' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");}
+
+/* кнопки-капсулы: основная — синяя, второстепенная — светло-синяя */
+.btn{border-radius:999px;font-weight:600;letter-spacing:-.01em;}
+.btn.primary{background:var(--accent);color:var(--accent-ink);}
+.btn.ghost,#homeAddModel{background:var(--accent-soft);color:var(--accent);box-shadow:none;}
+.btn.ghost:hover{background:var(--accent-soft);filter:brightness(.97);}
+.btn.danger,.btn.danger-text{background:var(--danger-soft);color:var(--danger);}
+.btn.alt{background:var(--field);color:var(--text);}
+.btn.amber{background:var(--warning-soft);color:var(--warning);}
+.icon-btn{background:var(--field);color:var(--text);border-radius:50%;}
+[data-back]{background:var(--field);color:var(--accent);border-radius:50%;}
+.an-seg button.on,.size-pick button.on{background:var(--accent);color:var(--accent-ink);}
+.sell-models .chip.on,.pick-item.on{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent);}
+.as-chip{background:var(--surface);border-color:transparent;color:var(--text);}
+
+/* метки «есть / собрана» — системный зелёный */
+b.lvl-ok,.ar-row.st-собрана .ar-status{background:var(--success-soft);color:var(--success);}
+
+/* нижнее меню — «жидкое стекло» */
+nav.bottom{background:var(--glass);border:.5px solid var(--glass-edge);border-radius:32px;box-shadow:var(--glass-shadow);backdrop-filter:blur(26px) saturate(190%);-webkit-backdrop-filter:blur(26px) saturate(190%);padding:5px;}
+nav.bottom button{color:var(--text);font-weight:600;border-radius:26px;}
+nav.bottom button.active{color:var(--accent);background:var(--glass-active);}
+
+/* тёмная тема: места, где в старых стилях был вписан белый фон */
+@media (prefers-color-scheme:dark){
+  .skb-bar button.skb-arrow:active,.skb-row button.mod:active,.skb-row button.mod.on{background:var(--surface-3);}
+  aside.side{background:var(--surface);}
+  .photo-viewer{background:#000;}
+  .pill.w{background:var(--warning-soft);color:var(--warning);}
+}
+
+/* верхняя полоса с шапкой — стекло в цвет экрана */
+.sticky-chrome{background:color-mix(in srgb,var(--bg-a) 72%,transparent);border-bottom:.5px solid var(--sep);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);}
+
+/* остатки по размерам: мало — оранжевый, есть — зелёный, много — синий; в обеих темах */
+b.lvl-low,.sz-row b.lvl-low{background:var(--warning-soft);color:var(--warning);}
+b.lvl-ok,.sz-row b.lvl-ok{background:var(--success-soft);color:var(--success);}
+b.lvl-high,.sz-row b.lvl-high{background:var(--accent-soft);color:var(--accent);}
+
+/* статусы и метки */
+.sh-status{background:var(--field);color:var(--text-secondary);}
+.sh-status.st-new{background:var(--accent-soft);color:var(--accent);}
+.sh-status.st-done{background:var(--success-soft);color:var(--success);}
+.sh-qty{color:var(--accent);}
+.sh-done{color:var(--success);background:var(--success-soft);}
+.ar-row.st-забронировано .ar-status,.ro-tag.one{background:var(--warning-soft);color:var(--warning);}
+.ar-row.st-отменена .ar-status,.ar-row.st-удалена .ar-status,.ro-tag{background:var(--danger-soft);color:var(--danger);}
+.auth-who.warehouse{background:var(--accent-soft);color:var(--accent);}
+.sub-banner.warn,.pill.w{background:var(--warning-soft);color:var(--warning);}
+.qty-stepper button,.qty-pad button{background:var(--surface);color:var(--text);}
+@media (prefers-color-scheme:dark){
+  .sh-price{color:var(--warning);}
+}
+
+/* поставщик: к какому складу подключён */
+.wh-band{display:flex;align-items:center;gap:10px;margin:8px var(--sp-4) 0;padding:10px 14px;border-radius:16px;background:var(--success-soft);color:var(--text);font-size:14px;line-height:1.3;}
+.wh-band .icon{width:20px;height:20px;flex-shrink:0;color:var(--success);}
+.wh-band b{font-weight:700;}
+.wh-band .wh-who{color:var(--text-secondary);font-size:13px;}
+
+/* «Сегодня»: все плитки в одном стиле (владелец, 20.11.2026: «разноцветные буквы — сделай всё одно»).
+   Подписи серые, значки синие, без цветных рамок; где ждут дела — одна оранжевая точка, как у уведомлений. */
+.td-tile{position:relative;border:0;background:var(--surface);border-radius:22px;}
+.td-tile.warn{border:0;}
+.td-tile .icon{color:var(--accent);}
+.td-tile b{color:var(--text);font-weight:700;letter-spacing:-.02em;}
+.td-tile span{color:var(--text-secondary);}
+.td-tile em,.td-tile.warn em{color:var(--text-secondary);font-weight:500;}
+.td-tile.warn::after{content:"";position:absolute;top:16px;right:16px;width:10px;height:10px;border-radius:50%;background:#FF9500;}
+
+/* карточка отправки (владелец, 20.11.2026): карандаш трека — справа вверху у статуса, фото крупнее,
+   скан штрихкода — тонкая строка, камера — значок */
+.sh-card{position:relative;}
+.sh-card .sh-tools{top:14px;right:14px;gap:6px;}
+.sh-card .sh-tools .icon-btn{width:34px;height:34px;}
+.sh-card .sh-tools .icon-btn .icon{width:17px;height:17px;}
+.sh-card .sh-track-edit{color:var(--accent);background:var(--accent-soft);}
+.sh-card:has(.sh-tools) > .rname{padding-right:48px;}
+.sh-card:has(.sh-tools .icon-btn + .icon-btn) > .rname{padding-right:88px;}
+.sh-card:has(.sh-tools .icon-btn + .icon-btn + .icon-btn) > .rname{padding-right:128px;}
+.sh-card .ph-row{gap:10px;margin-top:10px;}
+.sh-card .ph-thumb,.sh-card .ph-thumb img{width:96px;height:96px;border-radius:16px;}
+.sh-card .sh-scan{margin-top:8px;gap:8px;align-items:center;}
+.sh-card .sh-scan input{min-height:36px;height:36px;padding:6px 12px 6px 12px;font-size:14px;border-radius:999px;}
+.sh-card .sh-cam{width:44px;height:44px;flex:none;background:var(--accent-soft);color:var(--accent);}
+.sh-card .sh-cam .icon{width:24px;height:24px;}
+.sh-card .sh-tools .sh-del-btn{color:var(--danger);background:var(--danger-soft);}
+
+/* «Ячейки»: одна строка — крупно «60 ячеек», мелко «5 пустых», справа «⋯» и «+ Ячейка»;
+   редкие действия — в меню «⋯» (владелец, 20.11.2026) */
+#cellsBox .cells-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+#cellsBox .ch-count{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px;}
+#cellsBox .ch-count b{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.15;color:var(--text);}
+#cellsBox .ch-count span{font-size:14px;color:var(--text-secondary);}
+#cellsBox .cells-more-btn{width:40px;height:40px;flex:none;}
+#cellsBox .cells-head .cells-add{min-height:40px;padding:6px 16px;font-size:15px;}
+#cellsBox .cells-more{flex:1 1 100%;display:flex;flex-direction:column;border-radius:16px;background:var(--field);overflow:hidden;}
+#cellsBox .cm-item{border:0;background:transparent;text-align:left;padding:13px 16px;font:inherit;font-size:15px;color:var(--text);border-bottom:.5px solid var(--sep);cursor:pointer;}
+#cellsBox .cm-item:last-child{border-bottom:0;}
+#cellsBox .cm-item.danger{color:var(--danger);}
+#cellsBox .cm-item[hidden]{display:none;}
+.cell-gone{font-size:12px;font-weight:600;color:var(--text-tertiary);}
+
+/* карточка поставщика — компактно (владелец, 20.11.2026): имя и маленькая метка «вошёл» в строку,
+   «Изменить» и «Оплачено» — маленькими кнопками справа вверху, кнопки внизу — одного спокойного цвета */
+.sup-card{position:relative;}
+.sup-card .sup-head{display:flex;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap;min-height:32px;}
+.sup-card:has(.sup-tools) .sup-head{padding-right:186px;}
+.sup-card .sup-head .rname{font-size:18px;font-weight:700;letter-spacing:-.01em;}
+.sup-st{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--field);color:var(--text-secondary);}
+.sup-st.ok{background:var(--success-soft);color:var(--success);}
+.sup-st.w{background:var(--warning-soft);color:var(--warning);}
+.sup-card .sup-tools{position:absolute;top:16px;right:16px;display:flex;gap:6px;}
+.sup-card .sup-tools .btn.sm{min-height:32px;padding:4px 12px;font-size:13px;width:auto;}
+.sup-card .sup-line,.sup-card .bill-rate{margin-top:4px;font-size:14px;color:var(--text-secondary);white-space:normal;}
+.sup-card .bill-box{margin-top:2px;}
+.sup-card .bill-sum{display:flex;flex-direction:column;gap:1px;margin-top:6px;}
+.sup-card .bill-debt-line{font-size:15px;color:var(--text);}
+.sup-card .bill-debt-line b{font-weight:700;}
+.sup-card .bill-debt.neg{color:var(--danger);}
+.sup-card .bill-sum .rmeta{font-size:12.5px;white-space:normal;}
+.sup-card .sup-actions{margin-top:12px;}
+.sup-card .sup-actions .btn,.sup-card .sup-actions .btn.ghost,.sup-card .sup-actions .btn.alt,.sup-card .sup-actions .btn.amber{background:var(--field);color:var(--text);font-weight:600;}
+.sup-card .sup-actions .btn.danger{background:var(--field);color:var(--danger);}
+
+/* история: приход «+» — зелёный, расход — красный (смысл, а не цвет приложения) */
+#ffHistoryList .rval.in{color:var(--success);}
+.sup-card > .sup-line,.sup-card .bill-rate{margin:2px 0 0;}
+.sup-card > .sup-line + .bill-box,.sup-card .bill-box > .bill-rate{margin-top:0;}
+.sup-card > *{margin-block:0;}
+.sup-card{display:flex;flex-direction:column;gap:4px;}
+.sup-card .sup-actions{margin-top:10px;}
+
+/* «Мои товары» у поставщика (владелец, 20.11.2026): шапка в одну строку — «Мои товары · Мало 23 · Excel»;
+   в карточке: фото и название сверху, размеры ниже во всю ширину ровной таблицей */
+#sec-stock > .page-head.head-row{flex-wrap:nowrap;align-items:center;gap:8px;}
+#sec-stock > .page-head.head-row > div:first-child{flex:1 1 auto;min-width:0;}
+#sec-stock > .page-head.head-row h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+body.role-supplier #sec-stock > .page-head.head-row h2,#sec-stock > .page-head.head-row:has(#runOutBtn:not([hidden])) h2{font-size:28px;}
+#sec-stock > .page-head.head-row .btn.sm{flex:none;white-space:nowrap;}
+.model-card.mc-big{display:grid;grid-template-columns:88px minmax(0,1fr);grid-template-areas:"photo head" "sizes sizes";gap:10px 14px;align-items:start;}
+.mc-big .model-photo{grid-area:photo;}
+.mc-big .mc-body{display:contents;}
+.mc-big .model-head{grid-area:head;align-self:center;}
+.mc-big .sizes-line{grid-area:sizes;display:flex;flex-direction:column;border-top:.5px solid var(--sep);}
+.mc-big .sz-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:8px;min-height:40px;padding:4px 0;border-bottom:.5px solid var(--sep);}
+.mc-big .sz-row:last-child{border-bottom:0;}
+.mc-big .sz-row .sz{font-size:15px;color:var(--text);}
+.mc-big .sz-row .sz-word{display:none;}
+.mc-big .sz-row .sz b{display:inline-block;min-width:28px;text-align:center;margin-left:4px;}
+.mc-big .sz-row .flow{color:var(--text-secondary);font-size:13px;}
+.mc-big .sz-btns{margin-left:0;flex-wrap:nowrap;gap:6px;}
+.mc-big .sz-copy{background:var(--field);color:var(--text);border-radius:999px;font-size:12px;padding:5px 10px;}
+/* «Рост/вес» и «Замеры» у поставщика — одной строкой маленьких кнопок-размеров */
+.sz-notes{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;}
+.sz-notes-row{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.sz-notes-row .hint{font-size:13px;margin-right:2px;}
+.sz-notes .sz-copy{background:var(--field);color:var(--text);border-radius:999px;font-size:12.5px;font-weight:600;padding:4px 10px;min-width:32px;}
+.sizes-line .sz b.lvl-low{color:var(--warning);}
+.sizes-line .sz b.lvl-ok{color:var(--success);}
+.sizes-line .sz b.lvl-high{color:var(--accent);}
+.sizes-line .sz .hint{font-size:13px;}
+.sz-notes{gap:4px 12px;margin-top:6px;}
+.sz-notes .sz-copy{min-height:0;height:26px;line-height:26px;padding:0 9px;font-size:12px;min-width:28px;}
+.sz-notes-row{gap:4px;}
+
+/* «Ячейки» v2 (владелец, 20.11.2026): «36 ячеек · 5 пустых» в одну строку, «+ Ячейка», «⋯» — справа;
+   «⋯» открывает маленькое всплывающее меню, а не раздвигает карточку; подпись раздела — мельче, в строку */
+#sec-cells .page-head p{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#cellsBox .cells-head{position:relative;flex-wrap:nowrap;padding:12px 14px;gap:8px;}
+#cellsBox .ch-count{flex-direction:row;align-items:baseline;gap:6px;white-space:nowrap;}
+#cellsBox .ch-count b{font-size:19px;}
+#cellsBox .ch-count span{font-size:14px;}
+#cellsBox .cells-head .cells-add{min-height:36px;padding:4px 14px;font-size:14px;}
+#cellsBox .cells-more-btn{width:36px;height:36px;}
+#cellsBox .cells-more{position:absolute;top:calc(100% - 6px);right:10px;z-index:20;flex:none;width:min(280px,calc(100vw - 48px));background:var(--surface);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.18),0 0 0 .5px var(--sep);}
+#cellsBox .cm-item{padding:12px 16px;}
+.cell-tile .bar{background:var(--field);}
+
+/* ================================================================
+   В духе Ozon (владелец, 20.11.2026: «как на Озон — такие же кнопки, окошечки»):
+   яркий синий, большие прямоугольные кнопки со скруглением, поля «окошечком» —
+   серый блок, сверху мелкая подпись, под ней крупное значение.
+   ================================================================ */
+:root{--bg-a:#F2F3F7;--bg-b:#F2F3F7;--bg-c:#F2F3F7;--field-solid:#F2F3F7;
+  --accent:#005BFF;--accent-strong:#0047CC;--accent-soft:rgba(0,91,255,.10);--accent-border:rgba(0,91,255,.35);}
+@media (prefers-color-scheme:dark){:root{--bg-a:#000000;--bg-b:#000000;--bg-c:#000000;--field-solid:#2C2C2E;--accent:#0A84FF;--accent-strong:#409CFF;--accent-soft:rgba(10,132,255,.2);}}
+.card{border-radius:24px;}
+.btn{border-radius:14px;}
+.btn.primary{min-height:52px;font-size:16px;font-weight:600;}
+.btn.sm{border-radius:10px;min-height:34px;}
+.btn.sm.primary{min-height:34px;font-size:14px;}
+.btn.ghost,#homeAddModel{background:var(--accent-soft);color:var(--accent);}
+.btn.alt{background:var(--field-solid);color:var(--text);}
+nav.bottom button.active{color:var(--accent);}
+
+
+/* кнопки размеров в окнах — серыми плашками, выбранный — синий */
+.modal .size-pick button{background:var(--field-solid);color:var(--text);border:0;border-radius:12px;min-height:40px;font-weight:600;}
+.modal .size-pick button.on{background:var(--accent);color:#fff;}
+/* «Проверить»: название во всю ширину, ячейка и кнопки — строкой ниже */
+.row-item.review-row{flex-wrap:wrap;row-gap:8px;}
+.row-item.review-row .rmain{flex:1 1 100%;white-space:normal;}
+.row-item.review-row .rside{flex:1 1 100%;justify-content:flex-end;flex-wrap:wrap;gap:8px;}
+.row-item.review-row .rside select{min-height:36px;width:auto;flex:1 1 auto;}
+.row-item.review-row .rside .btn{min-height:36px;width:auto;}
+
+/* карточка отправки v3 (владелец, 20.11.2026): значок службы, статус коротко и справа у «⋯», камера ростом со строку скана */
+.carrier-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;color:#fff;font-size:12px;font-weight:800;flex:none;}
+.sh-card .sh-head{align-items:center;gap:8px;}
+.sh-card .sh-head .sh-status{margin-left:auto;font-size:12px;padding:3px 9px;}
+.sh-card .sh-head .sh-status::before{width:6px;height:6px;}
+.sh-card:has(.sh-tools) > .rname{padding-right:44px;}
+.sh-card .sh-tools .sh-track-edit{background:transparent;color:var(--text-secondary);}
+.sh-card .sh-cam{width:36px;height:36px;}
+.sh-card .sh-cam .icon{width:19px;height:19px;}
+/* «Приход», «Продал», «+ Товар» у поставщика — в один ряд, пониже */
+.home-actions .btn,.home-actions .btn.primary{min-height:44px;font-size:15px;}
+
+/* карточка отправки v4: плашки «Джус · от поставщика», трек плашкой, дата мелко справа,
+   «Собран» ниже, строка товара компактнее, фото крупнее */
+.sh-meta2{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;}
+.sh-chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:var(--field-solid);color:var(--text);font-size:13px;font-weight:500;}
+.sh-time{margin-left:auto;font-size:12.5px;color:var(--text-tertiary);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.sh-card .sh-track{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:4px 12px;border-radius:999px;background:var(--accent-soft);color:var(--text);font-size:13.5px;}
+.sh-card .sh-track b{font-weight:700;}
+.sh-card .as-collect,.sh-card .btn.primary.as-collect{min-height:42px;font-size:15px;margin-top:8px;}
+.sh-card .task{padding:8px 12px;border-radius:14px;gap:10px;}
+.sh-card .task .sh-item{font-size:14.5px;}
+.sh-card .task .go{font-size:13.5px;}
+.sh-card .ph-thumb,.sh-card .ph-thumb img{width:112px;height:112px;border-radius:18px;}
+.sh-card button.as-collect{min-height:40px !important;height:40px;padding:0 16px;font-size:15px;border-radius:12px;}
+.sh-card button.as-collect .icon{width:17px;height:17px;}
+
+/* «Сегодня» v3: подписи в одну строку, точка «ждут дела» — синяя */
+.td-tile span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:14px;}
+.td-tile em,.td-tile.warn em{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:12.5px;}
+.td-tile.warn::after{background:var(--accent);}
+
+/* Окна «Новый товар», «Ячейка» v2 (владелец, 20.11.2026): подпись — над полем, отдельно;
+   значение — в компактном поле; кнопки размеров меньше; «Свой размер» и «Добавить» одной высоты */
+.field:has(> label:first-child + :is(input,select,textarea):last-child),
+.field:has(> label:first-child + select + input[hidden]:last-child){background:transparent;border-radius:0;padding:0;box-shadow:none !important;}
+.field:has(> label:first-child + :is(input,select,textarea):last-child) > label,
+.field:has(> label:first-child + select + input[hidden]:last-child) > label{font-size:13px;font-weight:600;color:var(--text-secondary);margin:0 0 6px 4px;}
+.field:has(> label:first-child + :is(input,select,textarea):last-child) > :is(input,select,textarea),
+.field:has(> label:first-child + select + input[hidden]:last-child) > select{background-color:var(--field-solid);border:1.5px solid transparent;border-radius:12px;min-height:44px;height:44px;padding:8px 14px;font-size:16px;}
+.field:has(> label:first-child + select:last-child) > select,
+.field:has(> label:first-child + select + input[hidden]:last-child) > select{padding-right:36px;background-position:right 12px center;}
+.field:has(> label:first-child + textarea:last-child) > textarea{height:auto;min-height:80px;}
+.field:has(> label:first-child + :is(input,select,textarea):last-child) > :is(input,select,textarea):focus,
+.field:has(> label:first-child + select + input[hidden]:last-child) > select:focus{background-color:var(--surface);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+.modal input[type=text],.modal input[type=number],.modal select{min-height:44px;}
+.modal .size-pick{gap:6px;}
+.modal .size-pick button{min-height:34px;height:34px;padding:0 12px;font-size:14px;border-radius:10px;min-width:40px;}
+.mm-size-own{align-items:center;}
+.mm-size-own input{height:40px;min-height:40px;}
+.mm-size-own .btn.sm{height:40px;min-height:40px;padding:0 16px;}
+#mmPhotoBox label.btn,#mmPhotoBox .btn{min-height:48px;padding:10px 20px;font-size:16px;}
+.check-row{padding:10px 14px;border-radius:12px;background:var(--field-solid);align-self:flex-start;width:auto;max-width:100%;}
+.check-row span{line-height:20px;}
+
+/* карточка отправки v5: 1) служба крупнее, дата справа; 2) плашки + справа статус и «⋯»; 3) трек */
+.sh-card.sh-v5 > .rname{padding-right:0 !important;}
+.sh-v5 .sh-head{display:flex;align-items:center;gap:10px;}
+.sh-v5 .sh-head .carrier-badge{width:28px;height:28px;font-size:14px;}
+.sh-v5 .sh-carrier{font-size:18px;font-weight:700;letter-spacing:-.01em;}
+.sh-v5 .sh-head .sh-time{margin-left:auto;}
+.sh-v5 .sh-meta2{margin-top:10px;}
+.sh-v5 .sh-right{margin-left:auto;display:inline-flex;align-items:center;gap:4px;}
+.sh-v5 .sh-right .sh-status{margin-left:0;}
+.sh-v5 .sh-tools,.sh-v5 .sh-edit{position:static;display:inline-flex;gap:4px;}
+.sh-v5 .sh-tools .icon-btn,.sh-v5 .sh-edit{width:30px;height:30px;}
+.sh-v5 .sh-meta2 > .sh-track{margin-top:0;}
+
+/* «Сегодня»: все плитки одного размера (владелец, 21.11.2026) */
+.td-grid{grid-auto-rows:1fr;}
+.td-tile{height:100%;min-height:136px;justify-content:flex-start;box-sizing:border-box;}
+.td-tile em:empty{display:none;}

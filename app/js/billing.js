@@ -146,13 +146,13 @@ async function billingSupplierBlock(s){
   const pays = b.payments.slice(0, 5).map(p=> `<div class="row-item bill-pay"><div class="rmain">Оплата ${fmtMoney(p.amount)} · ${new Date(p.ts).toLocaleDateString('ru-RU')}</div>
       <div class="rside"><button type="button" class="icon-btn" data-pay-del="${escapeAttr(p.id)}" onclick="billRemovePay(${jsArg(p.id)})" aria-label="Убрать оплату"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`).join('');
   const r = billingRates(s);
-  const rateLine = `<div class="rmeta bill-rate">Тариф: ${r.mode === 'percent' ? 'процент от заказа (' + escapeHtml(tiersText()) + ')' : fmtMoney(r.ship) + ' за отправку'} · ${fmtMoney(r.kg)} за кг${r.own ? ' · <b>свой</b>' : ' · общий'}
-      <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-rate-edit="${escapeAttr(s.id)}" onclick="billRateForm(${jsArg(s.id)})">Изменить</button></div>
+  /* компактно (владелец, 20.11.2026): «Изменить» и «Оплачено» — маленькими кнопками справа вверху карточки */
+  const rateLine = `<div class="rmeta bill-rate">Тариф: ${r.mode === 'percent' ? 'процент от заказа (' + escapeHtml(tiersText()) + ')' : fmtMoney(r.ship) + ' за отправку'} · ${fmtMoney(r.kg)} за кг · ${r.own ? '<b>свой</b>' : 'общий'}</div>
     <div id="billRate-${escapeAttr(s.id)}"></div>`;
-  return `<div class="bill-box" data-bill="${escapeAttr(s.id)}">${rateLine}
-    <div class="sup-head"><div>${b.debt < 0 ? `Переплата: <b class="bill-debt ok" data-overpaid>${fmtMoney(-b.debt)}</b> <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-over-reset="${escapeAttr(s.id)}" onclick="billResetOver(${jsArg(s.id)})">Сбросить</button>` : `Долг: <b class="bill-debt${b.debt > 0 ? ' neg' : ''}">${fmtMoney(b.debt)}</b>`}</div>
-      <button class="btn primary sm" style="width:auto;" data-pay="${escapeAttr(s.id)}" onclick="billPay(${jsArg(s.id)})">Оплачено</button></div>
-    <div class="rmeta">Отправок ${b.shipN} — ${fmtMoney(b.shipSum)} · приёмка ${b.kg} кг — ${fmtMoney(b.rcSum)} · оплачено ${fmtMoney(b.paid)}</div>
+  const tools = `<div class="sup-tools"><button type="button" class="btn ghost sm" data-rate-edit="${escapeAttr(s.id)}" onclick="billRateForm(${jsArg(s.id)})">Изменить</button><button type="button" class="btn primary sm" data-pay="${escapeAttr(s.id)}" onclick="billPay(${jsArg(s.id)})">Оплачено</button></div>`;
+  const debt = b.debt < 0 ? `Переплата <b class="bill-debt ok" data-overpaid>${fmtMoney(-b.debt)}</b> <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-over-reset="${escapeAttr(s.id)}" onclick="billResetOver(${jsArg(s.id)})">Сбросить</button>` : `Долг <b class="bill-debt${b.debt > 0 ? ' neg' : ''}">${fmtMoney(b.debt)}</b>`;
+  return `<div class="bill-box" data-bill="${escapeAttr(s.id)}">${tools}${rateLine}
+    <div class="bill-sum"><span class="bill-debt-line">${debt}</span><span class="rmeta">отправок ${b.shipN} — ${fmtMoney(b.shipSum)} · приёмка ${b.kg} кг — ${fmtMoney(b.rcSum)} · оплачено ${fmtMoney(b.paid)}</span></div>
     ${pays}</div>`;
 }
 function billModeShow(){

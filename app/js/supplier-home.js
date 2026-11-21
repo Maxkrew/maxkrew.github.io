@@ -27,6 +27,14 @@ function supplierSizeLine(label, c){
   return `<span class="sz">${escapeHtml(label)}: <span class="sz-word">в наличии </span><b class="${stockTone(free)}">${free}</b>${flow.length ? ' <span class="flow">· ' + flow.join(' · ') + '</span>' : ''}</span>`;
 }
 
+/* Размер у поставщика одной плашкой, как у склада: «M 6», рядом мелко «ждёт 1 · едет 4 · брак 1» */
+function supplierSizeChip(label, c){
+  c = c || {stock: 0, defect: 0, incoming: 0, waiting: 0};
+  const free = c.stock - c.waiting;
+  const extra = [c.waiting ? 'ждёт отправки ' + c.waiting : '', c.incoming ? 'едет ' + c.incoming : '', c.defect ? '<span class="warn">брак ' + c.defect + '</span>' : ''].filter(Boolean).join(', ');
+  return `<span class="sz">${escapeHtml(label)} <b class="${stockTone(free)}">${free}</b>${extra ? ' <span class="hint">' + extra + '</span>' : ''}</span>`;
+}
+
 /* Кнопки «Приход» и «Продал» с главного экрана. */
 async function homeGo(kind){
   if(kind === 'incoming'){ showSection('incoming'); if(typeof incStart === 'function') await incStart(); }
@@ -56,7 +64,7 @@ async function renderRunningOut(){
   if(isOwnerRole()){ box.innerHTML = ''; btn.hidden = true; return; }
   const list = await runningOutList();
   btn.hidden = !list.length;   // оператору блок не мешает: нажал — появился, нажал — скрылся (FoG, 01.11.2026)
-  btn.textContent = 'Кончаются · ' + list.length;
+  btn.textContent = 'Мало · ' + list.length;   // коротко: шапка «Мои товары · Мало · Excel» в одну строку (владелец, 20.11.2026)
   btn.classList.toggle('on', runOutOpen);
   if(!list.length || !runOutOpen){ box.innerHTML = ''; return; }
   const shown = runOutAll ? list : list.slice(0, 5);

@@ -153,7 +153,7 @@ async function matchImportLines(lines, supplierId){
   });
 }
 /* новые модели и размеры, затем одна поставка «ожидается» с ценами */
-async function importToIncoming(matched){
+async function importToIncoming(matched, supplierId){
   // сотрудник новые товары не заводит — их добавляет поставщик
   if(Sync.isStaff && Sync.isStaff()){
     const fresh = matched.filter(l=> !l.modelId || !l.sizeId);
@@ -179,39 +179,62 @@ async function importToIncoming(matched){
     if(!modelId){
       const key = xlsNorm([l.name, l.color, l.sku].join('|'));
       modelId = made.get(key);
-      if(!modelId){ modelId = await saveModel({title: l.name, color: l.color, sku: l.sku, category: 'Одежда', capacity: 7, sizes: []}); made.set(key, modelId); }
+      if(!modelId){ modelId = await saveModel({supplierId, title: l.name, color: l.color, sku: l.sku, category: 'Одежда', capacity: 7, sizes: []}); made.set(key, modelId); }
     }
     const sizeId = l.sizeId || await saveSize(modelId, l.size, l.barcode || undefined);
     out.push({modelId, sizeId, qty: l.qty, price: l.price});
+  }
+  if(xlsOwner()){
+    const floor = await floorCellFor(supplierId);
+    let pcs = 0;
+    for(const o of out){ if(!(o.qty > 0)) continue; await ffLogOp({supplierId, modelId: o.modelId, sizeId: o.sizeId, cellNumber: floor, type: 'Приход', qty: o.qty, snap: {fromExcel: true}}); pcs += o.qty; }
+    if(window.Sync && Sync.syncNow) ffSoft(()=> Sync.syncNow('товары из Excel'));
+    return {floor, pcs, models: made.size};
   }
   const r = await submitIncoming(out);
   if(!r.ok) throw new Error(r.error);
   return r.id;
 }
 
+/* Склад загружает за поставщика (FoG, 20.11.2026: «добавить товары через таблицу Excel»): выбирает его в окне. */
+const xlsOwner = ()=> typeof isOwnerRole === 'function' && isOwnerRole();
+const xlsSup = ()=> xlsOwner() ? (xls.supplierId || '') : Sync.mySupplierId();
+
 /* --- запомненное сопоставление (на этом устройстве) --- */
 const xlsSig = header=> (header || []).map(h=> xlsNorm(h)).join('|');
 async function xlsRemembered(header){
-  const r = await get('settings', 'xlsMap:' + Sync.mySupplierId());
+  const r = await get('settings', 'xlsMap:' + (xlsOwner() ? 'owner' : Sync.mySupplierId()));
   const v = r && r.value;
   return v && v.signature === xlsSig(header) && Array.isArray(v.roles) && v.roles.length === header.length ? v : null;
 }
 async function xlsRemember(header, roles, headerRow){
-  await putRaw('settings', {key: 'xlsMap:' + Sync.mySupplierId(), value: {signature: xlsSig(header), roles: roles.slice(), headerRow}});
+  await putRaw('settings', {key: 'xlsMap:' + (xlsOwner() ? 'owner' : Sync.mySupplierId()), value: {signature: xlsSig(header), roles: roles.slice(), headerRow}});
 }
 
 /* --- окно --- */
-const xls = {wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: []};
+const xls = {supplierId: '', wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: []};
 function openXlsImport(){
-  Object.assign(xls, {wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: []});
+  Object.assign(xls, {supplierId: xls.supplierId, wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: []});
   const f = document.getElementById('xlsFile'); if(f) f.value = '';
   document.getElementById('xlsSheetRow').hidden = true;
   document.getElementById('xlsPreview').innerHTML = '';
   document.getElementById('xlsSummary').innerHTML = '<span class="hint">Выберите файл .xlsx, .xls или .csv</span>';
   document.getElementById('xlsSend').disabled = true;
+  const own = xlsOwner();
+  document.getElementById('xlsSupRow').hidden = !own;
+  document.getElementById('xlsTitle').textContent = own ? 'Товары из Excel' : 'Приход из Excel';
+  document.getElementById('xlsSendText').textContent = own ? 'Добавить на склад' : 'Создать поставку';
+  document.getElementById('xlsOwnerHint').hidden = !own;
+  if(own) getAll('suppliers').then(list=>{
+    const sups = list.filter(x=> !x.deletedAt && !x.archived).sort((a, b)=> String(a.name).localeCompare(String(b.name), 'ru'));
+    const sel = document.getElementById('xlsSup');
+    if(!sups.some(x=> x.id === xls.supplierId)) xls.supplierId = sups.length === 1 ? sups[0].id : '';
+    sel.innerHTML = '<option value="">— выберите —</option>' + sups.map(x=> `<option value="${escapeAttr(x.id)}"${x.id === xls.supplierId ? ' selected' : ''}>${escapeHtml(x.name)}</option>`).join('');
+  });
   document.getElementById('xlsModalBg').classList.add('show');
   loadXlsx().catch(e=> toast(e.message));   // заранее, пока человек ищет файл
 }
+async function xlsPickSupplier(id){ xls.supplierId = id; if(xls.wb) await xlsRefresh(); else document.getElementById('xlsSend').disabled = true; }
 function closeXlsImport(){ document.getElementById('xlsModalBg').classList.remove('show'); }
 async function xlsPickFile(input){
   const file = input.files && input.files[0]; if(!file) return;
@@ -237,7 +260,7 @@ async function xlsRefresh(){
   const width = Math.max(header.length, ...xls.rows.slice(xls.headerRow, xls.headerRow + 8).map(r=> r.length));
   const sizeCols = xls.sizeCols.filter(i=> xls.roles[i] === 'skip' || !xls.roles[i]);
   const res = parseImport(xls.rows, {headerRow: xls.headerRow, roles: xls.roles, sizeCols: sizeCols.length >= 2 ? sizeCols : []});
-  xls.matched = await matchImportLines(res.lines, Sync.mySupplierId());
+  xls.matched = xlsSup() ? await matchImportLines(res.lines, xlsSup()) : [];
   xls.errors = res.errors;
   const th = [];
   for(let i = 0; i < width; i++){
@@ -250,16 +273,23 @@ async function xlsRefresh(){
   const fresh = new Set(xls.matched.filter(l=> l.isNew).map(l=> xlsNorm([l.name, l.color, l.sku].join('|')))).size;
   const errs = xls.errors.slice(0, 20).map(e=> `<div class="xls-err">${escapeHtml(e.msg)}</div>`).join('') + (xls.errors.length > 20 ? `<div class="xls-err">…и ещё ${xls.errors.length - 20}</div>` : '');
   document.getElementById('xlsSummary').innerHTML = `<b>Нашёл ${n} ${ruPlural(n, 'товар', 'товара', 'товаров')}, ${pcs} шт., новых ${fresh}</b>${errs}`;
-  document.getElementById('xlsSend').disabled = !n;
+  document.getElementById('xlsSend').disabled = !n || !xlsSup();
+  if(xlsOwner() && !xlsSup()) document.getElementById('xlsSummary').innerHTML = '<span class="hint">Выберите поставщика — чьи это товары</span>';
 }
 async function xlsSend(){
   if(!xls.matched.length) return;
   const btn = document.getElementById('xlsSend'); btn.disabled = true;
   try{
     await xlsRemember(xls.rows[xls.headerRow] || [], xls.roles, xls.headerRow);
-    await importToIncoming(xls.matched);
-    closeXlsImport(); toast('Поставка создана — склад её увидит');
-    if(typeof renderIncoming === 'function') await renderIncoming();
+    const r = await importToIncoming(xls.matched, xlsSup());
+    closeXlsImport();
+    if(xlsOwner()){
+      toast('На склад добавлено ' + r.pcs + ' шт.' + (r.models ? ', новых товаров ' + r.models : '') + ' — лежат на полу ' + r.floor + ', разложите по ячейкам');
+      if(typeof renderStockFF === 'function') await renderStockFF(); if(typeof updateProductCountPill === 'function') await updateProductCountPill(); else if(typeof refreshAfterSync === 'function') await refreshAfterSync();
+    }else{
+      toast('Поставка создана — склад её увидит');
+      if(typeof renderIncoming === 'function') await renderIncoming();
+    }
   }catch(e){ toast(e.message); btn.disabled = false; }
 }
 function ruPlural(n, one, few, many){

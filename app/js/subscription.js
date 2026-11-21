@@ -4,7 +4,31 @@
 function subDaysLeft(until){ return Math.max(0, Math.ceil((until - Date.now()) / 86400000)); }
 function daysWord(n){ return n%10===1 && n%100!==11 ? 'день' : (n%10>=2 && n%10<=4 && !(n%100>=12&&n%100<=14) ? 'дня' : 'дней'); }
 
+/* Поставщик видит, к какому складу он подключён (владелец, 20.11.2026: «ни хрена не понимаю, подключился ли я
+   к складу FoG или вообще куда»). Строка под шапкой на всех экранах. */
+function renderWhBand(){
+  const rl = window.Sync && Sync.role ? Sync.role() : "none";
+  let el = document.getElementById("whBand");
+  if(!el){
+    const main = document.querySelector("main");
+    if(!main) return;
+    el = document.createElement("div");
+    el.id = "whBand";
+    main.parentNode.insertBefore(el, main);
+  }
+  if(rl !== "supplier"){ el.hidden = true; return; }
+  const sub = Sync.subscription ? Sync.subscription() : null;
+  const title = String((sub && sub.title) || "").trim();
+  const who = Sync.memberName ? Sync.memberName() : "";
+  const staff = Sync.isStaff && Sync.isStaff();
+  const n = Sync.warehouses ? Sync.warehouses().length : 1;
+  el.className = "wh-band";
+  el.hidden = false;
+  el.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span><b>Подключено к складу ${title ? "«" + escapeHtml(title) + "»" : ""}</b><br><span class="wh-who">${staff ? "Вы — сотрудник поставщика" : "Вы — поставщик"} «${escapeHtml(who || "Поставщик")}»${n > 1 ? " · складов у вас: " + n : ""}</span></span>`;
+}
+
 function renderSubBanner(){
+  renderWhBand();
   const s = (window.Sync && Sync.subscription) ? Sync.subscription() : null;
   let el = document.getElementById('subBanner');
   if(!el){

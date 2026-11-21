@@ -51,7 +51,7 @@ async function renderSuppliers(){
     <div class="hint" style="margin-top:6px;">Всё наличие и все минусы — в ноль на сервере и на всех телефонах (ваших и поставщиков). Отправки, приёмки, долги и история остаются.</div></div>` : '';
   box.innerHTML = zeroAll + billingTariffCard() + sups.map(s=>{
     const mine = cells.filter(c=> c.supplierId === s.id).map(c=> c.number).sort(cmpCellNumber);
-    const status = s.archived ? '<span class="pill g">в архиве</span>' : (s.memberId ? '<span class="pill">вошёл</span>' : '<span class="pill w">ждёт входа</span>');
+    const status = s.archived ? '<span class="sup-st">в архиве</span>' : (s.memberId ? '<span class="sup-st ok">вошёл</span>' : '<span class="sup-st w">ждёт входа</span>');
     const codeLine = !s.archived && !s.memberId ? `<div class="rmeta sup-line">Код для входа: <b class="sup-code" data-sup-code>${escapeHtml(s.inviteCode || '…')}</b></div>` : '';
     const temp = supTempPw[s.id] ? `<div class="alert">Временный пароль: <b data-sup-temp>${escapeHtml(supTempPw[s.id])}</b> — передайте поставщику, при входе он поставит свой.</div>` : '';
     return `<div class="card sup-card">

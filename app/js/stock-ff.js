@@ -36,7 +36,7 @@ async function renderStockFF(){
   const owner = isOwnerRole();
   // у поставщика — «Мои товары» с кнопками «Приход» и «Продал» (этап 2б)
   document.getElementById('ffStockTitle').textContent = owner ? 'Склад' : 'Мои товары';
-  document.getElementById('ffStockSub').textContent = owner ? 'Товары, размеры и остатки' : 'Что на складе, что едет и что ждёт отправки';
+  { const sub = document.getElementById('ffStockSub'); sub.textContent = owner ? 'Товары, размеры и остатки' : ''; sub.hidden = !owner; }   // поставщику пояснение не нужно (владелец, 20.11.2026)
   document.getElementById('homeActions').hidden = owner;
   if(typeof renderRunningOut === 'function') renderRunningOut();   // «Кончаются размеры» (поставщик)
   const sups = await ffSuppliersMap();
@@ -109,7 +109,7 @@ async function renderStockFF(){
                cells: (cellsByModel[m.id] || []).sort((a, b)=> cmpCellNumber(a.number, b.number))};
     const total = v.sizes.reduce((s, x)=> s + x.stock, 0);
     const sizesLine = !v.sizes.length ? '<span class="hint">размеров нет</span>'
-      : !owner ? sz.map(s=> `<div class="sz-row">${supplierSizeLine(s.sizeLabel, counts.get(s.id))}${sizeCopyBtns(s)}</div>`).join('')
+      : !owner ? sz.map(s=> supplierSizeChip(s.sizeLabel, counts.get(s.id))).join(' · ')
       : v.sizes.map(s=> `<span class="sz">${escapeHtml(s.label)} <b class="${stockTone(s.stock)}">${s.stock}</b>${s.booked ? ` <span class="hint">+${s.booked} брон.</span>` : ''}${s.defect ? ` <span class="warn">брак ${s.defect}</span>` : ''}</span>`).join(' · ');
     // штуки «без ячейки» (старые отправки в минус, корректировки) в ячейках не видны — показываем отдельно
     const noCell = owner ? sz.reduce((n, s)=> n + (idx.noCellBySize[s.id] || 0), 0) : 0;
@@ -117,9 +117,11 @@ async function renderStockFF(){
     if(noCell) cellParts.push(`Без ячейки: <span class="${noCell < 0 ? 'neg' : ''}" data-no-cell>${noCell} шт.</span>`);
     const cellsLine = cellParts.length ? '<div class="cells-line">' + cellParts.join(' · ') + '</div>' : '';
     const sup = owner ? `<span class="rmeta">${escapeHtml((sups[m.supplierId] || {}).name || '')}${m.sku ? ' · ' + escapeHtml(m.sku) : ''} · ${escapeHtml(m.category || '')}</span>` : (m.sku ? `<span class="rmeta">${escapeHtml(m.sku)}</span>` : '');
-    if(!owner){ parts.push(`<div class="card model-card mc-big${sz.some(s=> s.fitNote || s.measureNote) ? ' has-notes' : ''}" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
-      ${photoCell(m.id, phByModel.get(m.id))}<div class="mc-body"><div class="model-head"><div class="rname">${escapeHtml(modelName(m))}${sup}</div><div class="big-num">${total}<span> шт.</span></div></div>
-      <div class="sizes-line">${sizesLine}</div></div>
+    /* поставщик — такая же карточка, как у склада (владелец, 20.11.2026): размеры одной строкой,
+       «Рост/вес» и «Замеры» — маленькими кнопками-размерами ниже */
+    if(!owner){ parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
+      <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>
+      <div class="sizes-line">${sizesLine}</div>${sizeNotesLine(sz)}
     </div>`); continue; }
     parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
       <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>
@@ -132,6 +134,14 @@ async function renderStockFF(){
   if(typeof renderExpected === 'function') await renderExpected();
 }
 /* Кнопки у размера (FoG, 01.11.2026): нажал — текст сразу в буфере, можно вставить в чат. Пустые не показываем. */
+/* «Рост/вес: M L XL · Замеры: M» — нажал на размер, данные скопированы */
+function sizeNotesLine(sizes){
+  const chip = (s, kind, attr)=> `<button type="button" class="sz-copy" data-copy-${attr}="${escapeAttr(s.id)}" onclick="event.stopPropagation();sizeCopy(${jsArg(s.id)}, '${kind}')" aria-label="${kind === 'fitNote' ? 'Скопировать рост и вес' : 'Скопировать замеры'}, размер ${escapeAttr(s.sizeLabel)}">${escapeHtml(s.sizeLabel)}</button>`;
+  const fits = sizes.filter(s=> s.fitNote), meas = sizes.filter(s=> s.measureNote);
+  if(!fits.length && !meas.length) return '';
+  return '<div class="sz-notes">' + (fits.length ? '<span class="sz-notes-row"><span class="hint">Рост/вес:</span>' + fits.map(s=> chip(s, 'fitNote', 'fit')).join('') + '</span>' : '')
+    + (meas.length ? '<span class="sz-notes-row"><span class="hint">Замеры:</span>' + meas.map(s=> chip(s, 'measureNote', 'measure')).join('') + '</span>' : '') + '</div>';
+}
 function sizeCopyBtns(s){
   const b = (kind, attr, label)=> `<button type="button" class="sz-copy" data-copy-${attr}="${escapeAttr(s.id)}" onclick="event.stopPropagation();sizeCopy(${jsArg(s.id)}, '${kind}')">${label}</button>`;
   return (s.fitNote || s.measureNote) ? `<span class="sz-btns">${s.fitNote ? b('fitNote', 'fit', 'Рост/вес') : ''}${s.measureNote ? b('measureNote', 'measure', 'Замеры') : ''}</span>` : '';

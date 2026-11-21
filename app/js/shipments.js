@@ -47,6 +47,14 @@ document.addEventListener('click', async e=>{
   const ok = await ffCopyText(t.dataset.copy);
   if(typeof toast === 'function') toast(ok ? 'Трек скопирован' : 'Не удалось скопировать трек');
 }, true);
+/* Маленький значок службы доставки (владелец, 20.11.2026): кружок с буквой в цвете службы — не логотип. */
+const CARRIER_BADGE = {'Авито': ['А', '#00AAFF'], 'Яндекс': ['Я', '#FC3F1D'], 'СДЭК': ['С', '#1AB248'], 'Почта': ['П', '#0055A6'], 'Boxberry': ['B', '#ED1651'],
+  '5Post': ['5', '#E30613'], 'Ozon': ['O', '#005BFF'], 'Wildberries': ['W', '#A73AFD'], 'Достависта': ['Д', '#F5A623']};
+function carrierBadge(name){
+  const key = Object.keys(CARRIER_BADGE).find(k=> String(name || '').toLowerCase().includes(k.toLowerCase()));
+  const [ch, color] = key ? CARRIER_BADGE[key] : [String(name || '?').trim().charAt(0).toUpperCase() || '?', '#8A8A8E'];
+  return `<span class="carrier-badge" style="background:${color}" aria-hidden="true">${escapeHtml(ch)}</span>`;
+}
 const trackHtml = track=> trackGroups(track).map(p=> '<span class="trk-g">' + escapeHtml(p) + '</span>').join('');
 const shIsSupplier = ()=> ffRole() === 'supplier';
 const CANCEL_LATE = 'Склад уже начал собирать — отменить нельзя';
@@ -321,8 +329,8 @@ async function shipmentCard(s, editable){
     const ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === mySup).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
     // поставщик собирает заказ в «Продал» (со скриншотом); в заказ поставщика склад тоже ничего не дописывает
     const canAdd = !sup && s.createdBy !== 'supplier';
-    add = (sup ? '' : `<div class="field-row scan-row" style="margin-top:8px;"><input type="text" data-scan-shipment="${escapeAttr(s.id)}" placeholder="Скан штрихкода" autocomplete="off">
-      <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanShipment(${jsArg(s.id)}, c))">Камера</button></div>`) +
+    add = (sup ? '' : `<div class="field-row scan-row sh-scan"><input type="text" data-scan-shipment="${escapeAttr(s.id)}" placeholder="Скан штрихкода" autocomplete="off" aria-label="Скан штрихкода">
+      <button type="button" class="icon-btn sh-cam" onclick="openCameraScan(c=> ffScanShipment(${jsArg(s.id)}, c))" aria-label="Сканировать камерой"><svg class="icon"><use href="#i-camera"/></svg></button></div>`) +
       (canAdd ? `<div class="field-row" style="margin-top:8px;"><select id="shModel-${escapeAttr(s.id)}" data-products="ship" data-sizes="shSizes-${escapeAttr(s.id)}" onchange="shFillSizes(${jsArg(s.id)})"><option value="">— модель —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select></div>
       <div class="size-pick" id="shSizes-${escapeAttr(s.id)}" style="margin-top:6px;"></div>
       <div class="field-row" style="margin-top:6px;"><input type="number" id="shQty-${escapeAttr(s.id)}" min="1" value="1"><button class="btn ghost" style="width:auto;" onclick="shAddLine(${jsArg(s.id)})">Добавить</button></div>` : '') +
@@ -340,20 +348,32 @@ async function shipmentCard(s, editable){
   const from = !sup && s.createdBy === 'supplier' ? ' · <span class="tag-sup">от поставщика</span>' : '';
   // склад: собранную отправку можно вернуть в работу (ошиблись) и удалить свою
   const doneTools = !sup && s.status === 'собрана' ? `<div class="sh-tools"><button type="button" class="icon-btn sh-edit-btn" data-reopen="${escapeAttr(s.id)}" onclick="shReopen(${jsArg(s.id)})" aria-label="Вернуть в работу"><svg class="icon"><use href="#i-edit"/></svg></button>${s.createdBy !== 'supplier' ? `<button type="button" class="icon-btn sh-del-btn" data-sh-del="${escapeAttr(s.id)}" onclick="shDeleteDone(${jsArg(s.id)})" aria-label="Удалить отправку"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div>` : '';
+  /* трек: «Изменить» — маленький карандаш справа вверху, рядом со статусом (владелец, 20.11.2026: «под треком её быть не должно») */
+  const trackBtn = !sup && !s.deletedAt ? `<button type="button" class="icon-btn sh-track-edit" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})" aria-label="${s.track ? 'Изменить трек-номер' : 'Добавить трек-номер'}"><svg class="icon"><use href="#i-dots"/></svg></button>` : '';
   const pencil = sup && typeof shipmentEditable === 'function' && await shipmentEditable(s)
     ? `<button type="button" class="icon-btn sh-edit" data-edit="${escapeAttr(s.id)}" onclick="sellEditStart(${jsArg(s.id)})" aria-label="Изменить заказ"><svg class="icon"><use href="#i-edit"/></svg></button>` : '';
   // дата и время заказа: «5 ноября, 14:38» (год — только если не этот)
   const cd = s.createdTs ? new Date(s.createdTs) : null;
   const time = cd ? cd.toLocaleDateString('ru-RU', cd.getFullYear() === new Date().getFullYear() ? {day: 'numeric', month: 'long'} : {day: 'numeric', month: 'long', year: 'numeric'}).replace(' г.', '')
     + ', ' + cd.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}) : '';
-  const meta = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', time ? '🕒 ' + time : '', escapeHtml(s.comment || '')].filter(Boolean).join(' · ');
+  /* 20.11.2026 (владелец): поставщик, «от поставщика», комментарий — плашками; дата коротко «17.11 00:13» мелко справа */
+  const pad2 = n=> String(n).padStart(2, '0');
+  const shortTime = cd ? pad2(cd.getDate()) + '.' + pad2(cd.getMonth() + 1) + (cd.getFullYear() === new Date().getFullYear() ? '' : '.' + String(cd.getFullYear()).slice(2)) + ' ' + pad2(cd.getHours()) + ':' + pad2(cd.getMinutes()) : '';
+  const chips = [sup ? '' : escapeHtml((sups[s.supplierId] || {}).name || ''), from ? 'от поставщика' : '', escapeHtml(s.comment || '')].filter(Boolean).map(t=> '<span class="sh-chip">' + t + '</span>').join('');
+  const timeHtml = shortTime ? '<span class="sh-time" title="' + escapeAttr(time) + '">' + shortTime + '</span>' : '';
+  /* 20.11.2026 (владелец): служба — отдельной строкой; статус и «⋯» — ниже, справа от «Джус · от поставщика» */
+  const statusHtml = `<span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}"${!s.deletedAt && s.status === 'новая' ? ' title="забронировано"' : ''}>${s.deletedAt ? 'удалена' : s.status === 'новая' ? 'заброн' : escapeHtml(s.status)}</span>`;
+  const toolsHtml = pencil + (doneTools ? doneTools.replace('<div class="sh-tools">', '<div class="sh-tools">' + trackBtn) : (trackBtn ? '<div class="sh-tools">' + trackBtn + '</div>' : ''));
+  const trackLine = `${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track data-copy="' + escapeAttr(String(s.track).trim()) + '" role="button" title="Нажмите — скопировать">' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : bcBtn}</div>` : ''}`;
+  /* у поставщика плашек нет — трек в той же строке, слева от статуса */
+  const meta = `<div class="sh-meta2">${chips || trackLine}<span class="sh-right">${statusHtml}${toolsHtml}</span></div>`;
   // склад: большая кнопка «Собран» и галочка выбора (сборка)
   const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);
   const bigBtn = canCollect && !shSelectMode ? `<button class="btn primary as-collect" data-collect="${escapeAttr(s.id)}" onclick="shCollect(${jsArg(s.id)})"><svg class="icon"><use href="#i-check"/></svg>Собран</button>` : '';
   const selBox = !sup && editable && shSelectMode ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
-  return `<div class="card sh-card" data-shipment="${escapeAttr(s.id)}">${pencil}${doneTools}<div class="rname sh-head"><span class="sh-carrier">${escapeHtml(s.carrier)}</span><span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}">${s.deletedAt ? 'удалена' : s.status === 'новая' ? 'забронировано' : escapeHtml(s.status)}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}</div>
-    ${meta ? `<div class="rmeta sh-meta">${meta}</div>` : ''}
-    ${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track data-copy="' + escapeAttr(String(s.track).trim()) + '" role="button" title="Нажмите — скопировать">' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : ` <button type="button" class="btn ghost sm" style="width:auto;padding:2px 10px;" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})">${s.track ? 'Изменить' : 'Добавить'}</button>${bcBtn}`}</div>` : ''}
+  return `<div class="card sh-card sh-v5" data-shipment="${escapeAttr(s.id)}"><div class="rname sh-head">${carrierBadge(s.carrier)}<span class="sh-carrier">${escapeHtml(s.carrier)}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}${timeHtml}</div>
+    ${meta}
+    ${chips ? trackLine : ''}
     ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;
 }
 async function shStart(){

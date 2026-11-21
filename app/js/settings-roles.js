@@ -162,7 +162,7 @@ async function saveSettings(){
 }
 
 function applyHeaderLogo(){
-  const src = 'logo-mark.svg';   // логотип — только Fulbro (владелец)
+  const src = 'logo-mark-blue.svg';   // логотип — только Fulbro (владелец)
   const headerImg = document.getElementById('headerLogoImg');
   if(headerImg) headerImg.src = src;
   const previewImg = document.getElementById('logoPreviewImg');

@@ -522,7 +522,7 @@ nav.bottom button.active{color:var(--accent);background:var(--accent-soft);}
 }
 #splashScreen.hide{opacity:0;visibility:hidden;pointer-events:none;}
 .splash-loader{position:absolute;bottom:5%;z-index:1;display:flex;flex-direction:column;align-items:center;gap:10px;}
-.spinner{width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(255,255,255,.16);border-top-color:#52F2B8;animation:splashSpin .8s linear infinite;}
+.spinner{width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(255,255,255,.16);border-top-color:#2F8CFF;animation:splashSpin .8s linear infinite;}
 @keyframes splashSpin{to{transform:rotate(360deg);}}
 .splash-loading-text{font-size:12px;color:rgba(255,255,255,.55);}
 @media (prefers-reduced-motion:reduce){
@@ -644,7 +644,7 @@ body.kb-open nav.bottom{display:none;}
    ============================================================ */
 aside.side{display:none;}
 .side-brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:19px;margin:2px 8px 18px;color:var(--text);}
-.side-mark{width:30px;height:33px;background:url(../logo-mark.svg) center/contain no-repeat;flex-shrink:0;}
+.side-mark{width:30px;height:33px;background:url(../logo-mark-blue.svg) center/contain no-repeat;flex-shrink:0;}
 .home-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px;}
 .home-actions .btn{min-height:56px;font-size:17px;}
 .sizes-line .flow{color:var(--text-secondary);font-size:13px;}

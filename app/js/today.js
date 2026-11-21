@@ -24,7 +24,7 @@ async function renderToday(){
       <svg class="icon"><use href="#${icon}"/></svg><b>${n}</b><span>${label}</span>${sub ? `<em>${sub}</em>` : ''}</button>`;
   box.innerHTML = `<div class="td-grid">
     ${tile('new', 'i-out', newToday, 'новых заказов', '', 'shipments')}
-    ${tile('open', 'i-box', open.length, 'не собрано', 'собрано сегодня: ' + doneToday, 'shipments', true)}
+    ${tile('open', 'i-box', open.length, 'не собрано', '', 'shipments', true)}
     ${tile('review', 'i-check', review, 'проверить', review ? '' : 'всё проверено', 'shipments', true)}
     ${tile('expected', 'i-in', expected, 'ожидается поставок', '', 'stock')}
     ${tile('receipts', 'i-in', notPlaced, 'не разложено', '', 'receipts', true)}

@@ -27,7 +27,7 @@ async function renderArchive(){
       <select id="arModel" onchange="arRefresh()">${opt('', 'Все товары', keep.model)}${modelList.map(m=> opt(m.id, modelName(m), keep.model)).join('')}</select></div>
     ${arKind === 'ship' ? `<div class="field-row" style="margin-top:8px;">
       <select id="arCarrier" onchange="arRefresh()">${opt('', 'Все службы', keep.carrier)}${carrierList().map(c=> opt(c, c, keep.carrier)).join('')}</select>
-      <select id="arStatus" onchange="arRefresh()">${opt('', 'Все статусы', keep.status)}${opt('забронировано', 'Забронировано', keep.status)}${opt('собрана', 'Собрана', keep.status)}${opt('отменена', 'Отменена', keep.status)}${opt('удалена', 'Удалена', keep.status)}</select></div>` : ''}
+      <select id="arStatus" onchange="arRefresh()">${opt('', 'Все статусы', keep.status)}${opt('забронировано', 'Заброн', keep.status)}${opt('собрана', 'Собрана', keep.status)}${opt('отменена', 'Отменена', keep.status)}${opt('удалена', 'Удалена', keep.status)}</select></div>` : ''}
     <div class="field-row" style="margin-top:8px;">
       <select id="arPeriod" onchange="arRefresh()">${opt('today', 'Сегодня', keep.period)}${opt('7', '7 дней', keep.period)}${opt('30', '30 дней', keep.period)}${opt('90', '90 дней', keep.period)}${opt('all', 'Всё время', keep.period)}</select></div></div>`;
 

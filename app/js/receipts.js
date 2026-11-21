@@ -398,6 +398,7 @@ async function receiptCard(r){
       <button class="btn ghost" id="rcMore-${escapeAttr(r.id)}" onclick="rcAddLine(${jsArg(r.id)})"><svg class="icon"><use href="#i-plus"/></svg>Ещё товар в ${r.kind === 'возврат' ? 'этот возврат' : 'эту приёмку'}</button>
       ${lineRows.length ? `<div class="rc-lines"><div class="rc-lines-title">В ${r.kind === 'возврат' ? 'возврате' : 'приёмке'}</div>${lineRows.join('')}</div>` : ''}
       <div class="field"><label for="rcWeight-${escapeAttr(r.id)}">Вес поставки, кг <span class="hint">— если нужен</span></label><input type="text" inputmode="decimal" id="rcWeight-${escapeAttr(r.id)}" placeholder="0"></div>
+      ${typeof ffNoCells === 'function' && ffNoCells() ? `<button class="btn primary rc-accept" id="rcAcceptBtn-${escapeAttr(r.id)}" onclick="rcAccept(${jsArg(r.id)})"><svg class="icon"><use href="#i-check"/></svg>Принять — товар на склад</button>` : ''}
       <div class="rc-start-btns">
         <button class="btn primary" id="rcFinishBtn-${escapeAttr(r.id)}" onclick="rcFinish(${jsArg(r.id)})"><svg class="icon"><use href="#i-check"/></svg>Куда класть</button>
         <button class="btn ghost" id="rcFloorBtn-${escapeAttr(r.id)}" onclick="rcFinish(${jsArg(r.id)}, true)"><svg class="icon"><use href="#i-in"/></svg>Всё на пол</button>

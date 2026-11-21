@@ -432,6 +432,7 @@ function applyRemoteSettings(incoming){
   loadSettingsForm();
   // звуки могли смениться — пересобираем пулы под новый файл
   refreshCustomSounds();
+  if(typeof applyNoCells === 'function') applyNoCells();   // «без ячеек» включили на другом телефоне
 }
 
 async function getAllLive(store){

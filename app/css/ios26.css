@@ -611,3 +611,13 @@ textarea{width:100%;box-sizing:border-box;}
 /* «⋯» на «Складе» — круглая стеклянная кнопка в шапке раздела */
 .stock-more{width:40px !important;height:40px !important;border-radius:50%;background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08);align-self:center;}
 .stock-more .icon{width:20px;height:20px;}
+
+/* 21.11.2026: склад без ячеек (js/no-cells.js) — номера ячеек и раскладку не показываем */
+body.no-cells [data-today="receipts"],body.no-cells [data-today="floor"]{display:none !important;}
+body.no-cells .sh-card .go,body.no-cells .model-card .cells-line,body.no-cells .cells-line{display:none !important;}
+body.no-cells .sup-cells,body.no-cells .sup-actions [onclick^="assignCellsPrompt"]{display:none !important;}
+body.no-cells [data-review-cell]{display:none !important;}
+body.no-cells .rc-card .rc-start-btns,body.no-cells .rc-card .rc-start-hint{display:none !important;}
+body.no-cells .rc-defect span{font-size:0;} body.no-cells .rc-defect span::after{content:"Брак";font-size:15px;}
+.rc-accept{width:100%;margin-top:8px;}
+body.no-cells .rc-where{display:none !important;}

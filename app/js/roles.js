@@ -20,7 +20,7 @@ const NAV_ITEMS = [
 ];
 function itemLabel(i){ return (i.labels && i.labels[currentRole()]) || i.label; }
 const isStaffRole = ()=> !!(window.Sync && Sync.isStaff && Sync.isStaff());
-function itemAllowed(i){ if(i.noStaff && isStaffRole()) return false; return i.roles.includes(currentRole()) || (i.roles.includes('admin') && window.Sync && Sync.isAdmin && Sync.isAdmin()); }
+function itemAllowed(i){ if(i.noStaff && isStaffRole()) return false; if(i.id === 'cells' && typeof ffNoCells === 'function' && ffNoCells()) return false;   /* склад без ячеек */ return i.roles.includes(currentRole()) || (i.roles.includes('admin') && window.Sync && Sync.isAdmin && Sync.isAdmin()); }
 
 function currentRole(){ return (window.Sync && Sync.role) ? Sync.role() : 'none'; }
 function isOwnerRole(){ return currentRole() === 'owner'; }
@@ -50,6 +50,7 @@ async function applyRoleUI(){
   document.body.classList.toggle('is-owner', rl === 'owner');
   document.body.classList.toggle('is-staff', isStaffRole());
   buildBottomNav();
+  if(typeof applyNoCells === 'function') applyNoCells();   // склад без ячеек (js/no-cells.js)
   // Настройки: поставщику — только карточка входа и синхронизации
   // старые карточки «Склада» (data-legacy) скрыты всегда; «Пример» показывает свой код (data-self)
   document.querySelectorAll('#sec-settings .card:not([data-self])').forEach(c=>{ c.hidden = c.hasAttribute('data-legacy') || (rl !== 'owner' && !c.hasAttribute('data-emp')) || (rl !== 'supplier' && c.hasAttribute('data-sup-only')); });

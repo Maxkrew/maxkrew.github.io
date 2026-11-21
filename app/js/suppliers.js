@@ -57,7 +57,7 @@ async function renderSuppliers(){
     return `<div class="card sup-card">
       <div class="sup-head"><div class="rname">${escapeHtml(s.name || 'Поставщик')}</div>${status}</div>
       ${codeLine}
-      <div class="rmeta sup-line">Ячейки: ${mine.length ? escapeHtml(cellRangeLabel(mine)) : 'не назначены'}</div>
+      <div class="rmeta sup-line sup-cells">Ячейки: ${mine.length ? escapeHtml(cellRangeLabel(mine)) : 'не назначены'}</div>
       ${temp}
       ${bills[s.id] || ''}
       <div class="btn-row sup-actions">

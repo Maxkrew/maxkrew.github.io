@@ -93,6 +93,9 @@ async function topSheetAction(id){
 /* ---------- меню «⋯» ----------
    uiMenu(кнопка, [{label, icon, danger, run}]) — список рядом с кнопкой, закрывается мимо и Esc */
 function uiMenu(anchor, items){
+  /* повторное нажатие на ту же «⋯» — закрыть (владелец, 21.11.2026: «раскрыл — закрыть обратно не могу») */
+  const open = document.getElementById('uiMenu');
+  if(open && open._anchor === anchor){ uiMenuClose(); return; }
   uiMenuClose();
   const m = document.createElement('div');
   m.className = 'ui-menu'; m.id = 'uiMenu'; m.setAttribute('role', 'menu');
@@ -148,7 +151,11 @@ function uiInitHeaderCap(){
   renderHeaderCap();
 }
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ uiMenuClose(); closeTopSheet(); uiSheetClose(); } });
-document.addEventListener('click', e=>{ const m = document.getElementById('uiMenu'); if(m && !m.contains(e.target) && !(m._anchor && m._anchor.contains(e.target))) uiMenuClose(); }, true);
+/* касание мимо меню закрывает его. На iPhone «click» по пустому месту не приходит — слушаем pointerdown. Нажатие на саму «⋯» обрабатывает uiMenu */
+function uiMenuOutside(e){ const m = document.getElementById('uiMenu'); if(m && !m.contains(e.target) && !(m._anchor && m._anchor.contains(e.target))) uiMenuClose(); }
+document.addEventListener('pointerdown', uiMenuOutside, true);
+document.addEventListener('touchstart', uiMenuOutside, {capture: true, passive: true});
+addEventListener('scroll', ()=>{ if(document.getElementById('uiMenu')) uiMenuClose(); }, {passive: true, capture: true});
 window.addEventListener('DOMContentLoaded', uiInitHeaderCap);
 
 /* «Склад»: «⋯» вместо «Excel» и «+ Товар» (владелец, 21.11.2026). Пункты — из спрятанных кнопок,

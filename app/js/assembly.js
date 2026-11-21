@@ -6,6 +6,7 @@ let shSelectMode = false;          // режим «Выбрать»
 let shModelFilter = '';            // товар в фильтре; '' — все
 let shVisible = [];                // заказы, которые сейчас на экране (с учётом фильтров)
 let shCarrierFilter = '';          // служба в фильтре; '' — все
+let shFiltersHtml = '';            // содержимое шторки «Фильтр» (собирает assemblyHeader)
 const shSelected = new Set();
 
 /* Когда отправку собрали: последняя отметка «Собрано» её строк. */
@@ -54,9 +55,10 @@ async function assemblyHeader(open, all){
     .sort((a, b)=> (n(b.id) > 0) - (n(a.id) > 0) || modelName(a).localeCompare(modelName(b), 'ru'))
     .map(m=> `<option value="${escapeAttr(m.id)}" data-n="${n(m.id)}"${shModelFilter === m.id ? ' selected' : ''}>${escapeHtml(modelName(m))} — ${n(m.id)}</option>`).join('');
   const modelSel = `<select id="asModel" data-products="filter" onchange="shSetModel(this.value)"><option value="">Все товары</option>${mOpts}</select>`;
-  return `<div class="as-chips">${chips}</div><div class="as-chips as-carriers">${cChips}</div><div class="field as-model">${modelSel}</div>
-    <div class="as-tools"><button type="button" class="btn ghost sm${shSelectMode ? ' on' : ''}" style="width:auto;" id="asSelectBtn" onclick="shToggleSelect()">${shSelectMode ? 'Отменить выбор' : '☑ Выбрать'}</button></div>
-    <div class="card as-progress"><b class="as-count">${done} / ${total}</b><span class="bar"><i style="width:${pct}%"></i></span><span class="rmeta">осталось ${left}</span></div>${selBar}`;
+  /* 21.11.2026 (проект v3): фильтры и «Выбрать» — в шторке «Фильтр» (кнопка у поиска внизу), на экране — только счётчик */
+  shFiltersHtml = `<div class="sh-f-title">Поставщик</div><div class="as-chips">${chips}</div><div class="sh-f-title">Служба</div><div class="as-chips as-carriers">${cChips}</div><div class="sh-f-title">Товар</div><div class="field as-model">${modelSel}</div>
+    <div class="sh-f-title">Действия</div><div class="as-tools"><button type="button" class="btn ghost${shSelectMode ? ' on' : ''}" id="asSelectBtn" onclick="uiSheetClose();shToggleSelect()">${shSelectMode ? 'Отменить выбор' : '☑ Выбрать несколько — печать, собрать разом'}</button></div>`;
+  return `<div class="card as-progress"><b class="as-count">${done} / ${total}</b><span class="bar"><i style="width:${pct}%"></i></span><span class="rmeta">осталось ${left}</span></div>${selBar}`;
 }
 async function shSetFilter(id){ shFilter = id; await renderShipments(); }
 async function shSetModel(id){ shModelFilter = id; await renderShipments(); }

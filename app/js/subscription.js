@@ -16,7 +16,8 @@ function renderWhBand(){
     el.id = "whBand";
     main.parentNode.insertBefore(el, main);
   }
-  if(rl !== "supplier"){ el.hidden = true; return; }
+  /* с 21.11.2026 склад виден в шапке-капсуле («Склад «FoG»») — отдельная полоса не нужна */
+  if(rl !== "supplier" || document.getElementById("hcap")){ el.hidden = true; if(typeof renderHeaderCap === "function") renderHeaderCap(); return; }
   const sub = Sync.subscription ? Sync.subscription() : null;
   const title = String((sub && sub.title) || "").trim();
   const n = Sync.warehouses ? Sync.warehouses().length : 1;

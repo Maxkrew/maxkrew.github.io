@@ -53,6 +53,7 @@ async function rejectReview(uid){
   return {ok:true};
 }
 
+let rvOpen = false;   // свёрнутый список «Проверить» раскрыт
 async function renderReviewBlock(){
   const items = await reviewItems();
   if(!items.length) return '<div id="reviewBox"></div>';
@@ -71,8 +72,10 @@ async function renderReviewBlock(){
         <button class="btn primary sm" style="width:auto;" data-review-ok="${escapeAttr(op.uid)}" onclick="rvConfirm(${jsArg(op.uid)})">Подтвердить</button>
         <button class="btn ghost sm" style="width:auto;" data-review-no="${escapeAttr(op.uid)}" onclick="rvReject(${jsArg(op.uid)})">Отменить</button></div></div>`);
   }
-  return `<div id="reviewBox"><div class="card review-card"><div class="rname" style="margin-bottom:6px;">Проверить (${items.length})</div>
-    <p class="hint" style="margin:0 0 6px;">Поставщик поправил количество. Посмотрите в ячейке и подтвердите или отмените.</p>${rows.join('')}</div></div>`;
+  /* 21.11.2026 (проект v3): больше трёх правок — одна строка «Проверить · N», раскрывается нажатием (не занимает весь экран) */
+  const fold = items.length > 3;
+  return `<div id="reviewBox"><${fold ? 'details' : 'div'} class="card review-card${fold ? ' rv-fold' : ''}"${fold && rvOpen ? ' open' : ''}${fold ? ' ontoggle="rvOpen = this.open"' : ''}>${fold ? `<summary class="rname rv-sum">Проверить <b class="rv-n">${items.length}</b><span class="hint">поставщики поправили количество</span></summary>` : `<div class="rname" style="margin-bottom:6px;">Проверить (${items.length})</div>`}
+    <p class="hint" style="margin:0 0 6px;">Поставщик поправил количество. Посмотрите в ячейке и подтвердите или отмените.</p>${rows.join('')}</${fold ? 'details' : 'div'}></div>`;
 }
 async function rvConfirm(uid){
   const sel = document.querySelector('[data-review-cell="' + CSS.escape(uid) + '"]');

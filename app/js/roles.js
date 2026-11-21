@@ -10,9 +10,10 @@ const NAV_ITEMS = [
   {id:'shipments', label:'Отправки',   icon:'i-out',   group:'Склад',  roles:['owner','supplier'], labels:{supplier:'Продажи'}},
   {id:'analysis',  label:'Анализ',     icon:'i-chart', group:'Склад',  roles:['supplier'], noStaff:true},   // деньги — не сотруднику
   {id:'cells',     label:'Ячейки',     icon:'i-grid',  group:'Склад',  roles:['owner']},
-  {id:'suppliers', label:'Поставщики', icon:'i-users', group:'Деньги', roles:['owner']},
+  /* 21.11.2026 (проект v3): «Поставщики» и «История» — в шторке сверху; внизу у склада 5 вкладок, у поставщика 4 */
+  {id:'suppliers', label:'Поставщики', icon:'i-users', group:'Деньги', roles:['owner'], sideOnlyFor:['owner']},
   /* у склада на телефоне — из Настроек (в нижнем меню 7 вкладок не помещаются), у поставщика — внизу */
-  {id:'history',   label:'История',    icon:'i-clock', group:'Склад',  roles:['owner','supplier'], sideOnlyFor:['owner']},
+  {id:'history',   label:'История',    icon:'i-clock', group:'Склад',  roles:['owner','supplier'], sideOnlyFor:['owner','supplier']},
   /* только в боковом меню (на телефоне — из Настроек), чтобы нижнее меню не переполнялось */
   {id:'tariffs',   label:'Тарифы',     icon:'i-coins', group:'Аккаунт', roles:['owner'], sideOnly:true},
   {id:'admin',     label:'Сервис',     icon:'i-gear',  group:'Аккаунт', roles:['admin'], sideOnly:true}

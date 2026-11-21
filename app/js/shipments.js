@@ -244,6 +244,7 @@ async function renderShipments(){
   const open = list.filter(s=> s.status !== 'собрана');
   const done = list.filter(s=> s.status === 'собрана').slice(0, sup ? SH_RECENT : 10);
   const q = (document.getElementById('shSearch') || {}).value || '';
+  if(!sup && typeof renderShipmentsOwner === 'function') return renderShipmentsOwner(box, list, open, done, q);   // проект v3 (js/ship-owner.js)
   const parts = [];
   // «В работе» / «История» (js/archive.js) — история отправок и возвратов, ничего не пропадает
   parts.push(`<div class="as-chips sh-view"><button type="button" class="as-chip${shView === 'work' ? ' on' : ''}" data-sh-view="work" onclick="shSetView('work')">В работе</button><button type="button" class="as-chip${shView === 'history' ? ' on' : ''}" data-sh-view="history" onclick="shSetView('history')">История</button></div>`);
@@ -331,10 +332,10 @@ async function shipmentCard(s, editable){
     const canAdd = !sup && s.createdBy !== 'supplier';
     add = (sup ? '' : `<div class="field-row scan-row sh-scan"><input type="text" data-scan-shipment="${escapeAttr(s.id)}" placeholder="Скан штрихкода" autocomplete="off" aria-label="Скан штрихкода">
       <button type="button" class="icon-btn sh-cam" onclick="openCameraScan(c=> ffScanShipment(${jsArg(s.id)}, c))" aria-label="Сканировать камерой"><svg class="icon"><use href="#i-camera"/></svg></button></div>`) +
-      (canAdd ? `<div class="field-row" style="margin-top:8px;"><select id="shModel-${escapeAttr(s.id)}" data-products="ship" data-sizes="shSizes-${escapeAttr(s.id)}" onchange="shFillSizes(${jsArg(s.id)})"><option value="">— модель —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select></div>
+      (canAdd && typeof shOpenAddLine === 'function' ? `<button type="button" class="btn ghost sh-add-btn" data-add-line="${escapeAttr(s.id)}" onclick="shOpenAddLine(${jsArg(s.id)})"><svg class="icon"><use href="#i-plus"/></svg>Товар</button>` : canAdd ? `<div class="field-row" style="margin-top:8px;"><select id="shModel-${escapeAttr(s.id)}" data-products="ship" data-sizes="shSizes-${escapeAttr(s.id)}" onchange="shFillSizes(${jsArg(s.id)})"><option value="">— модель —</option>${ms.map(m=> `<option value="${escapeAttr(m.id)}">${escapeHtml(modelName(m))}</option>`).join('')}</select></div>
       <div class="size-pick" id="shSizes-${escapeAttr(s.id)}" style="margin-top:6px;"></div>
       <div class="field-row" style="margin-top:6px;"><input type="number" id="shQty-${escapeAttr(s.id)}" min="1" value="1"><button class="btn ghost" style="width:auto;" onclick="shAddLine(${jsArg(s.id)})">Добавить</button></div>` : '') +
-      ((sup && s.createdBy === 'supplier') || (!sup && s.createdBy !== 'supplier') ? `<button class="btn ghost danger-text" style="margin-top:8px;" data-cancel="${escapeAttr(s.id)}" onclick="shCancel(${jsArg(s.id)})"${lines.some(l=> l.collected) ? ' disabled' : ''}>Отменить ${sup ? 'заказ' : 'отправку'}</button>` : '');
+      ((sup && s.createdBy === 'supplier') || (!sup && s.createdBy !== 'supplier' && typeof shCardMenu !== 'function') ? `<button class="btn ghost danger-text" style="margin-top:8px;" data-cancel="${escapeAttr(s.id)}" onclick="shCancel(${jsArg(s.id)})"${lines.some(l=> l.collected) ? ' disabled' : ''}>Отменить ${sup ? 'заказ' : 'отправку'}</button>` : '');
   }
   // скриншот штрихкода, фото к заказу и фото товаров — видят оба
   const phs = [];
@@ -349,7 +350,7 @@ async function shipmentCard(s, editable){
   // склад: собранную отправку можно вернуть в работу (ошиблись) и удалить свою
   const doneTools = !sup && s.status === 'собрана' ? `<div class="sh-tools"><button type="button" class="icon-btn sh-edit-btn" data-reopen="${escapeAttr(s.id)}" onclick="shReopen(${jsArg(s.id)})" aria-label="Вернуть в работу"><svg class="icon"><use href="#i-edit"/></svg></button>${s.createdBy !== 'supplier' ? `<button type="button" class="icon-btn sh-del-btn" data-sh-del="${escapeAttr(s.id)}" onclick="shDeleteDone(${jsArg(s.id)})" aria-label="Удалить отправку"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div>` : '';
   /* трек: «Изменить» — маленький карандаш справа вверху, рядом со статусом (владелец, 20.11.2026: «под треком её быть не должно») */
-  const trackBtn = !sup && !s.deletedAt ? `<button type="button" class="icon-btn sh-track-edit" data-track-edit="${escapeAttr(s.id)}" onclick="shTrackEdit(${jsArg(s.id)})" aria-label="${s.track ? 'Изменить трек-номер' : 'Добавить трек-номер'}"><svg class="icon"><use href="#i-dots"/></svg></button>` : '';
+  const trackBtn = !sup && !s.deletedAt ? `<button type="button" class="icon-btn sh-track-edit" data-track-edit="${escapeAttr(s.id)}" onclick="${typeof shCardMenu === 'function' ? 'shCardMenu(this, ' + jsArg(s.id) + ')' : 'shTrackEdit(' + jsArg(s.id) + ')'}" aria-haspopup="menu" aria-label="Действия с отправкой"><svg class="icon"><use href="#i-dots"/></svg></button>` : '';
   const pencil = sup && typeof shipmentEditable === 'function' && await shipmentEditable(s)
     ? `<button type="button" class="icon-btn sh-edit" data-edit="${escapeAttr(s.id)}" onclick="sellEditStart(${jsArg(s.id)})" aria-label="Изменить заказ"><svg class="icon"><use href="#i-edit"/></svg></button>` : '';
   // дата и время заказа: «5 ноября, 14:38» (год — только если не этот)
@@ -371,7 +372,7 @@ async function shipmentCard(s, editable){
   const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);
   const bigBtn = canCollect && !shSelectMode ? `<button class="btn primary as-collect" data-collect="${escapeAttr(s.id)}" onclick="shCollect(${jsArg(s.id)})"><svg class="icon"><use href="#i-check"/></svg>Собран</button>` : '';
   const selBox = !sup && editable && shSelectMode ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
-  return `<div class="card sh-card sh-v5" data-shipment="${escapeAttr(s.id)}"><div class="rname sh-head">${carrierBadge(s.carrier)}<span class="sh-carrier">${escapeHtml(s.carrier)}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}${timeHtml}</div>
+  return `<div class="card sh-card sh-v5" data-shipment="${escapeAttr(s.id)}"><div class="rname sh-head">${carrierBadge(s.carrier)}<span class="sh-carrier">${escapeHtml(s.carrier)}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}${timeHtml}${false ? `<button type="button" class="icon-btn sh-fold" onclick="shToggleOpen(${jsArg(s.id)})" aria-label="Свернуть" aria-expanded="true"><svg class="icon"><use href="#i-chev"/></svg></button>` : ''}</div>
     ${meta}
     ${chips ? trackLine : ''}
     ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;
@@ -389,7 +390,7 @@ async function shStart(){
   if(bc) await addPhoto({supplierId: supEl.value, kind:'штрихкод', shipmentId:id}, bc, true);
   for(const f of ['shTrack', 'shComment']) document.getElementById(f).value = '';
   Object.assign(shNew, {barcode: null, detecting: null, text: ''});
-  await renderShipments();
+  if(typeof uiSheetClose === 'function') uiSheetClose(); await renderShipments();
 }
 /* Склад: скриншот штрихкода к новой отправке — трек и служба определяются сами, как у поставщика */
 const shNew = {barcode: null, detecting: null, text: ''};
@@ -442,7 +443,7 @@ async function shAddLine(sid){
   if(!r.ok && r.short && confirm('Товара нет на складе: не хватает ' + r.short + ' шт. Всё равно отправить? Остаток уйдёт в минус, следующая приёмка его закроет.'))
     r = await addShipmentLine(sid, mid, sz.dataset.sizeId, qty, true);
   if(!r.ok){ if(!r.short) toast(r.error); return; }
-  await renderShipments();
+  if(typeof uiSheetClose === 'function') uiSheetClose(); await renderShipments();
 }
 async function shCancel(sid){
   if(!confirm('Отменить?')) return;

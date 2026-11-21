@@ -157,6 +157,9 @@ async function shCardMenu(btn, sid){
   const s = await get('shipments', sid); if(!s) return;
   const lines = await shipmentLines(sid);
   const items = [{label: s.track ? 'Изменить трек-номер' : 'Добавить трек-номер', icon: 'i-edit', run: ()=> shTrackEdit(sid)}];
+  /* 21.11.2026 (владелец): «Штрихкод» — в «⋯», а не кнопкой в карточке */
+  const hasBc = typeof shipmentPhotos === 'function' && (await shipmentPhotos(sid)).some(p=> p.kind === 'штрихкод');
+  if(!hasBc) items.push({label: 'Добавить скриншот штрихкода', icon: 'i-upload', run: ()=>{ const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = ()=> shAddBarcodePick(sid, i); i.click(); }});
   if(s.status !== 'собрана' && s.createdBy !== 'supplier') items.push({label: 'Отменить отправку', icon: 'i-x', danger: true, run: ()=> lines.some(l=> l.collected) ? toast('Часть уже собрана — сначала снимите галочки') : shCancel(sid)});
   uiMenu(btn, items);
 }

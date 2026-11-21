@@ -684,3 +684,15 @@ html.pr-open,html.pr-open body{overflow:hidden;}
 .ui-undo.show{transform:translate(-50%,0);opacity:1;}
 .ui-undo span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .ui-undo button{flex-shrink:0;height:36px;padding:0 14px;border:0;border-radius:10px;background:rgba(255,255,255,.16);color:#7DB8FF;font:inherit;font-weight:700;cursor:pointer;}
+
+/* 21.11.2026 (владелец): «⋯» — наверху рядом со статусом; «Джус» и трек ближе; фото в заказе +40 (152);
+   у поставщика на «Товарах» фото +40 (128); «+ Новый товар» — маленькой ссылкой; пустого «Пока пусто» нет */
+.sh-card .sh-hstat{display:flex;align-items:center;gap:6px;}
+.sh-card .sh-hstat .sh-tools{display:flex;gap:4px;}
+.sh-card .sh-hstat .sh-tools .icon-btn,.sh-card .sh-hstat > .icon-btn{width:32px;height:32px;}
+.sh-card .sh-meta2{margin-top:10px !important;min-height:0;}
+.sh-card .sh-meta2:empty{display:none;}
+.sh-card .sh-trackrow{margin-top:6px !important;}
+.sh-card .ph-thumb,.sh-card .ph-thumb img{width:152px !important;height:152px !important;border-radius:20px;}
+body.is-supplier .model-card .model-photo .ph-add,body.is-supplier .model-card .model-photo .ph-thumb,body.is-supplier .model-card .model-photo .ph-thumb img{width:128px !important;height:128px !important;border-radius:18px;}
+.link-btn{display:inline-flex;align-items:center;margin-top:6px;padding:6px 2px;border:0;background:none;color:var(--accent);font:inherit;font-size:14.5px;font-weight:600;cursor:pointer;}

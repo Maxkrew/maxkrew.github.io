@@ -24,8 +24,25 @@
   --font-display:-apple-system,'SF Pro Display',BlinkMacSystemFont,'Inter',system-ui,sans-serif;
   --font-body:-apple-system,'SF Pro Text',BlinkMacSystemFont,'Inter',system-ui,sans-serif;
 }
-@media (prefers-color-scheme:dark){
-  :root{
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg-a:#000000; --bg-b:#000000; --bg-c:#000000;
+    --surface:#1C1C1E; --surface-2:#1C1C1E; --surface-3:#2C2C2E;
+    --field:rgba(118,118,128,.24); --field-hover:rgba(118,118,128,.32); --field-solid:#2C2C2E;
+    --border:rgba(84,84,88,.6); --border-soft:rgba(84,84,88,.4);
+    --text:#FFFFFF; --text-secondary:#98989F; --text-tertiary:#8D8D93;
+    --accent:#0A84FF; --accent-strong:#409CFF; --accent-ink:#FFFFFF;
+    --accent-soft:rgba(10,132,255,.2); --accent-border:rgba(10,132,255,.45);
+    --success:#32D35C; --success-soft:rgba(48,209,88,.16); --success-border:rgba(48,209,88,.35);
+    --danger:#FF6961; --danger-soft:rgba(255,69,58,.18); --danger-border:rgba(255,69,58,.4);
+    --warning:#FFB340; --warning-soft:rgba(255,159,10,.18); --warning-border:rgba(255,159,10,.4);
+    --glass:rgba(42,42,46,.6); --glass-edge:rgba(255,255,255,.13);
+    --glass-shadow:0 10px 34px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12);
+    --glass-active:rgba(255,255,255,.13);
+    --sep:rgba(84,84,88,.6);
+    --shadow-pop:0 18px 50px -12px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }}
+:root[data-theme="dark"]{
     --bg-a:#000000; --bg-b:#000000; --bg-c:#000000;
     --surface:#1C1C1E; --surface-2:#1C1C1E; --surface-3:#2C2C2E;
     --field:rgba(118,118,128,.24); --field-hover:rgba(118,118,128,.32); --field-solid:#2C2C2E;
@@ -43,7 +60,6 @@
     --shadow-pop:0 18px 50px -12px rgba(0,0,0,.7);
     color-scheme:dark;
   }
-}
 
 /* основа */
 html,body{background:var(--bg-a);color:var(--text);}
@@ -101,12 +117,14 @@ nav.bottom button{color:var(--text);font-weight:600;border-radius:26px;}
 nav.bottom button.active{color:var(--accent);background:var(--glass-active);}
 
 /* тёмная тема: места, где в старых стилях был вписан белый фон */
-@media (prefers-color-scheme:dark){
-  .skb-bar button.skb-arrow:active,.skb-row button.mod:active,.skb-row button.mod.on{background:var(--surface-3);}
-  aside.side{background:var(--surface);}
-  .photo-viewer{background:#000;}
-  .pill.w{background:var(--warning-soft);color:var(--warning);}
-}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .skb-bar button.skb-arrow:active,:root:not([data-theme="light"]) .skb-row button.mod:active,:root:not([data-theme="light"]) .skb-row button.mod.on{background:var(--surface-3);}
+:root:not([data-theme="light"]) aside.side{background:var(--surface);}
+:root:not([data-theme="light"]) .photo-viewer{background:#000;}
+:root:not([data-theme="light"]) .pill.w{background:var(--warning-soft);color:var(--warning);}}
+:root[data-theme="dark"] .skb-bar button.skb-arrow:active,:root[data-theme="dark"] .skb-row button.mod:active,:root[data-theme="dark"] .skb-row button.mod.on{background:var(--surface-3);}
+:root[data-theme="dark"] aside.side{background:var(--surface);}
+:root[data-theme="dark"] .photo-viewer{background:#000;}
+:root[data-theme="dark"] .pill.w{background:var(--warning-soft);color:var(--warning);}
 
 /* верхняя полоса с шапкой — стекло в цвет экрана */
 .sticky-chrome{background:color-mix(in srgb,var(--bg-a) 72%,transparent);border-bottom:.5px solid var(--sep);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);}
@@ -127,9 +145,8 @@ b.lvl-high,.sz-row b.lvl-high{background:var(--accent-soft);color:var(--accent);
 .auth-who.warehouse{background:var(--accent-soft);color:var(--accent);}
 .sub-banner.warn,.pill.w{background:var(--warning-soft);color:var(--warning);}
 .qty-stepper button,.qty-pad button{background:var(--surface);color:var(--text);}
-@media (prefers-color-scheme:dark){
-  .sh-price{color:var(--warning);}
-}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sh-price{color:var(--warning);}}
+:root[data-theme="dark"] .sh-price{color:var(--warning);}
 
 /* поставщик: к какому складу подключён */
 .wh-band{display:flex;align-items:center;gap:10px;margin:8px var(--sp-4) 0;padding:10px 14px;border-radius:16px;background:var(--success-soft);color:var(--text);font-size:14px;line-height:1.3;}
@@ -263,10 +280,11 @@ body.role-supplier #sec-stock > .page-head.head-row h2,#sec-stock > .page-head.h
    ================================================================ */
 :root{--bg-a:#F2F3F7;--bg-b:#F2F3F7;--bg-c:#F2F3F7;--field-solid:#F2F3F7;
   --accent:#005BFF;--accent-strong:#0047CC;--accent-soft:rgba(0,91,255,.10);--accent-border:rgba(0,91,255,.35);}
-@media (prefers-color-scheme:dark){:root{--bg-a:#000000;--bg-b:#000000;--bg-c:#000000;--field-solid:#2C2C2E;--accent:#0A84FF;--accent-strong:#409CFF;--accent-soft:rgba(10,132,255,.2);}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg-a:#000000;--bg-b:#000000;--bg-c:#000000;--field-solid:#2C2C2E;--accent:#0A84FF;--accent-strong:#409CFF;--accent-soft:rgba(10,132,255,.2);}}
+:root[data-theme="dark"]{--bg-a:#000000;--bg-b:#000000;--bg-c:#000000;--field-solid:#2C2C2E;--accent:#0A84FF;--accent-strong:#409CFF;--accent-soft:rgba(10,132,255,.2);}
 .card{border-radius:24px;}
 .btn{border-radius:14px;}
-.btn.primary{min-height:52px;font-size:16px;font-weight:600;}
+.btn.primary{min-height:44px;font-size:16px;font-weight:600;}
 .btn.sm{border-radius:10px;min-height:34px;}
 .btn.sm.primary{min-height:34px;font-size:14px;}
 .btn.ghost,#homeAddModel{background:var(--accent-soft);color:var(--accent);}
@@ -547,3 +565,49 @@ body.kb-open .sh-dock{bottom:calc(10px + env(safe-area-inset-bottom,0px));}
 .sh-card .sh-meta2 .sh-right{flex-shrink:0;margin-left:auto;display:flex;align-items:center;gap:6px;}
 .sh-card .sh-meta2 .sh-right .sh-tools{display:flex;gap:6px;}
 .sh-card .sh-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0;}
+
+/* ================================================================
+   21.11.2026 (владелец: «всё ровно, толстые кнопки — тонкими, пропорционально»):
+   две высоты кнопок на всё приложение — 44 (обычная, как поле) и 32 (маленькая).
+   ================================================================ */
+.btn{height:44px;min-height:44px;padding-top:0;padding-bottom:0;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1;}
+.btn.sm{height:32px !important;min-height:32px !important;padding:0 12px;font-size:13.5px;border-radius:10px;}
+.btn .icon{flex-shrink:0;}
+button.as-collect{height:44px !important;min-height:44px !important;}
+.icon-btn:not(.sh-cam){width:32px;height:32px;min-height:32px;}
+.an-seg button{min-height:36px;height:36px;}
+/* в строке из полей с подписями кнопка стоит по нижнему краю полей */
+.field-row:has(> .field) {align-items:flex-end;}
+.field-row:has(> .field) > .btn{align-self:flex-end !important;}
+textarea{width:100%;box-sizing:border-box;}
+/* поиск внизу: подсказка ровно по центру лупы */
+.sh-sbox input{-webkit-appearance:none;appearance:none;line-height:normal;align-self:center;}
+.sh-sbox input::-webkit-search-decoration,.sh-sbox input::-webkit-search-cancel-button{-webkit-appearance:none;}
+.sh-sbox .icon{display:block;align-self:center;}
+.tf-row input[type=text]{min-height:44px;height:44px;padding:0 16px;}
+/* кнопка в строке с полем — всегда высотой с поле, даже «маленькая»; и не сжимается */
+:is(.field-row,.scan-row,div,span):has(> :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select)) > .btn.sm{height:var(--ctl-h) !important;min-height:var(--ctl-h) !important;padding:0 14px;font-size:15px;}
+.field-row > .btn{flex-shrink:0;}
+.sh-card .sh-scan > .btn.sm{height:36px !important;min-height:36px !important;}
+.sh-sbox{box-sizing:border-box;}.sh-sbox input{height:100% !important;margin:0 !important;align-self:stretch !important;}
+.ts-panel,.ui-sheet{overscroll-behavior:contain;}.top-sheet,.ui-sheet-bg{touch-action:none;}.ui-sheet{touch-action:pan-y;}
+
+/* 21.11.2026: тема выбирается в шторке сверху — «Светлая» / «Тёмная» / «Как в телефоне» (data-theme на <html>) */
+:root[data-theme="light"]{color-scheme:light;}
+:root[data-theme="dark"]{color-scheme:dark;}
+.ts-theme{display:flex;gap:2px;margin-top:8px;padding:3px;border-radius:14px;background:var(--field);}
+.ts-theme button{flex:1;height:36px;border:0;border-radius:11px;background:none;color:var(--text-secondary);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.ts-theme button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.12);}
+.sh-sbox{height:auto !important;padding:0 14px;border:0 !important;box-shadow:var(--glass-shadow),inset 0 0 0 .5px var(--glass-edge);}.sh-sbox input{height:44px !important;min-height:44px !important;}
+/* 21.11.2026 (владелец): плитки «Сегодня» — по высоте содержимого, отступ снизу как сверху */
+.td-tile{min-height:0 !important;height:auto;padding:16px 18px !important;gap:6px;}
+.td-grid{grid-auto-rows:auto !important;}
+/* больше воздуха под переключателями вкладок */
+.sh-seg{margin-bottom:16px;}
+#sec-shipments .sh-view,#sec-shipments .ar-kind,#sec-shipments .sh-afs{margin-bottom:16px;}
+.sh-card .sh-trackrow{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.sh-card .sh-trackrow .sh-track{margin:0 !important;min-width:0;}
+.sh-card .sh-trackrow > label.btn{margin-left:auto;flex-shrink:0;height:32px !important;min-height:32px !important;padding:0 12px !important;}
+/* «⋯» на «Складе» — круглая стеклянная кнопка в шапке раздела */
+.stock-more{width:40px !important;height:40px !important;border-radius:50%;background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08);align-self:center;}
+.stock-more .icon{width:20px;height:20px;}

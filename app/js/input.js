@@ -104,7 +104,7 @@ function setupSheetGestures(){
      она была, а при закрытии окна возвращаем прокрутку на место. */
   let lockedY = null;
   const lock = ()=>{
-    const open = !!document.querySelector('.modal-bg.show'), b = document.body;
+    const open = !!document.querySelector('.modal-bg.show, .top-sheet.show, .ui-sheet-bg.show'), b = document.body;   // и шторки проекта v3 (21.11.2026)
     document.documentElement.classList.toggle('sheet-open', open);
     if(open && lockedY === null){
       lockedY = window.scrollY || 0;

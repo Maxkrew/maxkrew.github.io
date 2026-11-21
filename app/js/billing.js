@@ -137,7 +137,7 @@ function billingTariffCard(){
       <p class="hint" style="margin:4px 0 0;">Сейчас: ${escapeHtml(tiersText())}. Процент — от суммы заказа: штуки × «цена для расчёта процента» в карточке товара (нет её — «цена продажи»). Ровно на пороге — нижняя ступень.</p></div>
     <div class="field-row" style="margin-top:8px;align-items:flex-end;">
       <div class="field" style="margin:0;" id="billShipBox"${r.mode === 'percent' ? ' hidden' : ''}><label for="billShip">Отправка, ₽</label><input type="number" id="billShip" min="0" inputmode="decimal" value="${r.ship}"></div>
-      <div class="field" style="margin:0;"><label for="billKg">Приёмка, ₽ за кг</label><input type="number" id="billKg" min="0" inputmode="decimal" value="${r.kg}"></div>
+      <div class="field" style="margin:0;"><label for="billKg">За кг, ₽</label><input type="number" id="billKg" min="0" inputmode="decimal" value="${r.kg}"></div>
       <button class="btn primary" style="width:auto;" id="billSave" onclick="billSaveRates()">Сохранить</button></div>
     <p class="hint" style="margin:6px 0 0;">Общий для всех поставщиков. Свой тариф поставщику — в его карточке ниже. Новый тариф — только для новых отправок и приёмок.</p></div>`;
 }
@@ -183,7 +183,7 @@ async function billRateForm(supplierId){
       <option value="percent"${s.billMode === 'percent' ? ' selected' : ''}>Процент по ступеням: ${escapeHtml(tiersText())}</option></select></div>
     <div class="field-row" style="align-items:flex-end;">
       <div class="field" style="margin:0;"><label>Отправка, ₽</label><input type="number" min="0" inputmode="decimal" id="rateShip-${escapeAttr(supplierId)}" value="${s.shipRate == null ? '' : s.shipRate}" placeholder="как у всех: ${all.ship}"></div>
-      <div class="field" style="margin:0;"><label>Приёмка, ₽ за кг</label><input type="number" min="0" inputmode="decimal" id="rateKg-${escapeAttr(supplierId)}" value="${s.kgRate == null ? '' : s.kgRate}" placeholder="как у всех: ${all.kg}"></div></div>
+      <div class="field" style="margin:0;"><label>За кг, ₽</label><input type="number" min="0" inputmode="decimal" id="rateKg-${escapeAttr(supplierId)}" value="${s.kgRate == null ? '' : s.kgRate}" placeholder="как у всех: ${all.kg}"></div></div>
     <div class="btn-row" style="margin-top:8px;"><button class="btn primary" style="width:auto;" data-rate-save="${escapeAttr(supplierId)}" onclick="billRateSave(${jsArg(supplierId)})">Сохранить</button>
       <button class="btn ghost" style="width:auto;" data-rate-reset="${escapeAttr(supplierId)}" onclick="billRateSave(${jsArg(supplierId)}, true)">Как у всех</button></div>
     <p class="hint" style="margin:6px 0 0;">Пустое поле — общий тариф склада. Действует для новых отправок и приёмок.</p></div>`;

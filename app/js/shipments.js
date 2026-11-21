@@ -365,17 +365,19 @@ async function shipmentCard(s, editable){
   /* 20.11.2026 (владелец): служба — отдельной строкой; статус и «⋯» — ниже, справа от «Джус · от поставщика» */
   const statusHtml = `<span class="sh-status st-${s.status === 'собрана' ? 'done' : 'new'}"${!s.deletedAt && s.status === 'новая' ? ' title="забронировано"' : ''}>${s.deletedAt ? 'удалена' : s.status === 'новая' ? 'заброн' : escapeHtml(s.status)}</span>`;
   const toolsHtml = pencil + (doneTools ? doneTools.replace('<div class="sh-tools">', '<div class="sh-tools">' + trackBtn) : (trackBtn ? '<div class="sh-tools">' + trackBtn + '</div>' : ''));
-  const trackLine = `${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track data-copy="' + escapeAttr(String(s.track).trim()) + '" role="button" title="Нажмите — скопировать">' + trackHtml(s.track) + '</b>' : 'Трек-номера нет'}${sup ? '' : bcBtn}</div>` : ''}`;
+  const trackLine = `${s.track || !sup ? `<div class="rmeta sh-track">${s.track ? 'Трек: <b data-track data-copy="' + escapeAttr(String(s.track).trim()) + '" role="button" title="Нажмите — скопировать">' + trackHtml(s.track) + '</b>' : 'Трека нет'}</div>` : ''}${sup || !bcBtn ? '' : bcBtn}`;
+  /* 21.11.2026 (владелец): «Штрихкод» — не внутри плашки трека, а отдельной кнопкой справа */
+  const trackRow = trackLine ? '<div class="sh-trackrow">' + trackLine + '</div>' : '';
   /* у поставщика плашек нет — трек в той же строке, слева от статуса */
   /* 21.11.2026 (владелец: «собрано съехало вниз, криво»): статус — справа вверху, дата — мелко под службой; во второй строке плашки и «⋯» */
-  const meta = `<div class="sh-meta2">${chips ? '<span class="sh-chips">' + chips + '</span>' : trackLine}<span class="sh-right">${toolsHtml}</span></div>`;
+  const meta = `<div class="sh-meta2">${chips ? '<span class="sh-chips">' + chips + '</span>' : trackRow}<span class="sh-right">${toolsHtml}</span></div>`;
   // склад: большая кнопка «Собран» и галочка выбора (сборка)
   const canCollect = !sup && editable && lines.length && lines.some(l=> !l.collected) && lines.every(l=> l.collected || l.cellNumber);
   const bigBtn = canCollect && !shSelectMode ? `<button class="btn primary as-collect" data-collect="${escapeAttr(s.id)}" onclick="shCollect(${jsArg(s.id)})"><svg class="icon"><use href="#i-check"/></svg>Собран</button>` : '';
   const selBox = !sup && editable && shSelectMode ? `<label class="as-select"><input type="checkbox" data-select="${escapeAttr(s.id)}"${shSelected.has(s.id) ? ' checked' : ''} onchange="shSelectOne(${jsArg(s.id)}, this.checked)"> Выбрать</label>` : '';
   return `<div class="card sh-card sh-v5" data-shipment="${escapeAttr(s.id)}"><div class="rname sh-head">${carrierBadge(s.carrier)}<span class="sh-hname"><span class="sh-carrier">${escapeHtml(s.carrier)}</span>${timeHtml}</span>${s.status !== 'отменена' && !s.deletedAt && shIsDup(s) ? '<span class="sh-dup" data-dup>Дубль ❗</span>' : ''}<span class="sh-hstat">${statusHtml}</span>${false ? `<button type="button" class="icon-btn sh-fold" onclick="shToggleOpen(${jsArg(s.id)})" aria-label="Свернуть" aria-expanded="true"><svg class="icon"><use href="#i-chev"/></svg></button>` : ''}</div>
     ${meta}
-    ${chips ? trackLine : ''}
+    ${chips ? trackRow : ''}
     ${selBox}${phRow}<div class="tasks">${rows.join('') || '<div class="hint">Строк пока нет</div>'}</div>${bigBtn}${add}</div>`;
 }
 async function shStart(){

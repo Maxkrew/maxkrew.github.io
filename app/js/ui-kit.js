@@ -57,7 +57,15 @@ async function renderTopSheet(){
   box.innerHTML = `<div class="ts-head"><span class="hav big">${escapeHtml(uiInitials(rl === 'supplier' ? supName : (wh || email)))}</span>
       <span class="ts-who"><b>${escapeHtml(name)}</b><span>${escapeHtml(email)}${roleText ? ' · ' + roleText : ''}</span></span></div>
     <div class="ts-tiles">${tiles.join('')}</div>
+    <div class="ts-theme" role="radiogroup" aria-label="Тема">${[['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Как в телефоне']].map(([v, l])=> `<button type="button" role="radio" aria-checked="${uiTheme() === v}" class="${uiTheme() === v ? 'on' : ''}" data-theme-set="${v}">${l}</button>`).join('')}</div>
     <div class="ts-list">${rows.join('')}</div>`;
+}
+/* тема: 'light' | 'dark' | 'auto' (как в телефоне) — хранится на этом телефоне */
+function uiTheme(){ try{ const t = localStorage.getItem('ff-theme'); return t === 'light' || t === 'dark' ? t : 'auto'; }catch(e){ return 'auto'; } }
+function uiSetTheme(v){
+  try{ if(v === 'auto') localStorage.removeItem('ff-theme'); else localStorage.setItem('ff-theme', v); }catch(e){}
+  if(v === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', v);
+  renderTopSheet();
 }
 function openTopSheet(){
   const s = document.getElementById('topSheet'); if(!s) return;
@@ -133,7 +141,7 @@ function uiInitHeaderCap(){
   cap.addEventListener('touchmove', e=>{ if(y0 !== null && e.touches[0].clientY - y0 > 30){ y0 = null; openTopSheet(); } }, {passive: true});
   const s = document.getElementById('topSheet');
   if(s){
-    s.addEventListener('click', e=>{ const b = e.target.closest('[data-ts]'); if(b) return topSheetAction(b.dataset.ts); if(e.target === s) closeTopSheet(); });
+    s.addEventListener('click', e=>{ const th = e.target.closest('[data-theme-set]'); if(th) return uiSetTheme(th.dataset.themeSet); const b = e.target.closest('[data-ts]'); if(b) return topSheetAction(b.dataset.ts); if(e.target === s) closeTopSheet(); });
     uiDragClose(s.querySelector('.ts-panel'), -1, closeTopSheet);
   }
   if(window.Sync && Sync.onStatus) Sync.onStatus(()=> setTimeout(renderHeaderCap, 0));
@@ -142,3 +150,15 @@ function uiInitHeaderCap(){
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ uiMenuClose(); closeTopSheet(); uiSheetClose(); } });
 document.addEventListener('click', e=>{ const m = document.getElementById('uiMenu'); if(m && !m.contains(e.target) && !(m._anchor && m._anchor.contains(e.target))) uiMenuClose(); }, true);
 window.addEventListener('DOMContentLoaded', uiInitHeaderCap);
+
+/* «Склад»: «⋯» вместо «Excel» и «+ Товар» (владелец, 21.11.2026). Пункты — из спрятанных кнопок,
+   которые сейчас разрешены этой роли (сотруднику «+ Товар» не показывается и здесь). */
+function stockMoreMenu(btn){
+  const ok = id=>{ const b = document.getElementById(id); return b && !b.hidden && getComputedStyle(b).display !== 'none' ? b : null; };
+  const items = [];
+  const add = ok('ffAddModelBtn'), xls = ok('ffXlsBtn');
+  if(add) items.push({label: 'Добавить товар', icon: 'i-plus', run: ()=> add.click()});
+  if(xls) items.push({label: 'Загрузить из Excel', icon: 'i-upload', run: ()=> xls.click()});
+  if(!items.length){ toast('Здесь нет действий для вашей роли'); return; }
+  uiMenu(btn, items);
+}

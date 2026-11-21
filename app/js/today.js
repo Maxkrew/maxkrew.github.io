@@ -25,8 +25,8 @@ async function renderToday(){
   box.innerHTML = `<div class="td-grid">
     ${tile('new', 'i-out', newToday, 'новых заказов', '', 'shipments')}
     ${tile('open', 'i-box', open.length, 'не собрано', '', 'shipments', true)}
-    ${tile('review', 'i-check', review, 'проверить', review ? '' : 'всё проверено', 'shipments', true)}
-    ${tile('expected', 'i-in', expected, 'ожидается поставок', '', 'stock')}
+    ${tile('review', 'i-check', review, 'проверить', '', 'shipments', true)}
+    ${tile('expected', 'i-in', expected, 'поставок в пути', '', 'stock')}
     ${tile('receipts', 'i-in', notPlaced, 'не разложено', '', 'receipts', true)}
     ${tile('floor', 'i-grid', floor, 'шт. лежит на полу', '', 'receipts', true)}
     ${tile('debt', 'i-coins', fmtMoney(debt), 'долг поставщиков', '', 'suppliers')}

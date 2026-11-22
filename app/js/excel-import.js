@@ -112,6 +112,7 @@ function parseImport(rows, opts){
   const col = role=> roles.indexOf(role);
   const cell = (r, role)=>{ const i = col(role); return i < 0 ? '' : String(r[i] == null ? '' : r[i]).trim(); };
   const lines = [], errors = [];
+  let skipped = 0;   // строки без количества или с нулём — товара сейчас нет, это не ошибка
   for(let i = headerRow + 1; i < rows.length; i++){
     const r = rows[i] || [], rowNo = i + 1;
     if(!r.some(v=> String(v || '').trim())) continue;                       // пустая строка
@@ -122,19 +123,19 @@ function parseImport(rows, opts){
     if(base.price !== null && base.price < 0) base.price = null;
     const add = (size, raw)=>{
       const q = parseNumber(raw);
-      if(q === null || q <= 0){ errors.push({row: rowNo, msg: 'Строка ' + rowNo + ': нет количества'}); return; }
+      if(q === null || q <= 0){ if(opts.catalog) lines.push(Object.assign({}, base, {size, qty: 0})); else skipped++; return; }
       if(q > XLS_MAX_QTY){ errors.push({row: rowNo, msg: 'Строка ' + rowNo + ': больше ' + XLS_MAX_QTY + ' шт. — проверьте'}); return; }
       lines.push(Object.assign({}, base, {size, qty: Math.round(q)}));
     };
     if(sizeCols.length){
       let any = false;
       for(const ci of sizeCols){ const q = parseNumber(r[ci]); if(q !== null && q > 0){ any = true; add(xlsSizeLabel(header[ci]), r[ci]); } }
-      if(!any) errors.push({row: rowNo, msg: 'Строка ' + rowNo + ': нет количества'});
+      if(!any){ if(opts.catalog) for(const ci of sizeCols) add(xlsSizeLabel(header[ci]), ''); else skipped++; }
     } else {
       add(xlsSizeLabel(cell(r, 'size')) || cell(r, 'size') || 'Единый', cell(r, 'qty'));
     }
   }
-  return {lines, errors};
+  return {lines, errors, skipped};
 }
 
 /* --- поиск своих товаров: штрихкод → артикул + размер → название (+ цвет) + размер --- */
@@ -153,7 +154,7 @@ async function matchImportLines(lines, supplierId){
   });
 }
 /* новые модели и размеры, затем одна поставка «ожидается» с ценами */
-async function importToIncoming(matched, supplierId){
+async function importToIncoming(matched, supplierId, opts){
   // сотрудник новые товары не заводит — их добавляет поставщик
   if(Sync.isStaff && Sync.isStaff()){
     const fresh = matched.filter(l=> !l.modelId || !l.sizeId);
@@ -184,6 +185,11 @@ async function importToIncoming(matched, supplierId){
     const sizeId = l.sizeId || await saveSize(modelId, l.size, l.barcode || undefined);
     out.push({modelId, sizeId, qty: l.qty, price: l.price});
   }
+  /* поставщик из «Мои товары» (22.11.2026): только заводит товары — без поставки и без количества */
+  if(opts && opts.catalog){
+    if(window.Sync && Sync.syncNow) ffSoft(()=> Sync.syncNow('товары из Excel'));
+    return {models: made.size, sizes: new Set(out.map(o=> o.sizeId)).size};
+  }
   if(xlsOwner()){
     const floor = await floorCellFor(supplierId);
     let pcs = 0;
@@ -212,9 +218,11 @@ async function xlsRemember(header, roles, headerRow){
 }
 
 /* --- окно --- */
-const xls = {supplierId: '', wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: []};
-function openXlsImport(){
-  Object.assign(xls, {supplierId: xls.supplierId, wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: []});
+const xls = {mode: '', supplierId: '', wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: [], skipped: 0};
+/* mode 'catalog' — из «Мои товары»: поставщик просто заводит товары (кнопка «Добавить товары») */
+const xlsCatalog = ()=> !xlsOwner() && xls.mode === 'catalog';
+function openXlsImport(mode){
+  Object.assign(xls, {mode: mode === 'catalog' ? 'catalog' : '', supplierId: xls.supplierId, wb: null, sheet: '', rows: [], headerRow: 0, roles: [], sizeCols: [], matched: [], errors: [], skipped: 0});
   const f = document.getElementById('xlsFile'); if(f) f.value = '';
   document.getElementById('xlsSheetRow').hidden = true;
   document.getElementById('xlsPreview').innerHTML = '';
@@ -222,8 +230,9 @@ function openXlsImport(){
   document.getElementById('xlsSend').disabled = true;
   const own = xlsOwner();
   document.getElementById('xlsSupRow').hidden = !own;
-  document.getElementById('xlsTitle').textContent = own ? 'Товары из Excel' : 'Приход из Excel';
-  document.getElementById('xlsSendText').textContent = own ? 'Добавить на склад' : 'Создать поставку';
+  const cat = xlsCatalog();
+  document.getElementById('xlsTitle').textContent = own || cat ? 'Товары из Excel' : 'Приход из Excel';
+  document.getElementById('xlsSendText').textContent = own ? 'Добавить на склад' : cat ? 'Добавить товары' : 'Создать поставку';
   document.getElementById('xlsOwnerHint').hidden = !own;
   if(own) getAll('suppliers').then(list=>{
     const sups = list.filter(x=> !x.deletedAt && !x.archived).sort((a, b)=> String(a.name).localeCompare(String(b.name), 'ru'));
@@ -259,9 +268,10 @@ async function xlsRefresh(){
   const header = xls.rows[xls.headerRow] || [];
   const width = Math.max(header.length, ...xls.rows.slice(xls.headerRow, xls.headerRow + 8).map(r=> r.length));
   const sizeCols = xls.sizeCols.filter(i=> xls.roles[i] === 'skip' || !xls.roles[i]);
-  const res = parseImport(xls.rows, {headerRow: xls.headerRow, roles: xls.roles, sizeCols: sizeCols.length >= 2 ? sizeCols : []});
+  const res = parseImport(xls.rows, {headerRow: xls.headerRow, roles: xls.roles, sizeCols: sizeCols.length >= 2 ? sizeCols : [], catalog: xlsCatalog()});
   xls.matched = xlsSup() ? await matchImportLines(res.lines, xlsSup()) : [];
   xls.errors = res.errors;
+  xls.skipped = res.skipped || 0;
   const th = [];
   for(let i = 0; i < width; i++){
     const isSize = sizeCols.includes(i) && sizeCols.length >= 2;
@@ -272,7 +282,8 @@ async function xlsRefresh(){
   const n = xls.matched.length, pcs = xls.matched.reduce((s, l)=> s + l.qty, 0);
   const fresh = new Set(xls.matched.filter(l=> l.isNew).map(l=> xlsNorm([l.name, l.color, l.sku].join('|')))).size;
   const errs = xls.errors.slice(0, 20).map(e=> `<div class="xls-err">${escapeHtml(e.msg)}</div>`).join('') + (xls.errors.length > 20 ? `<div class="xls-err">…и ещё ${xls.errors.length - 20}</div>` : '');
-  document.getElementById('xlsSummary').innerHTML = `<b>Нашёл ${n} ${ruPlural(n, 'товар', 'товара', 'товаров')}, ${pcs} шт., новых ${fresh}</b>${errs}`;
+  const skip = xls.skipped ? `<div class="hint">Без остатка пропущено: ${xls.skipped} ${ruPlural(xls.skipped, 'строка', 'строки', 'строк')}</div>` : '';
+  document.getElementById('xlsSummary').innerHTML = `<b>Нашёл ${n} ${ruPlural(n, 'товар', 'товара', 'товаров')}${xlsCatalog() ? '' : ', ' + pcs + ' шт.'}, новых ${fresh}</b>${skip}${errs}`;
   document.getElementById('xlsSend').disabled = !n || !xlsSup();
   if(xlsOwner() && !xlsSup()) document.getElementById('xlsSummary').innerHTML = '<span class="hint">Выберите поставщика — чьи это товары</span>';
 }
@@ -281,11 +292,14 @@ async function xlsSend(){
   const btn = document.getElementById('xlsSend'); btn.disabled = true;
   try{
     await xlsRemember(xls.rows[xls.headerRow] || [], xls.roles, xls.headerRow);
-    const r = await importToIncoming(xls.matched, xlsSup());
+    const r = await importToIncoming(xls.matched, xlsSup(), {catalog: xlsCatalog()});
     closeXlsImport();
     if(xlsOwner()){
       toast('На склад добавлено ' + r.pcs + ' шт.' + (r.models ? ', новых товаров ' + r.models : '') + ' — лежат на полу ' + r.floor + ', разложите по ячейкам');
       if(typeof renderStockFF === 'function') await renderStockFF(); if(typeof updateProductCountPill === 'function') await updateProductCountPill(); else if(typeof refreshAfterSync === 'function') await refreshAfterSync();
+    }else if(xlsCatalog()){
+      toast('Добавлено товаров: ' + r.models + (r.models ? '' : ' — все уже были') + '. Количество появится, когда склад примет поставку');
+      if(typeof renderStockFF === 'function') await renderStockFF(); if(typeof updateProductCountPill === 'function') await updateProductCountPill();
     }else{
       toast('Поставка создана — склад её увидит');
       if(typeof renderIncoming === 'function') await renderIncoming();

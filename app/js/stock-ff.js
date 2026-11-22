@@ -37,7 +37,7 @@ async function renderStockFF(){
   // у поставщика — «Мои товары» с кнопками «Приход» и «Продал» (этап 2б)
   document.getElementById('ffStockTitle').textContent = owner ? 'Склад' : 'Мои товары';
   { const sub = document.getElementById('ffStockSub'); sub.textContent = owner ? 'Товары, размеры и остатки' : ''; sub.hidden = !owner; }   // поставщику пояснение не нужно (владелец, 20.11.2026)
-  document.getElementById('homeActions').hidden = owner;
+  document.getElementById('homeActions').hidden = true;   // 22.11.2026 (владелец): «Приход»/«Продал» — свайпом и во вкладках, «+ Товар» — в «⋯»
   if(typeof renderRunningOut === 'function') renderRunningOut();   // «Кончаются размеры» (поставщик)
   const sups = await ffSuppliersMap();
   // фильтр поставщиков — только складу

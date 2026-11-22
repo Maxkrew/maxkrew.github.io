@@ -197,7 +197,15 @@ async function renderSupplierAnalysis(){
   const seg = [7, 30].map(d=> `<button type="button" data-days="${d}" class="${!anRange && d === anDays ? 'on' : ''}" onclick="anSetDays(${d})">${d} дней</button>`).join('') +
     `<button type="button" data-period class="${anRange ? 'on' : ''}" onclick="anTogglePeriod()" aria-expanded="${anPeriodOpen}"><svg class="icon"><use href="#i-calendar"/></svg>Период</button>`;
   const form = anPeriodOpen ? `<div class="card an-period" id="anCal">${anCalHtml()}</div>` : '';
-  box.innerHTML = `<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}
+  /* вкладки ПТП, ABC, РНР, Продажи, Прогноз (sup-fin.js, 22.11.2026); «Сводка» — этот экран */
+  const tabs = typeof sfTabsHtml === 'function' ? sfTabsHtml() : '';
+  if(tabs && anTab !== 'sum'){
+    const noPeriod = anTab === 'sales' || anTab === 'fc';
+    box.innerHTML = tabs + (noPeriod ? '' : `<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}${anRange ? `<p class="hint an-range">Период: ${fmtD(anRange.from)} — ${fmtD(anRange.to)}</p>` : ''}`) + await sfTabHtml(range);
+    if(typeof sfAfterRender === 'function') sfAfterRender();
+    return;
+  }
+  box.innerHTML = `${tabs}<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}
     ${anRange ? `<p class="hint an-range">Период: ${fmtD(anRange.from)} — ${fmtD(anRange.to)}</p>` : ''}
     ${list('Заканчивается', 'Остатка хватит меньше чем на 2 недели при нынешних продажах', sum.runningOut.map(r=> row(names.sizes[r.sizeId] || '', r.daysLeft + ' ' + ruPlural(r.daysLeft, 'день', 'дня', 'дней'))))}
     ${list('Довезти на месяц', 'Сколько везти, чтобы хватило на 30 дней: продажи за месяц − на складе − в пути', sum.restock.map(r=> row(names.sizes[r.sizeId] || '', r.qty + ' шт.')))}

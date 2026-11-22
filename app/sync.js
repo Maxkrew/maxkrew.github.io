@@ -346,6 +346,12 @@
       toRow: (x, ws)=> Object.assign({line_id:x.lineId, supplier_id:x.supplierId, doc:x.doc, price:num(x.price)}, tail(x, ws)),
       toLocal: r=> Object.assign({lineId:r.line_id, supplierId:r.supplier_id, doc:r.doc, price:num(r.price)}, base(r))
     },
+    /* 22.11.2026: деньги поставщика для «Анализа» — реклама, поправки, комиссии банка, проценты (только он сам) */
+    supFin: {
+      table:'sup_finance', key:'id', push:['supplier'], pull:['supplier'], bossOnly:true,
+      toRow: (x, ws)=> Object.assign({id:x.id, supplier_id:x.supplierId, kind:x.kind, day:x.day || null, amount:num(x.amount), data:x.data || {}}, tail(x, ws)),
+      toLocal: r=> Object.assign({id:r.id, supplierId:r.supplier_id, kind:r.kind, day:r.day || null, amount:num(r.amount), data:r.data || {}}, base(r))
+    },
     /* фото: строка уходит, только когда файл уже в хранилище (ready) */
     photos: {
       table:'photos', key:'id', push:['owner','supplier'], pull:['owner','supplier'],
@@ -356,7 +362,7 @@
   };
   /* Порядок важен: сначала модель, потом её размеры и личные цифры, потом ячейки и операции —
      иначе сервер не пустит строку, ссылающуюся на ещё не известную ему модель. */
-  const ORDER = ['suppliers','models','privates','sizes','cells','receipts','receiptLines','photos','shipments','shipmentLines','linePrices','payments','ops'];
+  const ORDER = ['suppliers','models','privates','sizes','cells','receipts','receiptLines','photos','shipments','shipmentLines','linePrices','supFin','payments','ops'];
   const localKeyOf = (store, x)=> x[MAP[store].localKey || MAP[store].key];
 
   class AccessClosed extends Error {}

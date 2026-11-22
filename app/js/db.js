@@ -1,7 +1,7 @@
 /* «Склад»: База на устройстве, остатки (серверные и локальные), хранилище, запуск. */
 let db;
 const DB_NAME = 'ff_fulfillment';
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 /* Хранилища «ФФ» (модель склада с поставщиками и ячейками). Ключи — как на сервере,
    чтобы одна запись не могла задвоиться. Индекс dirty — «ещё не уехало на сервер». */
 const FF_STORES = {
@@ -17,7 +17,8 @@ const FF_STORES = {
   shipmentLines: {key:'id',       idx:{byShipment:'shipmentId'}},
   linePrices:    {key:'lineId'},                                       // этап 2б: цены поставщика (только у него)
   photos:        {key:'id',       idx:{byShipment:'shipmentId', byModel:'modelId'}},
-  payments:      {key:'id'}                                            // оплаты поставщика складу (биллинг)
+  payments:      {key:'id'},                                           // оплаты поставщика складу (биллинг)
+  supFin:        {key:'id'}                                            // 22.11.2026: реклама, комиссии банка, проценты поставщика (только у него)
 };
 
 function openDB(){

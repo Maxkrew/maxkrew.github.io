@@ -807,3 +807,10 @@ body.is-supplier .model-card .model-photo .ph-add,body.is-supplier .model-card .
 .mm-card .field > label{padding-left:2px;}
 .mm-card select,.mm-card input[type=text],.mm-card input[type=number]{width:100%;font-size:17px;}
 .mm-top .mm-ph-box{width:132px;height:132px;}
+
+/* 22.11.2026 (владелец): дата в «Поправке за день» и «Комиссиях банка» — такой же высоты, как «Сумма» */
+#sfFixDay,#sfBankDay{-webkit-appearance:none;appearance:none;box-sizing:border-box;height:48px;min-height:48px;max-height:48px;padding:0 14px;line-height:48px;text-align:left;display:block;font-size:17px;}
+#sfFixDay::-webkit-date-and-time-value,#sfBankDay::-webkit-date-and-time-value{text-align:left;margin:0;}
+#sfFixDay::-webkit-datetime-edit,#sfBankDay::-webkit-datetime-edit{padding:0;line-height:48px;}
+#sfFixSum,#sfBankSum{box-sizing:border-box;height:48px;min-height:48px;font-size:17px;}
+.sf-fin .filter-row,#sfFinance .filter-row{align-items:center;}

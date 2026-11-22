@@ -387,7 +387,7 @@ async function sfSaveBank(){
 }
 async function sfBankListHtml(){
   const list = (await sfAll('банк')).sort((a, b)=> a.day < b.day ? 1 : -1);
-  return list.length ? list.slice(0, 60).map(x=> `<div class="row-item sf-bank"><div class="rmain"><div class="rname">${sfFmtDay(x.day)}</div><div class="rmeta">комиссия банка</div></div><div class="rside"><span class="rval">${sfRub(x.amount)}</span><button type="button" class="icon-btn sf-del" onclick="sfAskRemove('${escapeAttr(x.id)}','комиссию за ${sfFmtDay(x.day)}')" aria-label="Удалить"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`).join('') : '<div class="t-caption" style="color:var(--text-tertiary);">Комиссий банка пока не записывали</div>';
+  return list.length ? list.slice(0, 60).map(x=> `<div class="row-item sf-bank"><div class="rmain"><div class="rname">${sfFmtDay(x.day)}</div><div class="rmeta">комиссия банка</div></div><div class="rside"><span class="rval">${sfRub(x.amount)}</span><button type="button" class="icon-btn sf-del" onclick="sfAskRemove('${escapeAttr(x.id)}','комиссию за ${sfFmtDay(x.day)}')" aria-label="Удалить"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`).join('') : '';   // 22.11.2026 (владелец): строку «пока не записывали» убрали
 }
 /* удалить — сразу, с «Отменить» внизу (вместо «Точно?») */
 async function sfAskRemove(id, what){

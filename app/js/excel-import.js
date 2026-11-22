@@ -122,9 +122,11 @@ function parseImport(rows, opts){
     const base = {row: rowNo, name, color: cell(r, 'color'), sku: cell(r, 'sku'), barcode: cell(r, 'barcode'), price: parseNumber(cell(r, 'price'))};
     if(base.price !== null && base.price < 0) base.price = null;
     const add = (size, raw)=>{
+      // «Добавить товары» (каталог): количество не нужно — любое число не ошибка, поправить можно потом в приложении
+      if(opts.catalog){ lines.push(Object.assign({}, base, {size, qty: 0})); return; }
       const q = parseNumber(raw);
       if(q === null || q <= 0){ if(opts.catalog) lines.push(Object.assign({}, base, {size, qty: 0})); else skipped++; return; }
-      if(q > XLS_MAX_QTY){ errors.push({row: rowNo, msg: 'Строка ' + rowNo + ': больше ' + XLS_MAX_QTY + ' шт. — проверьте'}); return; }
+      if(q > XLS_MAX_QTY){ errors.push({row: rowNo, msg: 'Строка ' + rowNo + ' «' + name + '»: ' + Math.round(q) + ' шт. — больше ' + XLS_MAX_QTY + ', похоже на ошибку. В поставку не войдёт — поправьте в таблице'}); return; }
       lines.push(Object.assign({}, base, {size, qty: Math.round(q)}));
     };
     if(sizeCols.length){
@@ -266,7 +268,7 @@ async function xlsUseSheet(name){
 async function xlsSetRole(i, role){ xls.roles[i] = role; await xlsRefresh(); }
 async function xlsRefresh(){
   const header = xls.rows[xls.headerRow] || [];
-  const width = Math.max(header.length, ...xls.rows.slice(xls.headerRow, xls.headerRow + 8).map(r=> r.length));
+  const width = Math.max(header.length, ...xls.rows.slice(xls.headerRow, xls.headerRow + 50).map(r=> r.length));
   const sizeCols = xls.sizeCols.filter(i=> xls.roles[i] === 'skip' || !xls.roles[i]);
   const res = parseImport(xls.rows, {headerRow: xls.headerRow, roles: xls.roles, sizeCols: sizeCols.length >= 2 ? sizeCols : [], catalog: xlsCatalog()});
   xls.matched = xlsSup() ? await matchImportLines(res.lines, xlsSup()) : [];
@@ -277,19 +279,29 @@ async function xlsRefresh(){
     const isSize = sizeCols.includes(i) && sizeCols.length >= 2;
     th.push(`<th>${isSize ? '<span class="xls-size">размер ' + escapeHtml(xlsSizeLabel(header[i]) || '') + '</span>' : ''}<select data-col="${i}" onchange="xlsSetRole(${i}, this.value)">${XLS_ROLES.map(([v, t])=> `<option value="${v}"${(xls.roles[i] || 'skip') === v ? ' selected' : ''}>${t}</option>`).join('')}</select></th>`);
   }
-  const body = xls.rows.slice(xls.headerRow, xls.headerRow + 8).map((r, k)=> `<tr${k === 0 ? ' class="xls-head"' : ''}>${Array.from({length: width}, (_, i)=> `<td>${escapeHtml(r[i] || '')}</td>`).join('')}</tr>`).join('');
-  document.getElementById('xlsPreview').innerHTML = `<div class="xls-wrap"><table class="xls-table"><thead><tr>${th.join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+  // вся таблица (до 500 строк) с номерами строк — прокручивается внутри окна; строки с ошибкой подсвечены
+  const bad = new Set(xls.errors.map(e=> e.row));
+  const body = xls.rows.slice(xls.headerRow, xls.headerRow + 500).map((r, k)=> { const no = xls.headerRow + k + 1; return `<tr data-row="${no}"${k === 0 ? ' class="xls-head"' : bad.has(no) ? ' class="xls-bad"' : ''}><td class="xls-no">${no}</td>${Array.from({length: width}, (_, i)=> `<td>${escapeHtml(r[i] || '')}</td>`).join('')}</tr>`; }).join('');
+  document.getElementById('xlsPreview').innerHTML = `<div class="xls-wrap"><table class="xls-table"><thead><tr><th class="xls-no">№</th>${th.join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
   const n = xls.matched.length, pcs = xls.matched.reduce((s, l)=> s + l.qty, 0);
   const fresh = new Set(xls.matched.filter(l=> l.isNew).map(l=> xlsNorm([l.name, l.color, l.sku].join('|')))).size;
-  const errs = xls.errors.slice(0, 20).map(e=> `<div class="xls-err">${escapeHtml(e.msg)}</div>`).join('') + (xls.errors.length > 20 ? `<div class="xls-err">…и ещё ${xls.errors.length - 20}</div>` : '');
+  const errs = xls.errors.slice(0, 20).map(e=> `<button type="button" class="xls-err" onclick="xlsShowRow(${e.row})">${escapeHtml(e.msg)}</button>`).join('') + (xls.errors.length > 20 ? `<div class="xls-err">…и ещё ${xls.errors.length - 20}</div>` : '');
   const skip = xls.skipped ? `<div class="hint">Без остатка пропущено: ${xls.skipped} ${ruPlural(xls.skipped, 'строка', 'строки', 'строк')}</div>` : '';
   document.getElementById('xlsSummary').innerHTML = `<b>Нашёл ${n} ${ruPlural(n, 'товар', 'товара', 'товаров')}${xlsCatalog() ? '' : ', ' + pcs + ' шт.'}, новых ${fresh}</b>${skip}${errs}`;
   document.getElementById('xlsSend').disabled = !n || !xlsSup();
   if(xlsOwner() && !xlsSup()) document.getElementById('xlsSummary').innerHTML = '<span class="hint">Выберите поставщика — чьи это товары</span>';
 }
+/* нажал на ошибку — таблица прокручивается к этой строке */
+function xlsShowRow(no){
+  const tr = document.querySelector('#xlsPreview tr[data-row="' + no + '"]'), w = document.querySelector('#xlsPreview .xls-wrap');
+  if(!tr || !w) return;
+  w.scrollTop = tr.offsetTop - w.clientHeight / 2;
+  tr.classList.add('xls-flash'); setTimeout(()=> tr.classList.remove('xls-flash'), 1500);
+}
 async function xlsSend(){
   if(!xls.matched.length) return;
   const btn = document.getElementById('xlsSend'); btn.disabled = true;
+  const txt = document.getElementById('xlsSendText'), was = txt.textContent; txt.textContent = 'Добавляю…';
   try{
     await xlsRemember(xls.rows[xls.headerRow] || [], xls.roles, xls.headerRow);
     const r = await importToIncoming(xls.matched, xlsSup(), {catalog: xlsCatalog()});
@@ -305,6 +317,7 @@ async function xlsSend(){
       if(typeof renderIncoming === 'function') await renderIncoming();
     }
   }catch(e){ toast(e.message); btn.disabled = false; }
+  finally{ txt.textContent = was; }
 }
 function ruPlural(n, one, few, many){
   const a = Math.abs(n) % 100, b = a % 10;

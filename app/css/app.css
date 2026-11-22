@@ -749,7 +749,7 @@ nav.bottom .side-only{display:none !important;}
 .tf-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;}
 
 /* приход из Excel */
-.xls-wrap{overflow-x:auto;margin:var(--sp-2) 0;border:1px solid var(--border);border-radius:var(--r-sm);}
+.xls-wrap{overflow:auto;max-height:50vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;margin:var(--sp-2) 0;border:1px solid var(--border);border-radius:var(--r-sm);}
 .xls-table{border-collapse:collapse;font-size:12px;min-width:100%;}
 .xls-table th,.xls-table td{padding:6px 8px;border-bottom:1px solid var(--border-soft);text-align:left;white-space:nowrap;}
 .xls-table th{background:var(--surface-2);vertical-align:bottom;}
@@ -1205,3 +1205,11 @@ html.sheet-open, html.sheet-open body{overflow:hidden;overscroll-behavior:none;}
 .row-item.rc-line .rside{flex:1 1 100%;justify-content:flex-end;}
 [data-track][data-copy]{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;-webkit-tap-highlight-color:transparent;}
 .sup-card .sup-actions .btn{flex:1 1 calc(50% - 3px);}
+
+/* 22.11.2026: вся таблица Excel с номерами строк, шапка с выбором колонок прилипает */
+.xls-table thead th{position:sticky;top:0;z-index:1;}
+.xls-table .xls-no{position:sticky;left:0;background:var(--surface-2);color:var(--text-secondary);text-align:right;font-variant-numeric:tabular-nums;z-index:1;}
+.xls-table thead .xls-no{z-index:2;}
+.xls-table tr.xls-bad td{background:color-mix(in srgb,var(--danger,#d33) 12%,transparent);}
+.xls-table tr.xls-flash td{background:color-mix(in srgb,var(--accent,#005BFF) 22%,transparent);}
+button.xls-err{display:block;background:none;border:0;padding:2px 0;font:inherit;text-align:left;cursor:pointer;text-decoration:underline dotted;}

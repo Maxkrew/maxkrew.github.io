@@ -405,16 +405,29 @@ async function sellRecentModels(){
   }
   return out;
 }
+/* 22.11.2026 (владелец): без поиска — только ~10 самых продаваемых товаров, остальные через «Найти товар» */
+const SELL_TOP = 10;
+async function sellTopModels(){
+  const mine = new Set((await getAll('shipments')).filter(s=> !s.deletedAt && s.supplierId === Sync.mySupplierId()).map(s=> s.id));
+  const sold = new Map();
+  for(const l of await getAll('shipmentLines')) if(!l.deletedAt && mine.has(l.shipmentId)) sold.set(l.modelId, (sold.get(l.modelId) || 0) + (Number(l.qty) || 0));
+  return [...sold.entries()].sort((a, b)=> b[1] - a[1]).map(e=> e[0]);
+}
 async function sellRender(){
   const models = await modelsMap(), mySup = Sync.mySupplierId();
   const q = xlsNormSafe(document.getElementById('sellSearch').value);
   let ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === mySup).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
   if(q) ms = ms.filter(m=> xlsNormSafe(modelName(m) + ' ' + (m.sku || '')).includes(q));
-  else { const rec = await sellRecentModels(); ms = rec.map(id=> models[id]).filter(Boolean).concat(ms.filter(m=> !rec.includes(m.id))); }
+  else {
+    const top = (await sellTopModels()).filter(id=> models[id] && !models[id].deletedAt && models[id].supplierId === mySup);
+    ms = top.map(id=> models[id]).concat(ms.filter(m=> !top.includes(m.id))).slice(0, SELL_TOP);
+    // выбранный товар (например, со свайпа или «Расход» на карточке) — всегда виден
+    if(sell.modelId && models[sell.modelId] && !ms.some(m=> m.id === sell.modelId)) ms = [models[sell.modelId]].concat(ms.slice(0, SELL_TOP - 1));
+  }
   const phByModel = new Map();   // последнее фото товара
   for(const p of (await getAll('photos')).filter(p=> !p.deletedAt && p.kind === 'товар').sort((a, b)=> (a.createdTs || 0) - (b.createdTs || 0))) phByModel.set(p.modelId, p);
   const modelsBox = document.getElementById('sellModels');
-  modelsBox.innerHTML = ms.slice(0, 60).map(m=> `<button type="button" class="chip${m.id === sell.modelId ? ' on' : ''}" data-model="${escapeAttr(m.id)}" onclick="sellPickModel(${jsArg(m.id)})">${phByModel.has(m.id) ? `<img alt="" data-ph-src="${escapeAttr(phByModel.get(m.id).id)}">` : ''}<span>${escapeHtml(modelName(m))}</span></button>`).join('') || '<span class="hint">Товаров нет — добавьте их через «Приход»</span>';
+  modelsBox.innerHTML = ms.slice(0, q ? 30 : SELL_TOP).map(m=> `<button type="button" class="chip${m.id === sell.modelId ? ' on' : ''}" data-model="${escapeAttr(m.id)}" onclick="sellPickModel(${jsArg(m.id)})">${phByModel.has(m.id) ? `<img alt="" data-ph-src="${escapeAttr(phByModel.get(m.id).id)}">` : ''}<span>${escapeHtml(modelName(m))}</span></button>`).join('') || '<span class="hint">Товаров нет — добавьте их через «Приход»</span>';
   fillPhotoThumbs(modelsBox);
   const sz = [];
   if(sell.modelId){

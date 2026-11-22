@@ -21,7 +21,7 @@ async function openProductPick(sel){
       const q = (idx.sellableBySize[s.id] || 0) - (free[s.id] || 0);
       return `<button type="button" class="pp-size${q > 0 || !ship ? '' : ' none'}" data-pp-size="${escapeAttr(s.id)}" onclick="ppChoose(${jsArg(m.id)}, ${jsArg(s.id)})">${escapeHtml(sizeText(s.sizeLabel))} <b class="${stockTone(q)}">${q}</b></button>`;
     }).join('');
-    rows.push(`<div class="pp-item${o.selected ? ' on' : ''}" data-pp-model="${escapeAttr(m.id)}">
+    rows.push(`<div class="pp-item${o.selected ? ' on' : ''}" data-pp-model="${escapeAttr(m.id)}" data-q="${escapeAttr(modelName(m) + ' ' + (m.sku || ''))}">
       <button type="button" class="pp-head" onclick="ppChoose(${jsArg(m.id)})">
         <span class="pp-photo">${ph ? `<img alt="" data-ph-src="${escapeAttr(ph.id)}">` : '<svg class="icon"><use href="#i-box"/></svg>'}</span>
         <span class="pp-name">${escapeHtml(modelName(m))}</span></button>
@@ -30,6 +30,7 @@ async function openProductPick(sel){
   document.getElementById('pickTitle').textContent = 'Товар';
   const list = document.getElementById('pickList');
   list.innerHTML = rows.join('') || '<div class="hint">Товаров пока нет</div>';
+  if(typeof pickSearchSetup === 'function') pickSearchSetup(rows.length);
   document.getElementById('pickSheetBg').classList.add('show');
   document.documentElement.classList.add('sheet-open');   // страница позади не прокручивается
   list.scrollTop = 0;

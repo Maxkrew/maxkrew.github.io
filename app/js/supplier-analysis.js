@@ -199,14 +199,15 @@ async function renderSupplierAnalysis(){
   const form = anPeriodOpen ? `<div class="card an-period" id="anCal">${anCalHtml()}</div>` : '';
   /* вкладки ПТП, ABC, РНР, Продажи, Прогноз (sup-fin.js, 22.11.2026); «Сводка» — этот экран */
   const tabs = typeof sfTabsHtml === 'function' ? sfTabsHtml() : '';
+  /* 22.11.2026: сверху период и кольцо «Куда уходит прибыль» — на всех вкладках; ниже вкладки */
+  const head = `<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}${anRange ? `<p class="hint an-range">Период: ${fmtD(anRange.from)} — ${fmtD(anRange.to)}</p>` : ''}` +
+    (typeof sfTopRingHtml === 'function' ? await sfTopRingHtml(range) : '') + tabs;
   if(tabs && anTab !== 'sum'){
-    const noPeriod = anTab === 'sales' || anTab === 'fc';
-    box.innerHTML = tabs + (noPeriod ? '' : `<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}${anRange ? `<p class="hint an-range">Период: ${fmtD(anRange.from)} — ${fmtD(anRange.to)}</p>` : ''}`) + await sfTabHtml(range);
+    box.innerHTML = head + await sfTabHtml(range);
     if(typeof sfAfterRender === 'function') sfAfterRender();
     return;
   }
-  box.innerHTML = `${tabs}<div class="an-seg" role="group" aria-label="Период">${seg}</div>${form}
-    ${anRange ? `<p class="hint an-range">Период: ${fmtD(anRange.from)} — ${fmtD(anRange.to)}</p>` : ''}
+  box.innerHTML = `${head}
     ${list('Заканчивается', 'Остатка хватит меньше чем на 2 недели при нынешних продажах', sum.runningOut.map(r=> row(names.sizes[r.sizeId] || '', r.daysLeft + ' ' + ruPlural(r.daysLeft, 'день', 'дня', 'дней'))))}
     ${list('Довезти на месяц', 'Сколько везти, чтобы хватило на 30 дней: продажи за месяц − на складе − в пути', sum.restock.map(r=> row(names.sizes[r.sizeId] || '', r.qty + ' шт.')))}
     ${list('Без движения 60 дней', 'Лежит на складе, но не продаётся больше 60 дней', sum.stale.map(r=> row(names.sizes[r.sizeId] || '', r.stock + ' шт.')))}

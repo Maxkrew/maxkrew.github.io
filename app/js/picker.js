@@ -20,13 +20,34 @@
     const opts = [...sel.options];
     document.getElementById('pickTitle').textContent = titleOf(sel);
     document.getElementById('pickList').innerHTML = opts.map((o, i)=>
-      `<button type="button" class="pick-item${o.selected ? ' on' : ''}" data-pick="${escapeAttr(o.value)}" data-i="${i}"${o.disabled ? ' disabled' : ''}>
+      `<button type="button" class="pick-item${o.selected ? ' on' : ''}" data-pick="${escapeAttr(o.value)}" data-q="${escapeAttr(o.value ? o.textContent : '')}" data-i="${i}"${o.disabled ? ' disabled' : ''}>
         <span>${escapeHtml(o.textContent)}</span>${o.selected ? '<svg class="icon"><use href="#i-check"/></svg>' : ''}</button>`).join('') || '<div class="hint">Выбирать пока нечего</div>';
+    pickSearchSetup(opts.length);
     bg().classList.add('show'); document.documentElement.classList.add('sheet-open');
     const on = document.querySelector('#pickList .pick-item.on'); if(on) try{ on.scrollIntoView({block: 'center'}); }catch(e){}
   }
   function close(){ const b = bg(); if(b) b.classList.remove('show'); document.documentElement.classList.remove('sheet-open'); current = null; }
   window.closePickSheet = close;
+  /* 22.11.2026 (владелец): поиск в окне выбора — от 8 вариантов. Ищет по названию (у товаров и по артикулу), все слова */
+  window.pickSearchSetup = function(n){
+    const w = document.getElementById('pickSearchWrap'), inp = document.getElementById('pickSearch');
+    if(!w || !inp) return;
+    inp.value = ''; w.hidden = n < 8;
+    const e = document.getElementById('pickEmpty'); if(e) e.remove();
+  };
+  window.pickFilter = function(q){
+    const words = String(q || '').toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(Boolean);
+    const list = document.getElementById('pickList'); let shown = 0;
+    for(const it of list.querySelectorAll(':scope > .pick-item, :scope > .pp-item')){
+      const text = (it.dataset.q || '').toLowerCase().replace(/ё/g, 'е');
+      const hit = !words.length ? true : !!text && words.every(w=> text.includes(w));
+      it.hidden = !hit; if(hit) shown++;
+    }
+    const e = document.getElementById('pickEmpty');
+    if(!shown && !e) list.insertAdjacentHTML('beforeend', '<div class="hint pick-empty" id="pickEmpty">Ничего не нашлось</div>');
+    else if(shown && e) e.remove();
+    list.scrollTop = 0;
+  };
   function pick(i){
     const sel = current; if(!sel) return;
     const changed = sel.selectedIndex !== i;

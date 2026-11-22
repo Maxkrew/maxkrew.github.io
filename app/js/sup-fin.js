@@ -328,11 +328,13 @@ async function sfSaveLead(){
 async function sfTabHtml(range){
   if(anTab === 'sales') return sfSalesHtml();
   if(anTab === 'fc') return sfFcHtml();
-  const p = await sfProfit(range), ring = sfRingHtml(p);
-  if(anTab === 'abc') return ring + await sfAbcHtml(range);
-  if(anTab === 'ads') return ring + sfCard('История расходов на рекламу', await sfAdsLogHtml(), 'sfRnr');
-  return ring + await sfPtpHtml(p);
+  /* кольцо «Куда уходит прибыль» — над вкладками, на всех (sfTopRingHtml) */
+  if(anTab === 'abc') return await sfAbcHtml(range);
+  if(anTab === 'ads') return sfCard('История расходов на рекламу', await sfAdsLogHtml(), 'sfRnr');
+  return await sfPtpHtml(await sfProfit(range));
 }
+/* 22.11.2026 (владелец): кольцо видно всегда, когда заходишь в «Анализ», — оно про весь экран, а не про одну вкладку */
+async function sfTopRingHtml(range){ return sfRingHtml(await sfProfit(range)); }
 function sfAfterRender(){ if(anTab === 'sales') sfWireChart(); }
 
 /* --- «⋯» → «Финансы»: реклама каждый день, поправка за день, комиссии банка (как в «Складе») --- */

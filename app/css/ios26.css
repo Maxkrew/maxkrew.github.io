@@ -771,3 +771,6 @@ body.is-supplier .model-card .model-photo .ph-add,body.is-supplier .model-card .
 #pickSearch{width:100%;height:44px;border:0;border-radius:12px;background:var(--field);padding:0 14px;font:inherit;font-size:16px;color:var(--text);}
 .pick-list > [hidden]{display:none !important;}
 .pick-empty{padding:16px 4px;}
+
+/* 22.11.2026: карточка товара — спрятанные поля не занимают места */
+#mmCapacityField[hidden],#mmSizesBox[hidden],#mmOneBcBox[hidden]{display:none !important;}

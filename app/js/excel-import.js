@@ -2,12 +2,20 @@
    Таблицы у всех разные: угадываем колонки по заголовкам, поставщик поправляет, выбор
    запоминается (на этом устройстве). Разбор — здесь, в приложении (SheetJS, без интернета). */
 
-const XLS_ROLES = [['name', 'Название'], ['size', 'Размер'], ['qty', 'Количество'], ['price', 'Цена закупки'], ['sku', 'Артикул'], ['barcode', 'Штрихкод'], ['color', 'Цвет'], ['skip', 'Не нужно']];
+const XLS_ROLES = [['name', 'Название'], ['size', 'Размер'], ['qty', 'Количество'], ['price', 'Цена закупки'], ['sale', 'Цена продажи'], ['buy', 'Где закупаю'], ['category', 'Категория'], ['tax', 'Налог, %'], ['comm', 'Комиссия, %'], ['pack', 'Упаковка, ₽'], ['dlv', 'Скидка на доставку, ₽'], ['sku', 'Артикул'], ['barcode', 'Штрихкод'], ['color', 'Цвет'], ['skip', 'Не нужно']];
 const XLS_WORDS = {
   name: ['наименование', 'название', 'товар', 'модель', 'номенклатура'],
   size: ['размер', 'р-р'],
   qty: ['кол-во', 'количество', 'шт', 'остаток', 'кол'],
   price: ['цена', 'закуп', 'стоимость', 'себестоимость'],
+  /* 22.11.2026 (владелец): всё из таблицы — в карточку товара: цена продажи, где закупаю, категория, налог, комиссия, упаковка, доставка */
+  sale: ['цена продажи', 'продажа', 'продажная', 'розница', 'розничная', 'ррц'],
+  buy: ['поставщик', 'где закупаю', 'закупаю у', 'продавец'],
+  category: ['категория', 'раздел', 'группа'],
+  tax: ['налог', 'усн', 'ндс'],
+  comm: ['комиссия', 'комиссия маркетплейса', 'комиссия мп'],
+  pack: ['упаковка'],
+  dlv: ['скидка на доставку', 'доставка'],
   sku: ['артикул', 'арт'],
   barcode: ['штрихкод', 'баркод', 'ean'],
   color: ['цвет']
@@ -105,6 +113,14 @@ function parseNumber(text){
   return isFinite(n) ? n : null;
 }
 
+/* «6%» → 6, «0,06» → 6 (доля), пусто — null */
+function xlsPct(text){ const n = parseNumber(text); if(n === null || n < 0) return null; return n > 0 && n < 1 && !/%/.test(String(text)) ? Math.round(n * 10000) / 100 : n; }
+/* категория из таблицы — как в списке приложения (без учёта регистра), иначе как написано */
+function xlsCategory(text){
+  const t = String(text || '').trim(); if(!t) return '';
+  const list = typeof ffCategories === 'function' ? ffCategories() : (typeof DEFAULT_CATEGORIES !== 'undefined' ? DEFAULT_CATEGORIES : []);
+  return list.find(c=> xlsNorm(c) === xlsNorm(t)) || list.find(c=> xlsNorm(c).startsWith(xlsNorm(t))) || t;
+}
 /* --- разбор строк --- */
 function parseImport(rows, opts){
   const headerRow = opts.headerRow || 0, roles = opts.roles || [], sizeCols = opts.sizeCols || [];
@@ -119,11 +135,11 @@ function parseImport(rows, opts){
     const name = cell(r, 'name');
     if(/^(итого|всего)/i.test(name) || (!name && r.some(v=> /^(итого|всего)/i.test(String(v || '').trim())))) continue;
     if(!name){ errors.push({row: rowNo, msg: 'Строка ' + rowNo + ': нет названия'}); continue; }
-    const base = {row: rowNo, name, color: cell(r, 'color'), sku: cell(r, 'sku'), barcode: cell(r, 'barcode'), price: parseNumber(cell(r, 'price'))};
+    const base = {row: rowNo, name, color: cell(r, 'color'), sku: cell(r, 'sku'), barcode: cell(r, 'barcode'), price: parseNumber(cell(r, 'price')), sale: parseNumber(cell(r, 'sale')), buy: cell(r, 'buy'), category: cell(r, 'category'), tax: xlsPct(cell(r, 'tax')), comm: xlsPct(cell(r, 'comm')), pack: parseNumber(cell(r, 'pack')), dlv: parseNumber(cell(r, 'dlv'))};
     if(base.price !== null && base.price < 0) base.price = null;
     const add = (size, raw)=>{
       // «Добавить товары» (каталог): количество не нужно — любое число не ошибка, поправить можно потом в приложении
-      if(opts.catalog){ lines.push(Object.assign({}, base, {size, qty: 0})); return; }
+      if(opts.catalog){ const c = parseNumber(raw); lines.push(Object.assign({}, base, {size, qty: c !== null && c > 0 && c <= XLS_MAX_QTY ? Math.round(c) : 0})); return; }   // 22.11.2026: количество — остаток (больше 10 000 — не ставим)
       const q = parseNumber(raw);
       if(q === null || q <= 0){ if(opts.catalog) lines.push(Object.assign({}, base, {size, qty: 0})); else skipped++; return; }
       if(q > XLS_MAX_QTY){ errors.push({row: rowNo, msg: 'Строка ' + rowNo + ' «' + name + '»: ' + Math.round(q) + ' шт. — больше ' + XLS_MAX_QTY + ', похоже на ошибку. В поставку не войдёт — поправьте в таблице'}); return; }
@@ -176,21 +192,56 @@ async function importToIncoming(matched, supplierId, opts){
     if(who) throw new Error('Строка ' + l.row + ': штрихкод ' + l.barcode + ' уже есть: ' + who);
   }
   const made = new Map();   // одна новая модель на название+цвет+артикул
+  const extra = new Map();  // modelId → что из таблицы положить в карточку
   const out = [];
   for(const l of matched){
     let modelId = l.modelId;
     if(!modelId){
       const key = xlsNorm([l.name, l.color, l.sku].join('|'));
       modelId = made.get(key);
-      if(!modelId){ modelId = await saveModel({supplierId, title: l.name, color: l.color, sku: l.sku, category: 'Одежда', capacity: 7, sizes: []}); made.set(key, modelId); }
+      /* категория: из таблицы; нет колонки — размеры одежды → «Одежда», без размеров → «Электроника» (владелец, 22.11.2026) */
+      if(!modelId){ modelId = await saveModel({supplierId, title: l.name, color: l.color, sku: l.sku, category: xlsCategory(l.category) || (xlsSizeLabel(l.size) ? 'Одежда' : 'Электроника'), capacity: 7, sizes: []}); made.set(key, modelId); }
     }
     const sizeId = l.sizeId || await saveSize(modelId, l.size, l.barcode || undefined);
     out.push({modelId, sizeId, qty: l.qty, price: l.price});
+    const x = extra.get(modelId) || {cloth: false}; extra.set(modelId, x);
+    if(xlsSizeLabel(l.size)) x.cloth = true;
+    for(const [k, v] of [['cost', l.price], ['sale', l.sale], ['tax', l.tax], ['comm', l.comm], ['pack', l.pack], ['dlv', l.dlv]]) if(v !== null && v !== undefined && v >= 0 && x[k] === undefined) x[k] = v;
+    if(l.buy && !x.buy) x.buy = l.buy;
+    if(l.category && !x.cat) x.cat = xlsCategory(l.category);
+  }
+  /* 22.11.2026: всё из таблицы — в карточку: цена продажи и категория — в товар; себестоимость, где закупаю,
+     налог, комиссия, упаковка, скидка на доставку — в «Моё». Пустые клетки ничего не стирают */
+  if(!xlsOwner()) for(const [modelId, x] of extra){
+    const m = await get('models', modelId);
+    if(m){
+      let ch = false;
+      if(x.sale > 0 && m.price !== x.sale){ m.price = x.sale; ch = true; }
+      const cat = x.cat || (m.category === 'Одежда' && !x.cloth && !(await getAll('sizes')).some(s=> s.modelId === modelId && !s.deletedAt && xlsSizeLabel(s.sizeLabel)) ? 'Электроника' : '');
+      if(cat && m.category !== cat){ m.category = cat; ch = true; }
+      if(ch) await put('models', m);
+    }
+    const pm = {cost: 'cost', buy: 'buyFrom', tax: 'taxPercent', comm: 'commissionPercent', pack: 'packaging', dlv: 'deliveryDiscount'};
+    if(Object.keys(pm).some(k=> x[k] !== undefined)){
+      const p = Object.assign({}, await get('privates', modelId) || {modelId, supplierId});
+      for(const [k, f] of Object.entries(pm)) if(x[k] !== undefined) p[f] = x[k];
+      await put('privates', p);
+    }
   }
   /* поставщик из «Мои товары» (22.11.2026): только заводит товары — без поставки и без количества */
   if(opts && opts.catalog){
+    /* 22.11.2026 (владелец): количество из таблицы — это остаток на складе; ставится сразу, склад видит «на проверке».
+       Повторная загрузка того же файла остаток не удваивает */
+    const want = new Map();
+    for(const o of out) if(o.qty > 0) want.set(o.sizeId, (want.get(o.sizeId) || 0) + o.qty);
+    let set = 0, big = 0;
+    for(const [sizeId, q] of want){
+      if(q > XLS_MAX_QTY){ big++; continue; }
+      const r = await correctStock({sizeId, newQty: q});
+      if(r.ok && !r.unchanged) set++;
+    }
     if(window.Sync && Sync.syncNow) ffSoft(()=> Sync.syncNow('товары из Excel'));
-    return {models: made.size, sizes: new Set(out.map(o=> o.sizeId)).size};
+    return {models: made.size, sizes: new Set(out.map(o=> o.sizeId)).size, stockSet: set, stockBig: big, updated: extra.size - made.size};
   }
   if(xlsOwner()){
     const floor = await floorCellFor(supplierId);
@@ -310,7 +361,7 @@ async function xlsSend(){
       toast('На склад добавлено ' + r.pcs + ' шт.' + (r.models ? ', новых товаров ' + r.models : '') + ' — лежат на полу ' + r.floor + ', разложите по ячейкам');
       if(typeof renderStockFF === 'function') await renderStockFF(); if(typeof updateProductCountPill === 'function') await updateProductCountPill(); else if(typeof refreshAfterSync === 'function') await refreshAfterSync();
     }else if(xlsCatalog()){
-      toast('Добавлено товаров: ' + r.models + (r.models ? '' : ' — все уже были') + '. Количество появится, когда склад примет поставку');
+      toast('Добавлено товаров: ' + r.models + (r.updated > 0 ? ', обновлено: ' + r.updated : '') + (r.stockSet ? '. Количество поставлено у ' + r.stockSet + ' — склад проверит' : '') + (r.stockBig ? '. Больше 10 000 шт. — не поставлено у ' + r.stockBig : ''));
       if(typeof renderStockFF === 'function') await renderStockFF(); if(typeof updateProductCountPill === 'function') await updateProductCountPill();
     }else{
       toast('Поставка создана — склад её увидит');

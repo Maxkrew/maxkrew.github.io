@@ -16,8 +16,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="css/app.css?v=69">
-<link rel="stylesheet" href="css/ios26.css?v=69">
+<link rel="stylesheet" href="css/app.css?v=70">
+<link rel="stylesheet" href="css/ios26.css?v=70">
 </head>
 <body>
 
@@ -877,9 +877,11 @@
     </div>
     <div class="field-row">
       <div class="field"><label>Категория</label><select id="mmCategory" onchange="mmCategoryChanged()"></select><input type="text" id="mmCategoryOwn" placeholder="Например: автозапчасти" maxlength="60" hidden style="margin-top:6px;"></div>
-      <div class="field"><label>Влезает в ячейку, шт</label><input type="number" id="mmCapacity" min="1" value="7"></div>
+      <div class="field" id="mmCapacityField"><label>Влезает в ячейку, шт</label><input type="number" id="mmCapacity" min="1" value="7"></div>
     </div>
-    <div class="field"><label>Размеры <span class="hint">— не выбрали: товар без размера («Единый»)</span></label>
+    <!-- 22.11.2026 (владелец): размеры — только у одежды и обуви; у остального один штрихкод -->
+    <div class="field" id="mmOneBcBox" hidden><label for="mmOneBc">Штрихкод</label><input type="text" id="mmOneBc" placeholder="по желанию" oninput="mmBarcodes['Единый'] = this.value"></div>
+    <div class="field" id="mmSizesBox"><label>Размеры <span class="hint">— не выбрали: товар без размера («Единый»)</span></label>
       <div class="size-pick" id="mmSizePick"></div>
       <div class="field-row mm-size-own" style="margin-top:6px;"><input type="text" id="mmSizeCustom" placeholder="Свой размер"><button class="btn ghost sm" style="width:auto;" onclick="mmAddCustomSize()">Добавить</button></div>
       <div id="mmSizeBarcodes"></div>
@@ -1183,59 +1185,59 @@
 <script src="vendor/zxing.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="sync-config.js?v=69"></script>
-<script src="js/db.js?v=69"></script>
-<script src="js/cells.js?v=69"></script>
-<script src="js/ff-data.js?v=69"></script>
-<script src="js/sync-ui.js?v=69"></script>
-<script src="js/input.js?v=69"></script>
-<script src="js/returns-scan.js?v=69"></script>
-<script src="js/sounds.js?v=69"></script>
-<script src="js/stock-history.js?v=69"></script>
-<script src="js/finance.js?v=69"></script>
-<script src="js/balance.js?v=69"></script>
-<script src="js/analytics.js?v=69"></script>
-<script src="js/settings-roles.js?v=69"></script>
-<script src="js/roles.js?v=69"></script>
-<script src="js/suppliers.js?v=69"></script>
-<script src="js/stock-ff.js?v=69"></script>
-<script src="js/cells-ui.js?v=69"></script>
-<script src="js/moves.js?v=69"></script>
-<script src="js/receipts.js?v=69"></script>
-<script src="js/shipments.js?v=69"></script>
-<script src="js/photos.js?v=69"></script>
-<script src="js/staff.js?v=69"></script>
-<script src="js/billing.js?v=69"></script>
-<script src="js/product-pick.js?v=69"></script>
-<script src="js/assembly.js?v=69"></script>
-<script src="js/today.js?v=69"></script>
-<script src="js/stats.js?v=69"></script>
-<script src="js/archive.js?v=69"></script>
-<script src="js/supplier-home.js?v=69"></script>
-<script src="js/incoming.js?v=69"></script>
-<script src="js/excel-import.js?v=69"></script>
-<script src="js/sell.js?v=69"></script>
-<script src="js/supplier-analysis.js?v=69"></script>
-<script src="js/sup-fin.js?v=69"></script>
-<script src="js/sup-ops.js?v=69"></script>
-<script src="js/sup-returns.js?v=69"></script>
-<script src="js/swipe-ff.js?v=69"></script>
-<script src="js/review.js?v=69"></script>
-<script src="js/history-ff.js?v=69"></script>
-<script src="js/scan-ff.js?v=69"></script>
-<script src="js/demo.js?v=69"></script>
-<script src="js/subscription.js?v=69"></script>
-<script src="js/tariffs.js?v=69"></script>
-<script src="js/admin.js?v=69"></script>
-<script src="js/backup-labels.js?v=69"></script>
+<script src="sync-config.js?v=70"></script>
+<script src="js/db.js?v=70"></script>
+<script src="js/cells.js?v=70"></script>
+<script src="js/ff-data.js?v=70"></script>
+<script src="js/sync-ui.js?v=70"></script>
+<script src="js/input.js?v=70"></script>
+<script src="js/returns-scan.js?v=70"></script>
+<script src="js/sounds.js?v=70"></script>
+<script src="js/stock-history.js?v=70"></script>
+<script src="js/finance.js?v=70"></script>
+<script src="js/balance.js?v=70"></script>
+<script src="js/analytics.js?v=70"></script>
+<script src="js/settings-roles.js?v=70"></script>
+<script src="js/roles.js?v=70"></script>
+<script src="js/suppliers.js?v=70"></script>
+<script src="js/stock-ff.js?v=70"></script>
+<script src="js/cells-ui.js?v=70"></script>
+<script src="js/moves.js?v=70"></script>
+<script src="js/receipts.js?v=70"></script>
+<script src="js/shipments.js?v=70"></script>
+<script src="js/photos.js?v=70"></script>
+<script src="js/staff.js?v=70"></script>
+<script src="js/billing.js?v=70"></script>
+<script src="js/product-pick.js?v=70"></script>
+<script src="js/assembly.js?v=70"></script>
+<script src="js/today.js?v=70"></script>
+<script src="js/stats.js?v=70"></script>
+<script src="js/archive.js?v=70"></script>
+<script src="js/supplier-home.js?v=70"></script>
+<script src="js/incoming.js?v=70"></script>
+<script src="js/excel-import.js?v=70"></script>
+<script src="js/sell.js?v=70"></script>
+<script src="js/supplier-analysis.js?v=70"></script>
+<script src="js/sup-fin.js?v=70"></script>
+<script src="js/sup-ops.js?v=70"></script>
+<script src="js/sup-returns.js?v=70"></script>
+<script src="js/swipe-ff.js?v=70"></script>
+<script src="js/review.js?v=70"></script>
+<script src="js/history-ff.js?v=70"></script>
+<script src="js/scan-ff.js?v=70"></script>
+<script src="js/demo.js?v=70"></script>
+<script src="js/subscription.js?v=70"></script>
+<script src="js/tariffs.js?v=70"></script>
+<script src="js/admin.js?v=70"></script>
+<script src="js/backup-labels.js?v=70"></script>
 <!-- после основного кода: синхронизация опирается на его функции -->
-<script src="sync.js?v=69"></script>
-<script src="js/ui-kit.js?v=69"></script>
-<script src="js/no-cells.js?v=69"></script>
-<script src="js/pick-run.js?v=69"></script>
-<script src="js/ship-owner.js?v=69"></script>
-<script src="js/layout.js?v=69"></script>
-<script src="js/nav-back.js?v=69"></script>
-<script src="js/picker.js?v=69"></script>
+<script src="sync.js?v=70"></script>
+<script src="js/ui-kit.js?v=70"></script>
+<script src="js/no-cells.js?v=70"></script>
+<script src="js/pick-run.js?v=70"></script>
+<script src="js/ship-owner.js?v=70"></script>
+<script src="js/layout.js?v=70"></script>
+<script src="js/nav-back.js?v=70"></script>
+<script src="js/picker.js?v=70"></script>
 </body>
 </html>

@@ -17,6 +17,7 @@ async function ffCategoryList(){
 function mmCategoryChanged(){
   const own = document.getElementById('mmCategory').value === '__own';
   const el = document.getElementById('mmCategoryOwn'); el.hidden = !own; if(own) try{ el.focus(); }catch(e){}
+  if(typeof mmRenderSizes === 'function') mmRenderSizes();   // электроника — без размеров
 }
 function modelName(m){ return [m.brand, m.title, m.color].filter(Boolean).join(' ').trim() || 'Без названия'; }
 /* ['3XL','4XL'] → «3XL–4XL»; ['L'] → «L»; пусто → «все» */
@@ -181,7 +182,20 @@ let mmPicked = [];          // выбранные размеры (подписи
 let mmBarcodes = {};        // подпись → штрихкод
 let mmFits = {}, mmMeasures = {};   // подпись → рост и вес, замеры
 
+/* 22.11.2026 (владелец): размеры нужны только одежде и обуви. У остального (электроника и т.п.) блок размеров
+   спрятан, вместо него — одно поле «Штрихкод». Если у товара уже есть настоящие размеры — блок виден всегда */
+const MM_SIZED = ['одежда', 'обувь / пуховики', 'обувь'];
+function mmNoSizes(){
+  const c = String((document.getElementById('mmCategory') || {}).value || '').toLowerCase();
+  if(MM_SIZED.includes(c) || c === '__own') return false;
+  return mmPicked.every(s=> s === 'Единый');
+}
 function mmRenderSizes(){
+  const no = mmNoSizes();
+  document.getElementById('mmSizesBox').hidden = no;
+  const one = document.getElementById('mmOneBcBox');
+  if(one){ one.hidden = !no; if(no) document.getElementById('mmOneBc').value = mmBarcodes['Единый'] || ''; }
+  if(no) return;
   const all = [...new Set(SIZE_SET.concat(mmPicked))].sort((a, b)=> sizeOrder(a) - sizeOrder(b));
   document.getElementById('mmSizePick').innerHTML = all.map(s=>
     `<button type="button" data-size="${escapeAttr(s)}" class="${mmPicked.includes(s) ? 'on' : ''}" onclick="mmToggleSize(${jsArg(s)})">${escapeHtml(s)}</button>`).join('');
@@ -235,6 +249,8 @@ async function openModelModal(id){
   const pctOn = typeof billingRates === 'function' && (billingRates().mode === 'percent' || (await getAll('suppliers')).some(x=> !x.deletedAt && x.billMode === 'percent'));
   document.getElementById('mmCalcPriceRow').hidden = !(ffRole() === 'owner' && pctOn);
   document.getElementById('mmPrivate').hidden = owner;     // личные цифры поставщика складу не показываем вовсе
+  /* 22.11.2026 (владелец): «Влезает в ячейку» — дело склада; поставщику и складу без ячеек не показываем */
+  document.getElementById('mmCapacityField').hidden = !owner || (typeof ffNoCells === 'function' && ffNoCells());
   const sizes = m ? (await getAll('sizes')).filter(s=> s.modelId === m.id && !s.deletedAt) : [];
   mmPicked = sizes.map(s=> s.sizeLabel);
   mmBarcodes = Object.fromEntries(sizes.map(s=> [s.sizeLabel, s.barcode || '']));

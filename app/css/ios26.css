@@ -750,3 +750,17 @@ body.is-supplier .model-card .model-photo .ph-add,body.is-supplier .model-card .
 .ret-bar{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
 .ret-bar span{flex:1;color:var(--text-secondary);}
 .ret-bar .btn{width:auto;}
+
+/* 22.11.2026: карточка товара у поставщика — «вариант 3» */
+.sup-card .sc-top{display:flex;align-items:flex-start;gap:12px;}
+.sup-card .sc-info{flex:1 1 auto;min-width:0;padding-top:2px;}
+.sup-card .sc-info .rname{white-space:normal;line-height:1.25;}
+.sup-card .sc-info .rmeta{margin-top:4px;}
+.sup-card .sc-qty{flex:none;align-self:flex-end;}
+.sup-card .sizes-line{margin-top:8px;}
+.sup-card .sc-acts{display:flex;gap:8px;margin-top:12px;}
+.sup-card .sc-acts .btn{height:40px !important;min-height:40px;font-size:14px;font-weight:600;background:var(--field,#EEF0F4) !important;color:var(--text) !important;border:0 !important;box-shadow:none !important;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;}
+.sup-card .sc-acts .btn:active{filter:brightness(.94);}
+.sup-card .sc-acts .sc-in,.sup-card .sc-acts .sc-out{flex:1 1 0;width:auto;}
+.sup-card .sc-acts .sc-edit{flex:0 0 56px;width:56px;padding:0;}
+.sup-card .sc-acts .sc-edit .icon{width:18px;height:18px;margin:0;}

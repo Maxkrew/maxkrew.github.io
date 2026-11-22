@@ -164,6 +164,12 @@ function stockMoreMenu(btn){
   const ok = id=>{ const b = document.getElementById(id); return b && !b.hidden && getComputedStyle(b).display !== 'none' ? b : null; };
   const items = [];
   const add = ok('ffAddModelBtn'), xls = ok('ffXlsBtn');
+  /* 22.11.2026: у поставщика «Приход» и «Продал» — тоже здесь (большие кнопки убраны) */
+  if(typeof isSupplierRole === 'function' && isSupplierRole()){
+    items.push({label: 'Приход', icon: 'i-in', run: ()=> homeGo('incoming')});
+    items.push({label: 'Продал', icon: 'i-out', run: ()=> homeGo('sell')});
+    if(!isStaffRole()) items.push({label: 'Добавить товар', icon: 'i-plus', run: ()=> openModelModal()});   // сотрудник товары не заводит
+  }
   if(add) items.push({label: 'Добавить товар', icon: 'i-plus', run: ()=> add.click()});
   if(xls) items.push({label: 'Загрузить из Excel', icon: 'i-upload', run: ()=> xls.click()});
   if(!items.length){ toast('Здесь нет действий для вашей роли'); return; }

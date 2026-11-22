@@ -119,9 +119,15 @@ async function renderStockFF(){
     const sup = owner ? `<span class="rmeta">${escapeHtml((sups[m.supplierId] || {}).name || '')}${m.sku ? ' · ' + escapeHtml(m.sku) : ''} · ${escapeHtml(m.category || '')}</span>` : (m.sku ? `<span class="rmeta">${escapeHtml(m.sku)}</span>` : '');
     /* поставщик — такая же карточка, как у склада (владелец, 20.11.2026): размеры одной строкой,
        «Рост/вес» и «Замеры» — маленькими кнопками-размерами ниже */
-    if(!owner){ parts.push(swWrapSafe(m.id, `<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
-      <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>
-      <div class="sizes-line">${sizesLine}</div>${sizeNotesLine(sz)}
+    /* 22.11.2026 (владелец, «вариант 3»): фото слева, название на всю ширину, «артикул · цена», штуки справа;
+       внизу — «Приход», «Расход» и карандаш */
+    if(!owner){
+      const meta = [m.sku ? escapeHtml(m.sku) : '', m.price ? fmtNum(m.price) + ' ₽' : ''].filter(Boolean).join(' · ');
+      const one = sz.length === 1 && /^единый$/i.test(sz[0].sizeLabel || '');   // один «Единый» размер — строку размеров не дублируем
+      parts.push(swWrapSafe(m.id, `<div class="card model-card sup-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
+      <div class="sc-top">${photoCell(m.id, phByModel.get(m.id))}<div class="sc-info"><div class="rname">${escapeHtml(modelName(m))}</div>${meta ? `<div class="rmeta">${meta}</div>` : ''}</div><div class="big-num sc-qty">${total}<span> шт</span></div></div>
+      ${one && !(counts.get(sz[0].id) || {}).incoming && !(counts.get(sz[0].id) || {}).waiting && !(counts.get(sz[0].id) || {}).defect ? '' : `<div class="sizes-line">${sizesLine}</div>`}${sizeNotesLine(sz)}
+      <div class="sc-acts"><button type="button" class="btn sc-in" data-sc-in="${escapeAttr(m.id)}" onclick="event.stopPropagation();swGoIncoming(${jsArg(m.id)})">Приход</button><button type="button" class="btn sc-out" data-sc-out="${escapeAttr(m.id)}" onclick="event.stopPropagation();swGoSell(${jsArg(m.id)})">Расход</button><button type="button" class="btn sc-edit" data-sc-edit="${escapeAttr(m.id)}" onclick="event.stopPropagation();openModelModal(${jsArg(m.id)})" aria-label="Изменить товар"><svg class="icon"><use href="#i-edit"/></svg></button></div>
     </div>`)); continue; }
     parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
       <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>

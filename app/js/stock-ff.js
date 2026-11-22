@@ -203,7 +203,8 @@ function mmRenderSizes(){
     ? '<div class="hint" style="margin:6px 0 4px;">Штрихкоды размеров — по желанию</div>' + mmPicked.slice().sort((a, b)=> sizeOrder(a) - sizeOrder(b)).map(s=>
       `<div class="field-row bc-row"><span class="sz-tag">${escapeHtml(s)}</span><input type="text" data-bc="${escapeAttr(s)}" value="${escapeAttr(mmBarcodes[s] || '')}" placeholder="штрихкод" oninput="mmBarcodes[this.dataset.bc]=this.value"></div>`).join('')
       + '<div class="no-staff"><div class="hint" style="margin:10px 0 4px;">Рост и вес, замеры — на каждый размер. На экране товаров это кнопки: нажал — текст скопирован</div>' + mmPicked.slice().sort((a, b)=> sizeOrder(a) - sizeOrder(b)).map(s=>
-      `<div class="note-row"><span class="sz-tag">${escapeHtml(s)}</span><div class="note-fields"><textarea rows="2" maxlength="2000" data-fit="${escapeAttr(s)}" placeholder="рост и вес" oninput="mmFits[this.dataset.fit]=this.value">${escapeHtml(mmFits[s] || '')}</textarea><textarea rows="2" maxlength="2000" data-measure="${escapeAttr(s)}" placeholder="замеры" oninput="mmMeasures[this.dataset.measure]=this.value">${escapeHtml(mmMeasures[s] || '')}</textarea></div></div>`).join('') + '</div>'
+      /* 22.11.2026 (владелец): ровные поля, как «Бренд»: подпись сверху, поле под ней */
+      `<div class="note-row2">${mmPicked.length > 1 ? `<div class="note-size">${escapeHtml(s)}</div>` : ''}<div class="field-row"><div class="field"><label>Рост и вес</label><input type="text" maxlength="2000" data-fit="${escapeAttr(s)}" value="${escapeAttr(mmFits[s] || '')}" placeholder="170 см, 70 кг" oninput="mmFits[this.dataset.fit]=this.value"></div><div class="field"><label>Замеры</label><input type="text" maxlength="2000" data-measure="${escapeAttr(s)}" value="${escapeAttr(mmMeasures[s] || '')}" placeholder="ПОГ, длина" oninput="mmMeasures[this.dataset.measure]=this.value"></div></div></div>`).join('') + '</div>'
     : '';
 }
 function mmToggleSize(s){
@@ -242,6 +243,7 @@ async function openModelModal(id){
   setv('mmBrand', m && m.brand); setv('mmTitle', m && m.title); setv('mmColor', m && m.color);
   setv('mmCategory', (m && m.category) || ffCategories()[0]); setv('mmCapacity', (m && m.capacity) || 7);
   setv('mmLen', m && m.lenCm); setv('mmWid', m && m.widCm); setv('mmHei', m && m.heiCm);
+  { const pb = document.getElementById('mmPackBox'); if(pb) pb.open = !!(m && (m.lenCm || m.widCm || m.heiCm)); }
   setv('mmSku', m && m.sku); setv('mmPrice', m && m.price); setv('mmCalcPrice', m && m.calcPrice);
   setv('mmBuyFrom', priv && priv.buyFrom); setv('mmCost', priv && priv.cost); setv('mmCommission', priv && priv.commissionPercent);
   setv('mmTax', priv && priv.taxPercent); setv('mmPackaging', priv && priv.packaging); setv('mmDelivery', priv && priv.deliveryDiscount);

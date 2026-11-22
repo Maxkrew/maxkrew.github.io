@@ -16,8 +16,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="css/app.css?v=70">
-<link rel="stylesheet" href="css/ios26.css?v=70">
+<link rel="stylesheet" href="css/app.css?v=71">
+<link rel="stylesheet" href="css/ios26.css?v=71">
 </head>
 <body>
 
@@ -865,43 +865,48 @@
 </div>
 
 <div class="modal-bg" id="modelModalBg" data-close="closeModelModal">
-  <div class="modal">
+  <div class="modal mm-modal">
     <div class="modal-grip"></div>
     <h3 id="mmTitleHead">Новый товар</h3>
     <input type="hidden" id="mmId">
-    <div class="field" id="mmSupplierRow"><label>Поставщик</label><select id="mmSupplier"></select></div>
-    <div class="field"><label>Бренд</label><input type="text" id="mmBrand" placeholder="Например: Dyson"></div>
-    <div class="field-row">
-      <div class="field"><label>Название</label><input type="text" id="mmTitle" placeholder="например, пылесос"></div>
-      <div class="field"><label>Цвет</label><input type="text" id="mmColor" placeholder="если есть"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Категория</label><select id="mmCategory" onchange="mmCategoryChanged()"></select><input type="text" id="mmCategoryOwn" placeholder="Например: автозапчасти" maxlength="60" hidden style="margin-top:6px;"></div>
+    <!-- 22.11.2026 (владелец): карточка товара блоками; фото — нажал и заменил; упаковка — спрятана -->
+    <div class="mm-card">
+      <div class="field" id="mmSupplierRow"><label>Поставщик</label><select id="mmSupplier"></select></div>
+      <div class="mm-top">
+        <div class="mm-ph-box" id="mmPhotoBox"></div>
+        <div class="mm-top-fields">
+          <div class="field"><label>Название</label><input type="text" id="mmTitle" placeholder="например, фонарь"></div>
+          <div class="field"><label>Бренд</label><input type="text" id="mmBrand" placeholder="если есть"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Категория</label><select id="mmCategory" onchange="mmCategoryChanged()"></select><input type="text" id="mmCategoryOwn" placeholder="Например: автозапчасти" maxlength="60" hidden style="margin-top:6px;"></div>
+        <div class="field"><label>Цвет</label><input type="text" id="mmColor" placeholder="если есть"></div>
+      </div>
       <div class="field" id="mmCapacityField"><label>Влезает в ячейку, шт</label><input type="number" id="mmCapacity" min="1" value="7"></div>
     </div>
-    <!-- 22.11.2026 (владелец): размеры — только у одежды и обуви; у остального один штрихкод -->
-    <div class="field" id="mmOneBcBox" hidden><label for="mmOneBc">Штрихкод</label><input type="text" id="mmOneBc" placeholder="по желанию" oninput="mmBarcodes['Единый'] = this.value"></div>
-    <div class="field" id="mmSizesBox"><label>Размеры <span class="hint">— не выбрали: товар без размера («Единый»)</span></label>
+    <!-- размеры — только у одежды и обуви; у остального один штрихкод -->
+    <div class="mm-card" id="mmOneBcBox" hidden><div class="field"><label for="mmOneBc">Штрихкод</label><input type="text" id="mmOneBc" placeholder="по желанию" oninput="mmBarcodes['Единый'] = this.value"></div></div>
+    <div class="mm-card" id="mmSizesBox"><div class="grp-title">Размеры</div><div class="hint" style="margin:-4px 0 10px;">Не выбрали — товар без размера («Единый»)</div>
       <div class="size-pick" id="mmSizePick"></div>
       <div class="field-row mm-size-own" style="margin-top:6px;"><input type="text" id="mmSizeCustom" placeholder="Свой размер"><button class="btn ghost sm" style="width:auto;" onclick="mmAddCustomSize()">Добавить</button></div>
       <div id="mmSizeBarcodes"></div>
     </div>
-    <div class="field" id="mmPhotoBox"></div>
-    <div class="field" id="mmStockBox" hidden></div>
-    <div class="field"><label>Размер упаковки Д × Ш × В, см <span class="hint">— для тарифа «по коробке» и хранения в кубах</span></label>
-      <div class="field-row"><input type="text" id="mmLen" inputmode="decimal" placeholder="Д"><input type="text" id="mmWid" inputmode="decimal" placeholder="Ш"><input type="text" id="mmHei" inputmode="decimal" placeholder="В"></div>
+    <div class="mm-card" id="mmStockBox" hidden></div>
+    <div class="mm-card">
+      <div class="grp-title">Продажа</div>
+      <div class="field-row">
+        <div class="field"><label>Артикул (SKU)</label><input type="text" id="mmSku"></div>
+        <div class="field no-staff"><label>Цена продажи, ₽</label><input type="number" id="mmPrice"></div>
+      </div>
+      <div class="field" id="mmCalcPriceRow"><label>Цена для процента склада, ₽ <span class="hint">— для тарифа «процент от заказа»; пусто — цена продажи</span></label><input type="number" id="mmCalcPrice"></div>
     </div>
-    <div class="field-row">
-      <div class="field"><label>SKU</label><input type="text" id="mmSku"></div>
-      <div class="field no-staff"><label>Цена продажи, ₽</label><input type="number" id="mmPrice"></div>
-    </div>
-    <div class="field" id="mmCalcPriceRow"><label>Цена для процента склада, ₽ <span class="hint">— для тарифа «процент от заказа»; пусто — цена продажи</span></label><input type="number" id="mmCalcPrice"></div>
-    <div id="mmPrivate" class="no-staff">
+    <div id="mmPrivate" class="mm-card no-staff">
       <div class="grp-title">Моё (видите только вы)</div>
       <div class="field"><label>Где закупаю</label><input type="text" id="mmBuyFrom" placeholder="Например: ООО Свет-Трейд"></div>
       <div class="field-row">
         <div class="field"><label>Себестоимость, ₽</label><input type="number" id="mmCost"></div>
-        <div class="field"><label>Комиссия маркетплейса, %</label><input type="number" id="mmCommission" placeholder="0"></div>
+        <div class="field"><label>Комиссия МП, %</label><input type="number" id="mmCommission" placeholder="0"></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Налог, %</label><input type="number" id="mmTax" placeholder="0"></div>
@@ -909,6 +914,12 @@
       </div>
       <div class="field"><label>Скидка на доставку, ₽ за шт.</label><input type="number" id="mmDelivery" placeholder="0"></div>
     </div>
+    <details class="mm-card mm-more" id="mmPackBox">
+      <summary>Размер упаковки <span class="hint">— для тарифа «по коробке»</span></summary>
+      <div class="field" style="margin-top:10px;"><label>Д × Ш × В, см <span class="hint">— для тарифа «по коробке» и хранения в кубах</span></label>
+        <div class="field-row"><input type="text" id="mmLen" inputmode="decimal" placeholder="Д"><input type="text" id="mmWid" inputmode="decimal" placeholder="Ш"><input type="text" id="mmHei" inputmode="decimal" placeholder="В"></div>
+      </div>
+    </details>
     <div class="field-error" id="mmError"></div>
     <div class="btn-row">
       <button class="btn ghost" onclick="closeModelModal()">Отмена</button>
@@ -1185,59 +1196,59 @@
 <script src="vendor/zxing.min.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="sync-config.js?v=70"></script>
-<script src="js/db.js?v=70"></script>
-<script src="js/cells.js?v=70"></script>
-<script src="js/ff-data.js?v=70"></script>
-<script src="js/sync-ui.js?v=70"></script>
-<script src="js/input.js?v=70"></script>
-<script src="js/returns-scan.js?v=70"></script>
-<script src="js/sounds.js?v=70"></script>
-<script src="js/stock-history.js?v=70"></script>
-<script src="js/finance.js?v=70"></script>
-<script src="js/balance.js?v=70"></script>
-<script src="js/analytics.js?v=70"></script>
-<script src="js/settings-roles.js?v=70"></script>
-<script src="js/roles.js?v=70"></script>
-<script src="js/suppliers.js?v=70"></script>
-<script src="js/stock-ff.js?v=70"></script>
-<script src="js/cells-ui.js?v=70"></script>
-<script src="js/moves.js?v=70"></script>
-<script src="js/receipts.js?v=70"></script>
-<script src="js/shipments.js?v=70"></script>
-<script src="js/photos.js?v=70"></script>
-<script src="js/staff.js?v=70"></script>
-<script src="js/billing.js?v=70"></script>
-<script src="js/product-pick.js?v=70"></script>
-<script src="js/assembly.js?v=70"></script>
-<script src="js/today.js?v=70"></script>
-<script src="js/stats.js?v=70"></script>
-<script src="js/archive.js?v=70"></script>
-<script src="js/supplier-home.js?v=70"></script>
-<script src="js/incoming.js?v=70"></script>
-<script src="js/excel-import.js?v=70"></script>
-<script src="js/sell.js?v=70"></script>
-<script src="js/supplier-analysis.js?v=70"></script>
-<script src="js/sup-fin.js?v=70"></script>
-<script src="js/sup-ops.js?v=70"></script>
-<script src="js/sup-returns.js?v=70"></script>
-<script src="js/swipe-ff.js?v=70"></script>
-<script src="js/review.js?v=70"></script>
-<script src="js/history-ff.js?v=70"></script>
-<script src="js/scan-ff.js?v=70"></script>
-<script src="js/demo.js?v=70"></script>
-<script src="js/subscription.js?v=70"></script>
-<script src="js/tariffs.js?v=70"></script>
-<script src="js/admin.js?v=70"></script>
-<script src="js/backup-labels.js?v=70"></script>
+<script src="sync-config.js?v=71"></script>
+<script src="js/db.js?v=71"></script>
+<script src="js/cells.js?v=71"></script>
+<script src="js/ff-data.js?v=71"></script>
+<script src="js/sync-ui.js?v=71"></script>
+<script src="js/input.js?v=71"></script>
+<script src="js/returns-scan.js?v=71"></script>
+<script src="js/sounds.js?v=71"></script>
+<script src="js/stock-history.js?v=71"></script>
+<script src="js/finance.js?v=71"></script>
+<script src="js/balance.js?v=71"></script>
+<script src="js/analytics.js?v=71"></script>
+<script src="js/settings-roles.js?v=71"></script>
+<script src="js/roles.js?v=71"></script>
+<script src="js/suppliers.js?v=71"></script>
+<script src="js/stock-ff.js?v=71"></script>
+<script src="js/cells-ui.js?v=71"></script>
+<script src="js/moves.js?v=71"></script>
+<script src="js/receipts.js?v=71"></script>
+<script src="js/shipments.js?v=71"></script>
+<script src="js/photos.js?v=71"></script>
+<script src="js/staff.js?v=71"></script>
+<script src="js/billing.js?v=71"></script>
+<script src="js/product-pick.js?v=71"></script>
+<script src="js/assembly.js?v=71"></script>
+<script src="js/today.js?v=71"></script>
+<script src="js/stats.js?v=71"></script>
+<script src="js/archive.js?v=71"></script>
+<script src="js/supplier-home.js?v=71"></script>
+<script src="js/incoming.js?v=71"></script>
+<script src="js/excel-import.js?v=71"></script>
+<script src="js/sell.js?v=71"></script>
+<script src="js/supplier-analysis.js?v=71"></script>
+<script src="js/sup-fin.js?v=71"></script>
+<script src="js/sup-ops.js?v=71"></script>
+<script src="js/sup-returns.js?v=71"></script>
+<script src="js/swipe-ff.js?v=71"></script>
+<script src="js/review.js?v=71"></script>
+<script src="js/history-ff.js?v=71"></script>
+<script src="js/scan-ff.js?v=71"></script>
+<script src="js/demo.js?v=71"></script>
+<script src="js/subscription.js?v=71"></script>
+<script src="js/tariffs.js?v=71"></script>
+<script src="js/admin.js?v=71"></script>
+<script src="js/backup-labels.js?v=71"></script>
 <!-- после основного кода: синхронизация опирается на его функции -->
-<script src="sync.js?v=70"></script>
-<script src="js/ui-kit.js?v=70"></script>
-<script src="js/no-cells.js?v=70"></script>
-<script src="js/pick-run.js?v=70"></script>
-<script src="js/ship-owner.js?v=70"></script>
-<script src="js/layout.js?v=70"></script>
-<script src="js/nav-back.js?v=70"></script>
-<script src="js/picker.js?v=70"></script>
+<script src="sync.js?v=71"></script>
+<script src="js/ui-kit.js?v=71"></script>
+<script src="js/no-cells.js?v=71"></script>
+<script src="js/pick-run.js?v=71"></script>
+<script src="js/ship-owner.js?v=71"></script>
+<script src="js/layout.js?v=71"></script>
+<script src="js/nav-back.js?v=71"></script>
+<script src="js/picker.js?v=71"></script>
 </body>
 </html>

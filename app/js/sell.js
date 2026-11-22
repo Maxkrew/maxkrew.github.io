@@ -119,20 +119,17 @@ async function deleteModelPhoto(modelId){
   for(const p of (await getAll('photos')).filter(p=> !p.deletedAt && p.kind === 'товар' && p.modelId === modelId)){ p.deletedAt = Date.now(); await put('photos', p); }
 }
 /* блок «Фото товара» в карточке товара */
+/* 22.11.2026 (владелец): фото товара — один большой квадрат; нажал — выбрал новое; крестик в углу — убрать */
 async function mmRenderPhoto(modelId){
   const box = document.getElementById('mmPhotoBox'); if(!box) return;
-  if(!modelId){
-    const prev = mmPendingPhoto ? `<span class="ph-thumb"><img alt="Фото товара" src="${escapeAttr(URL.createObjectURL(mmPendingPhoto))}"></span>` : '';
-    box.innerHTML = '<label>Фото товара</label><div class="mm-photo">' + prev + `<label class="btn ghost sm" style="width:auto;"><svg class="icon"><use href="#i-camera"/></svg>${mmPendingPhoto ? 'Заменить' : 'Добавить фото'}<input type="file" id="mmPhotoFile" accept="image/*" hidden onchange="mmPendingPick(this)"></label>` +
-      (mmPendingPhoto ? '<button type="button" class="btn ghost sm" id="mmPhotoDel" style="width:auto;" onclick="mmPendingPhoto = null; mmRenderPhoto(null)"><svg class="icon"><use href="#i-trash"/></svg>Убрать</button>' : '') + '</div>';
-    return;
-  }
-  const p = await modelPhoto(modelId);
-  const pick = (t)=> `<label class="btn ghost sm" style="width:auto;cursor:pointer;"><svg class="icon"><use href="#i-camera"/></svg>${t}<input type="file" id="mmPhotoFile" accept="image/*" hidden onchange="mmPhotoPick(${jsArg(modelId)}, this)"></label>`;
-  box.innerHTML = '<label>Фото товара</label><div class="mm-photo">' + (p
-    ? photoThumb(p.id, 'Фото товара') + pick('Заменить') + `<button type="button" class="btn ghost sm" id="mmPhotoDel" style="width:auto;" onclick="mmPhotoDelete(${jsArg(modelId)})"><svg class="icon"><use href="#i-trash"/></svg>Удалить</button>`
-    : pick('Добавить фото')) + '</div>';
-  fillPhotoThumbs(box);
+  let img = '';
+  if(!modelId){ if(mmPendingPhoto) img = `<img alt="Фото товара" src="${escapeAttr(URL.createObjectURL(mmPendingPhoto))}">`; }
+  else { const p = await modelPhoto(modelId); if(p) img = `<img alt="Фото товара" data-ph-src="${escapeAttr(p.id)}">`; }
+  const pick = modelId ? `mmPhotoPick(${jsArg(modelId)}, this)` : 'mmPendingPick(this)';
+  const del = modelId ? `mmPhotoDelete(${jsArg(modelId)})` : 'mmPendingPhoto = null; mmRenderPhoto(null)';
+  box.innerHTML = `<label class="mm-ph${img ? ' has' : ''}" title="${img ? 'Заменить фото' : 'Добавить фото'}">${img || '<svg class="icon"><use href="#i-camera"/></svg><span>Добавить фото</span>'}<input type="file" id="mmPhotoFile" accept="image/*" hidden onchange="${pick}"></label>`
+    + (img ? `<button type="button" class="mm-ph-del" id="mmPhotoDel" aria-label="Удалить фото" onclick="${del}"><svg class="icon"><use href="#i-x"/></svg></button>` : '');
+  if(modelId && typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);
 }
 /* фото нового товара: держим до «Сохранить» */
 let mmPendingPhoto = null;

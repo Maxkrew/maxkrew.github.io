@@ -803,3 +803,7 @@ body.is-supplier .model-card .model-photo .ph-add,body.is-supplier .model-card .
 .mm-more[open]{padding-bottom:4px;}
 #mmStockBox > label:first-child{display:block;}
 .mm-card .bc-row .sz-tag{flex:0 0 76px;}
+/* 22.11.2026: карточка товара — все поля по одной сетке */
+.mm-card .field > label{padding-left:2px;}
+.mm-card select,.mm-card input[type=text],.mm-card input[type=number]{width:100%;font-size:17px;}
+.mm-top .mm-ph-box{width:132px;height:132px;}

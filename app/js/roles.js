@@ -8,6 +8,9 @@ const NAV_ITEMS = [
   {id:'receipts',  label:'Приёмка',    icon:'i-in',    group:'Склад',  roles:['owner']},
   {id:'incoming',  label:'Приход',     icon:'i-in',    group:'Склад',  roles:['supplier']},
   {id:'shipments', label:'Отправки',   icon:'i-out',   group:'Склад',  roles:['owner','supplier'], labels:{supplier:'Продажи'}},
+  /* 22.11.2026 (владелец): «Возвраты» и «Операции» у поставщика — как в «Складе»; операции с ценами — не сотруднику */
+  {id:'supreturns', label:'Возвраты',  icon:'i-inbox', group:'Склад',  roles:['supplier']},
+  {id:'supops',    label:'Операции',   icon:'i-clock', group:'Склад',  roles:['supplier'], noStaff:true},
   {id:'analysis',  label:'Анализ',     icon:'i-chart', group:'Склад',  roles:['supplier'], noStaff:true},   // деньги — не сотруднику
   {id:'cells',     label:'Ячейки',     icon:'i-grid',  group:'Склад',  roles:['owner']},
   /* 21.11.2026 (проект v3): «Поставщики» и «История» — в шторке сверху; внизу у склада 5 вкладок, у поставщика 4 */

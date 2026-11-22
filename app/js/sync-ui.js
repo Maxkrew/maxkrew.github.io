@@ -343,6 +343,8 @@ async function renderSection(name){
   if(name === 'receipts') await call('renderReceipts');
   if(name === 'incoming') await call('renderIncoming');
   if(name === 'analysis') await call('renderSupplierAnalysis');
+  if(name === 'supops') await call('renderSupOps');
+  if(name === 'supreturns') await call('renderSupReturns');
   if(name === 'shipments') await call('renderShipments');
   if(name === 'cells') await call('renderCells');
   if(name === 'suppliers') await call('renderSuppliers');

@@ -119,10 +119,10 @@ async function renderStockFF(){
     const sup = owner ? `<span class="rmeta">${escapeHtml((sups[m.supplierId] || {}).name || '')}${m.sku ? ' · ' + escapeHtml(m.sku) : ''} · ${escapeHtml(m.category || '')}</span>` : (m.sku ? `<span class="rmeta">${escapeHtml(m.sku)}</span>` : '');
     /* поставщик — такая же карточка, как у склада (владелец, 20.11.2026): размеры одной строкой,
        «Рост/вес» и «Замеры» — маленькими кнопками-размерами ниже */
-    if(!owner){ parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
+    if(!owner){ parts.push(swWrapSafe(m.id, `<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
       <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>
       <div class="sizes-line">${sizesLine}</div>${sizeNotesLine(sz)}
-    </div>`); continue; }
+    </div>`)); continue; }
     parts.push(`<div class="card model-card" data-model="${escapeAttr(m.id)}" onclick="openModelModal(${jsArg(m.id)})">
       <div class="model-head"><div style="display:flex;align-items:center;">${photoCell(m.id, phByModel.get(m.id))}<div><div class="rname">${escapeHtml(modelName(m))}</div>${sup}</div></div><div class="big-num">${total}<span> шт.</span></div></div>
       <div class="sizes-line">${sizesLine}</div>${cellsLine}
@@ -130,6 +130,7 @@ async function renderStockFF(){
   }
   if(models.length > shown.length) parts.push(`<button class="btn ghost" id="ffStockMore" onclick="ffStockLimit += 200; renderStockFF()">Показать ещё (${models.length - shown.length})</button>`);
   list.innerHTML = parts.join('');
+  if(!owner && typeof swInit === 'function') swInit(list);   // свайп: вправо «Приход», влево «Продал»
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(list);
   if(typeof renderExpected === 'function') await renderExpected();
 }
@@ -380,3 +381,6 @@ async function deleteModelUI(){
 
 /* Старые экраны «Склада» вызывают renderStock — теперь это склад «ФФ». */
 window.renderStock = renderStockFF;
+
+/* свайп по товару у поставщика (js/swipe-ff.js); нет модуля — карточка как была */
+function swWrapSafe(id, html){ return typeof swWrap === 'function' ? swWrap(id, html) : html; }

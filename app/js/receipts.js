@@ -386,7 +386,7 @@ async function receiptCard(r){
     const ms = Object.values(models).filter(m=> !m.deletedAt && m.supplierId === r.supplierId).sort((a, b)=> modelName(a).localeCompare(modelName(b), 'ru'));
     const lineRows = [];
     const preview = lines.length ? await receiptPreview(r, lines) : {};
-    for(const l of lines) lineRows.push(`<div class="row-item rc-line"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b>${l.defect ? ' · <span class="warn">брак</span>' : ''}<div class="rc-where go" data-rc-where="${escapeAttr(l.id)}">➡ ${escapeHtml(previewText(preview[l.id] || []))}</div></div><div class="rside">${l.expectedQty != null ? `<span class="rmeta">ждали ${l.expectedQty} · пришло</span> <input type="number" min="0" style="width:72px;" value="${l.qty}" data-rc-qty="${escapeAttr(l.id)}" onchange="rcSetQty(${jsArg(l.id)}, this.value)"> шт.` : `<b>${l.qty} шт.</b>`} <button class="icon-btn" onclick="rcRemoveLine(${jsArg(l.id)})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
+    for(const l of lines) lineRows.push(`<div class="row-item rc-line"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b>${l.defect ? ' · <span class="warn">брак</span>' : ''}<div class="rc-where go" data-rc-where="${escapeAttr(l.id)}">➡ ${escapeHtml(previewText(preview[l.id] || []))}</div></div><div class="rside">${l.expectedQty != null ? `<span class="rmeta">ждали ${l.expectedQty} · пришло</span> <input type="number" min="0" style="width:72px;" value="${l.qty}" data-rc-qty="${escapeAttr(l.id)}" onchange="rcSetQty(${jsArg(l.id)}, this.value)"> шт.` : `<b>${l.qty} шт.</b>`}${r.kind === 'возврат' ? ` <button type="button" class="btn ${l.defect ? 'danger' : 'ghost'} sm rc-brak" style="width:auto;" data-rc-defect="${escapeAttr(l.id)}" aria-pressed="${!!l.defect}" onclick="rcLineDefect(${jsArg(l.id)})">Брак</button>` : ''} <button class="icon-btn" onclick="rcRemoveLine(${jsArg(l.id)})" aria-label="Убрать"><svg class="icon"><use href="#i-trash"/></svg></button></div></div>`);
     return `<div class="card rc-card" data-receipt="${escapeAttr(r.id)}">${head}
       <div class="field-row scan-row"><input type="text" data-scan-receipt="${escapeAttr(r.id)}" placeholder="Скан штрихкода" autocomplete="off">
         <button class="btn ghost sm" style="width:auto;" onclick="openCameraScan(c=> ffScanReceipt(${jsArg(r.id)}, c))">Камера</button></div>
@@ -502,6 +502,8 @@ async function rcAddLine(rid, quiet){
   if(!quiet) await renderReceipts();
   return true;
 }
+/* 22.11.2026 (владелец): брак в возврате определяет склад — «Брак» у строки: ляжет в ячейку брака, у поставщика — «Повреждённые» */
+async function rcLineDefect(id){ const l = await get('receiptLines', id); if(!l || l.deletedAt || l.plan) return; l.defect = !l.defect; await put('receiptLines', l); toast(l.defect ? 'Брак — ляжет в ячейку брака' : 'Не брак — ляжет как обычный возврат'); await renderReceipts(); }
 async function rcRemoveLine(id){ const l = await get('receiptLines', id); if(l){ l.deletedAt = Date.now(); await put('receiptLines', l); } await renderReceipts(); }
 async function rcFinish(rid, toFloor){
   const mid = (document.getElementById('rcModel-' + rid) || {}).value, sz = document.querySelector('#rcSizes-' + CSS.escape(rid) + ' button.on'), q = (document.getElementById('rcQty-' + rid) || {}).value;

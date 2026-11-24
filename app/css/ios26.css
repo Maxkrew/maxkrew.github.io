@@ -853,3 +853,6 @@ body.is-supplier .model-card .model-photo .ph-add,body.is-supplier .model-card .
   body.labels-open #ffLblBar{display:none !important;}
   html,body{margin:0 !important;padding:0 !important;}
 }
+
+/* 24.11.2026 (FoG): когда поставщик обновил код на возврат */
+.ret-upd{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:color-mix(in srgb, var(--accent, #2f6bff) 14%, transparent);color:var(--accent, #2f6bff);font-size:12px;font-weight:600;white-space:nowrap;}

@@ -20,6 +20,11 @@ async function supReturns(){
 }
 async function renderSupReturns(){
   const box = document.getElementById('supReturnsBox'); if(!box) return;
+  // у склада тот же раздел — возвраты в пути от всех поставщиков (FoG 24.11.2026)
+  const own = isOwnerRole(), nb = document.getElementById('supRetNew'), sub = document.getElementById('supRetSub');
+  if(nb) nb.hidden = own;
+  if(sub) sub.textContent = own ? 'Что поставщики везут обратно — заберите в пункте выдачи' : 'Товары, которые вернул покупатель';
+  if(own) return renderWhReturns(box);
   const all = await supReturns(), models = await modelsMap();
   const labels = Object.fromEntries((await getAll('sizes')).map(s=> [s.id, s.sizeLabel]));
   const rows = all.filter(r=> retState.tab === 'ret' ? !r.damaged : r.damaged);
@@ -32,6 +37,7 @@ async function renderSupReturns(){
       <label class="ops-check"><input type="checkbox" ${retState.sel.has(r.id) ? 'checked' : ''} onchange="retToggle(${jsArg(r.id)}, this.checked)" aria-label="Выбрать"></label>
       <div class="rmain"><div class="rname">${escapeHtml(modelName(m) + lab)}</div><div class="rmeta">${m.sku ? escapeHtml(m.sku) + ' · ' : ''}${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}</div><div class="rmeta">${escapeHtml(r.status)}</div></div>
       <span class="ops-qty num ${r.damaged ? 'neg' : 'pos'}">+${r.qty} шт</span>
+      ${r.expected ? `<button type="button" class="icon-btn" data-ret-edit="${escapeAttr(r.receipt.id)}" onclick="retEdit(${jsArg(r.receipt.id)})" aria-label="Изменить код на возврат"><svg class="icon"><use href="#i-edit"/></svg></button>` : ''}
       ${r.expected ? `<button type="button" class="icon-btn ret-del" onclick="supRetCancel([${jsArg(r.id)}])" aria-label="Отменить возврат"><svg class="icon"><use href="#i-trash"/></svg></button>` : ''}</div>`;
   };
   const selN = retState.sel.size;

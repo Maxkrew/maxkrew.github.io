@@ -63,13 +63,69 @@ async function returnCard(r, head, tools){
   const models = await modelsMap(), rows = [];
   for(const l of await receiptLines(r.id)) rows.push(`<div class="row-item"><div class="rmain">${escapeHtml(modelName(models[l.modelId] || {}))} · <b>${escapeHtml(await sizeLabelOf(l.sizeId))}</b></div><div class="rside"><b>${l.qty} шт.</b></div></div>`);
   const phs = (await receiptPhotos(r.id)).map(p=> photoThumb(p.id, p.kind === 'штрихкод' ? 'Скриншот штрихкода' : 'Фото к возврату'));
-  const when = new Date(r.createdTs || Date.now()).toLocaleString('ru-RU', {day:'numeric', month:'long', hour:'2-digit', minute:'2-digit'});
+  const when = retWhen(r.createdTs || Date.now());
   return `<div class="card ret-card" data-expected="${escapeAttr(r.id)}"><div class="rname sh-head"><span class="sh-carrier">${escapeHtml(r.carrier || 'Возврат')}</span><span class="sh-status st-new">${head}</span></div>
     <div class="rmeta">${when}${r.comment ? ' · ' + escapeHtml(r.comment) : ''}</div>
     ${r.track ? '<div class="rmeta sh-track">Трек: <b data-track data-copy="' + escapeAttr(String(r.track).trim()) + '" role="button" title="Нажмите — скопировать">' + trackHtml(r.track) + '</b></div>' : ''}
-    ${r.returnCode ? '<div class="rmeta">Код на возврат: <b>' + escapeHtml(r.returnCode) + '</b></div>' : ''}
+    ${r.returnCode ? '<div class="rmeta">Код на возврат: <b>' + escapeHtml(r.returnCode) + '</b>' + (retEditedTs(r) ? ' <span class="ret-upd">обновлён ' + retWhen(retEditedTs(r)) + '</span>' : '') + '</div>' : ''}
     ${r.pickupAddress ? '<div class="rmeta">Пункт выдачи: ' + escapeHtml(r.pickupAddress) + '</div>' : ''}
     ${phs.length ? '<div class="ph-row">' + phs.join('') + '</div>' : ''}<div class="rc-lines">${rows.join('')}</div>${tools}</div>`;
+}
+function retWhen(ts){ return new Date(ts).toLocaleString('ru-RU', {day:'numeric', month:'long', hour:'2-digit', minute:'2-digit'}); }
+
+/* 24.11.2026 (FoG: «добавить время, когда обновили код, и поставщик может его редактировать?»).
+   Пока склад не забрал возврат, его меняет только поставщик — поэтому время последней правки
+   строки и есть время, когда обновили код (правка позже, чем через 2 минуты после оформления). */
+const RET_EDIT_GAP = 2 * 60 * 1000;
+function retEditedTs(r){
+  const u = Number(r.updatedAt) || 0, c = Number(r.createdTs) || 0;
+  return r.kind === 'ожидается' && c && u > c + RET_EDIT_GAP ? u : 0;
+}
+async function updateReturn(id, o){
+  const r = await get('receipts', id);
+  if(!r || r.deletedAt || !r.isReturn) return {ok:false, error:'Возврат не найден'};
+  if(r.kind !== 'ожидается') return {ok:false, error:'Склад уже забрал возврат — менять нельзя'};
+  let bc = null;
+  if(o.barcode){ try{ bc = await compressImage(o.barcode); }catch(e){} if(!bc) return {ok:false, error:'Не получилось открыть картинку — сохраните её как JPEG или PNG'}; }
+  const code = o.returnCode === undefined ? r.returnCode || '' : String(o.returnCode || '').trim().slice(0, 60);
+  const addr = o.pickupAddress === undefined ? r.pickupAddress || '' : String(o.pickupAddress || '').trim().slice(0, 300);
+  if(code !== (r.returnCode || '') || addr !== (r.pickupAddress || '') || bc){ r.returnCode = code; r.pickupAddress = addr; await put('receipts', r); }
+  if(bc){
+    for(const p of (await receiptPhotos(id)).filter(p=> p.kind === 'штрихкод')){ p.deletedAt = Date.now(); await put('photos', p); }
+    await addPhoto({supplierId: r.supplierId, kind:'штрихкод', receiptId:id}, bc, true);
+  }
+  return {ok:true};
+}
+let retEditFile = null;
+async function retEdit(id){
+  const r = await get('receipts', id); if(!r) return;
+  retEditFile = null;
+  const pts = typeof pickupPointsList === 'function' ? pickupPointsList() : [];
+  uiSheet({title: 'Изменить возврат', done: 'Закрыть', html: `
+    <div class="field"><label for="reCode">Код на возврат</label><input type="text" id="reCode" maxlength="60" autocomplete="off" value="${escapeAttr(r.returnCode || '')}" placeholder="Код для пункта выдачи"></div>
+    <div class="field"><label for="reAddr">Адрес пункта выдачи</label><input type="text" id="reAddr" maxlength="300" autocomplete="off" list="reAddrList" value="${escapeAttr(r.pickupAddress || '')}" placeholder="Куда приедет возврат"><datalist id="reAddrList">${pts.map(p=> '<option value="' + escapeAttr(p) + '">').join('')}</datalist></div>
+    <div class="field"><label class="btn ghost sm" style="width:auto;"><svg class="icon"><use href="#i-upload"/></svg>Новый скриншот штрихкода<input type="file" id="reBc" accept="image/*" hidden onchange="retEditPick(this)"></label><div class="hint" id="reBcName"></div></div>
+    <div class="err" id="reErr"></div>
+    <button type="button" class="btn primary" id="reSave" onclick="retEditSave(${jsArg(id)})"><svg class="icon"><use href="#i-check"/></svg>Сохранить</button>`});
+}
+function retEditPick(input){ retEditFile = (input.files && input.files[0]) || null; const n = document.getElementById('reBcName'); if(n) n.textContent = retEditFile ? 'Скриншот выбран — заменится при сохранении' : ''; }
+async function retEditSave(id){
+  const res = await updateReturn(id, {returnCode: document.getElementById('reCode').value, pickupAddress: document.getElementById('reAddr').value, barcode: retEditFile});
+  if(!res.ok){ const e = document.getElementById('reErr'); if(e) e.textContent = res.error; else toast(res.error); return; }
+  retEditFile = null; uiSheetClose(); toast('Сохранено — склад увидит новый код');
+  if(typeof retSync === 'function') retSync();
+  const sec = (document.querySelector('main section.active') || {id:''}).id;
+  if(sec === 'sec-shipments' && typeof renderShipments === 'function') await renderShipments();
+  if(sec === 'sec-supreturns' && typeof renderSupReturns === 'function') await renderSupReturns();
+}
+/* склад: вкладка «Возвраты» — что поставщики везут обратно; штрихкод и код на виду, галочка «Забрал» */
+async function renderWhReturns(box){
+  const sups = await ffSuppliersMap(), rets = [];
+  for(const r of await returnsOnTheWay())
+    rets.push(await returnCard(r, escapeHtml((sups[r.supplierId] || {}).name || ''), `<label class="check-row ret-got"><input type="checkbox" data-accept="${escapeAttr(r.id)}" onchange="retGot(${jsArg(r.id)})"><span>Забрал — всё в порядке</span></label>`));
+  box.innerHTML = rets.length ? '<div class="exp-title">Ожидается возврат · ' + rets.length + '</div>' + rets.join('')
+    : '<div class="card">' + emptyState('i-inbox', 'Возвратов в пути нет', 'Когда поставщик оформит возврат, он появится здесь — с кодом и штрихкодом для пункта выдачи.') + '</div>';
+  if(rets.length) fillPhotoThumbs(box);
 }
 async function retCancel(id){
   if(!confirm('Отменить возврат?')) return;
@@ -128,20 +184,16 @@ async function renderExpected(){
     parts.push(`<div class="row-item exp-row" data-expected="${escapeAttr(r.id)}"><div class="rmain"><span class="exp-sup">${escapeHtml((sups[r.supplierId] || {}).name || '')}</span> <span class="exp-qty">${n} шт.</span><div class="rmeta">${new Date(r.createdTs || Date.now()).toLocaleDateString('ru-RU', {day:'numeric', month:'long'})}</div></div>
       <div class="rside"><button class="btn primary sm" style="width:auto;" data-accept="${escapeAttr(r.id)}" onclick="rcAcceptExpected(${jsArg(r.id)})">Принять</button></div></div>`);
   }
-  // возвраты от поставщиков: штрихкод на виду — по нему забирают в пункте выдачи
-  const rets = [];
-  for(const r of (await returnsOnTheWay()).filter(r=> !supF || r.supplierId === supF))
-    rets.push(await returnCard(r, escapeHtml((sups[r.supplierId] || {}).name || ''), `<label class="check-row ret-got"><input type="checkbox" data-accept="${escapeAttr(r.id)}" onchange="retGot(${jsArg(r.id)})"><span>Забрал — всё в порядке</span></label>`));
+  // возвраты от поставщиков — во вкладке «Возвраты» (renderWhReturns, FoG 24.11.2026)
   // заголовок — над карточкой; в строке только поставщик и сколько штук
-  box.innerHTML = (rets.length ? '<div class="exp-title">Ожидается возврат</div>' + rets.join('') : '') +
-    (parts.length ? `<div class="exp-title">Ожидается поставка</div><div class="card">${parts.join('')}</div>` : '');
-  if(rets.length) fillPhotoThumbs(box);
+  box.innerHTML = parts.length ? `<div class="exp-title">Ожидается поставка</div><div class="card">${parts.join('')}</div>` : '';
 }
 /* Склад забрал возврат в пункте выдачи — галочка (FoG, 05.11.2026): возврат уходит в «Приёмку» на раскладку. */
 async function retGot(id){
   if(!(await acceptExpected(id))) return;
   toast('Возврат забран — разложите его в «Приёмке»');
   await renderExpected();
+  if(typeof renderSupReturns === 'function') await renderSupReturns();
 }
 async function rcAcceptExpected(id){
   const rid = await acceptExpected(id);

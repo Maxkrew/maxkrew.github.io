@@ -266,6 +266,7 @@ async function renderShipments(){
     </div>`);
   // поставщик: возвраты, которые едут на склад (js/incoming.js)
   if(sup) for(const r of await returnsOnTheWay()) parts.push(await returnCard(r, 'Возврат едет на склад',
+    `<button class="btn ghost" style="margin-top:8px;" data-ret-edit="${escapeAttr(r.id)}" onclick="retEdit(${jsArg(r.id)})"><svg class="icon"><use href="#i-edit"/></svg>Изменить код</button>` +
     `<button class="btn ghost danger-text" style="margin-top:8px;" data-ret-cancel="${escapeAttr(r.id)}" onclick="retCancel(${jsArg(r.id)})">Отменить возврат</button>`));
   parts.push(`<input type="search" id="shSearch" class="sh-search" placeholder="Поиск: трек-номер, товар, комментарий" value="${escapeAttr(q)}" oninput="arRefresh()">`);
   // поиск — по всем живым заказам, и собранным тоже

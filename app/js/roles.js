@@ -9,7 +9,8 @@ const NAV_ITEMS = [
   {id:'incoming',  label:'Приход',     icon:'i-in',    group:'Склад',  roles:['supplier']},
   {id:'shipments', label:'Отправки',   icon:'i-out',   group:'Склад',  roles:['owner','supplier'], labels:{supplier:'Продажи'}},
   /* 22.11.2026 (владелец): «Возвраты» и «Операции» у поставщика — как в «Складе»; операции с ценами — не сотруднику */
-  {id:'supreturns', label:'Возвраты',  icon:'i-inbox', group:'Склад',  roles:['supplier']},
+  /* 24.11.2026 (FoG): у склада возвраты в пути — своя вкладка, а не в самом низу «Склада» */
+  {id:'supreturns', label:'Возвраты',  icon:'i-inbox', group:'Склад',  roles:['owner','supplier']},
   {id:'supops',    label:'Операции',   icon:'i-clock', group:'Склад',  roles:['supplier'], noStaff:true},
   {id:'analysis',  label:'Анализ',     icon:'i-chart', group:'Склад',  roles:['supplier'], noStaff:true},   // деньги — не сотруднику
   {id:'cells',     label:'Ячейки',     icon:'i-grid',  group:'Склад',  roles:['owner']},

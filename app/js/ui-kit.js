@@ -160,10 +160,39 @@ window.addEventListener('DOMContentLoaded', uiInitHeaderCap);
 
 /* «Склад»: «⋯» вместо «Excel» и «+ Товар» (владелец, 21.11.2026). Пункты — из спрятанных кнопок,
    которые сейчас разрешены этой роли (сотруднику «+ Товар» не показывается и здесь). */
+/* 24.11.2026 (FoG: «пишем пару цифр — перекидывает на клаву с буквами»): перерисовка экрана, пока человек
+   печатает, не пересоздаёт само поле ввода — меняется всё вокруг. Иначе iPhone сбрасывает клавиатуру на буквы. */
+function ffSetHtmlKeepFocus(box, html){
+  const act = document.activeElement;
+  if(!act || !act.id || !box.contains(act) || !/^(INPUT|TEXTAREA)$/.test(act.tagName)){ box.innerHTML = html; return; }
+  const tmp = document.createElement('div'); tmp.innerHTML = html;
+  const sel = '#' + CSS.escape(act.id);
+  if(!tmp.querySelector(sel)){ box.innerHTML = html; return; }
+  const attrs = (from, to, keepValue)=>{
+    for(const a of [...to.attributes]) if(!from.hasAttribute(a.name) && !(keepValue && a.name === 'value')) to.removeAttribute(a.name);
+    for(const a of [...from.attributes]) if(!(keepValue && a.name === 'value') && to.getAttribute(a.name) !== a.value) to.setAttribute(a.name, a.value);
+  };
+  const morph = (oldP, newP)=>{
+    const oc = [...oldP.childNodes], nc = [...newP.childNodes];
+    const oi = oc.findIndex(n=> n === act || (n.nodeType === 1 && n.contains(act)));
+    const ni = nc.findIndex(n=> n.nodeType === 1 && (n.id === act.id || n.querySelector(sel)));
+    if(oi < 0 || ni < 0) return false;
+    const keep = oc[oi];
+    for(let i = 0; i < oc.length; i++) if(i !== oi) oldP.removeChild(oc[i]);
+    for(let i = 0; i < ni; i++) oldP.insertBefore(nc[i], keep);
+    for(let i = ni + 1; i < nc.length; i++) oldP.appendChild(nc[i]);
+    if(keep === act){ attrs(nc[ni], act, true); return true; }
+    attrs(nc[ni], keep, false);
+    return morph(keep, nc[ni]);
+  };
+  if(!morph(box, tmp)) box.innerHTML = html;
+}
 function stockMoreMenu(btn){
   const ok = id=>{ const b = document.getElementById(id); return b && !b.hidden && getComputedStyle(b).display !== 'none' ? b : null; };
   const items = [];
   const add = ok('ffAddModelBtn'), xls = ok('ffXlsBtn');
+  /* 22.11.2026 (план, п. 3): единый сканер и наклейки — всем */
+  if(typeof openFFScanner === 'function') items.push({label: 'Сканер', icon: 'i-camera', run: ()=> openFFScanner()});
   /* 22.11.2026: у поставщика «Приход» и «Продал» — тоже здесь (большие кнопки убраны) */
   if(typeof isSupplierRole === 'function' && isSupplierRole()){
     items.push({label: 'Приход', icon: 'i-in', run: ()=> homeGo('incoming')});
@@ -172,6 +201,7 @@ function stockMoreMenu(btn){
   }
   if(add) items.push({label: 'Добавить товар', icon: 'i-plus', run: ()=> add.click()});
   if(xls) items.push({label: 'Загрузить из Excel', icon: 'i-upload', run: ()=> xls.click()});
+  if(typeof ffPrintAllLabels === 'function') items.push({label: 'Наклейки на товары', icon: 'i-printer', run: ()=> ffPrintAllLabels()});
   if(!items.length){ toast('Здесь нет действий для вашей роли'); return; }
   uiMenu(btn, items);
 }

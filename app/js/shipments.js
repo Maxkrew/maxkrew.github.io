@@ -72,7 +72,9 @@ async function shipmentLines(shipmentId){
 }
 /* Несобранные строки живых отправок: {ячейка: {sizeId: штук}} и по размеру (с ячейкой и без). */
 async function reservedMaps(){
-  const live = new Set((await getAll('shipments')).filter(s=> !s.deletedAt && s.status !== 'отменена').map(s=> s.id));
+  /* 24.11.2026 (FoG: «заказ один, а забронировано 2»): у старых заказов бывает «собрана», а строка не отмечена —
+     собранный заказ уже уехал и ничего не держит */
+  const live = new Set((await getAll('shipments')).filter(s=> !s.deletedAt && s.status !== 'отменена' && s.status !== 'собрана').map(s=> s.id));
   const byCell = {}, bySize = {};
   for(const l of await getAll('shipmentLines')){
     if(l.deletedAt || l.collected || !live.has(l.shipmentId)) continue;
@@ -248,7 +250,7 @@ async function renderShipments(){
   const parts = [];
   // «В работе» / «История» (js/archive.js) — история отправок и возвратов, ничего не пропадает
   parts.push(`<div class="as-chips sh-view"><button type="button" class="as-chip${shView === 'work' ? ' on' : ''}" data-sh-view="work" onclick="shSetView('work')">В работе</button><button type="button" class="as-chip${shView === 'history' ? ' on' : ''}" data-sh-view="history" onclick="shSetView('history')">История</button></div>`);
-  if(shView === 'history'){ parts.push(await renderArchive()); box.innerHTML = parts.join(''); if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box); return; }
+  if(shView === 'history'){ parts.push(await renderArchive()); ffSetHtmlKeepFocus(box, parts.join('')); if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box); return; }
   if(!sup && typeof renderReviewBlock === 'function') parts.push(await renderReviewBlock());
   // поставщик заказывает через «Продал» (служба, скриншот, комментарий — там)
   if(sup) parts.push(`<div class="sh-sup-btns"><button class="btn primary sh-sell" id="shStart" onclick="shStart()"><svg class="icon"><use href="#i-out"/></svg>Продал — новый заказ</button>
@@ -271,7 +273,7 @@ async function renderShipments(){
     const hits = (await shMatches(list, q)).slice(0, SH_RECENT);
     for(const s of hits) parts.push(await shipmentCard(s, s.status !== 'собрана'));
     if(!hits.length) parts.push('<div class="hint">Ничего не найдено</div>');
-    box.innerHTML = parts.join(''); wireFFScanInputs();
+    ffSetHtmlKeepFocus(box, parts.join('')); wireFFScanInputs();
     if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);
     return;
   }
@@ -296,7 +298,7 @@ async function renderShipments(){
   if(recent.length){ parts.push('<div class="grp-title">' + (today.length ? 'Собранные сегодня · ' + recent.length : (sup ? 'Последние заказы · ' + recent.length : 'Собраны недавно')) + '</div>'); for(const s of recent) parts.push(await shipmentCard(s, false)); }
   // экран перерисовывается и после обмена — не теряем то, что склад уже ввёл в новую отправку
   const keep = ['shSupplier', 'shCarrier', 'shTrack', 'shComment'].map(id=> [id, (document.getElementById(id) || {}).value]);
-  box.innerHTML = parts.join('');
+  ffSetHtmlKeepFocus(box, parts.join(''));
   for(const [id, v] of keep){ const el = document.getElementById(id); if(el && v) el.value = v; }
   if(!sup) shShowBarcode();
   wireFFScanInputs();

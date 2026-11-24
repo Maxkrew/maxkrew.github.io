@@ -814,3 +814,42 @@ body.is-supplier .model-card .model-photo .ph-add,body.is-supplier .model-card .
 #sfFixDay::-webkit-datetime-edit,#sfBankDay::-webkit-datetime-edit{padding:0;line-height:48px;}
 #sfFixSum,#sfBankSum{box-sizing:border-box;height:48px;min-height:48px;font-size:17px;}
 .sf-fin .filter-row,#sfFinance .filter-row{align-items:center;}
+
+/* 22.11.2026: наклейки и сканер (п. 3 плана) */
+.mm-row{display:flex;align-items:center;width:100%;text-align:left;border:0;font:inherit;font-weight:600;color:var(--text);padding:14px;cursor:pointer;}
+.mm-row[hidden]{display:none !important;}
+.mm-row-chev{margin-left:auto;font-size:22px;line-height:1;color:var(--text-tertiary,#999);}
+#labelSheetOverlay.ff-lbl-on #labelSheetBar{display:none;}
+#ffLblBar{position:sticky;top:0;z-index:2;background:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;border-bottom:1px solid #eee;display:flex;flex-direction:column;gap:8px;color:var(--text,#111);}
+.fl-bar-row{display:flex;align-items:center;gap:10px;}
+.fl-bar-row .fl-count{flex:1;}
+.fl-seg{margin:0;}
+.ff-labels{display:flex;flex-wrap:wrap;gap:8px;padding:12px;justify-content:center;background:#f4f5f7;}
+.ff-labels .fl{background:#fff;color:#000;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;overflow:hidden;border:1px solid #ddd;border-radius:4px;}
+.ff-labels.fmt-thermo .fl{width:58mm;height:40mm;padding:2mm 2.5mm;}
+.ff-labels.fmt-a4 .fl{width:63mm;height:34mm;padding:1.8mm 2.5mm;}
+.ff-labels .fl-nm{font:700 10pt/1.15 -apple-system,system-ui,sans-serif;width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ff-labels .fl-sub{font:600 9pt/1.1 -apple-system,system-ui,sans-serif;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ff-labels .fl-big{font:800 26pt/1 -apple-system,system-ui,sans-serif;}
+.ff-labels .fl-bc{flex:1 1 auto;width:100%;min-height:0;display:flex;align-items:stretch;padding:1mm 0;}
+.ff-labels .fl-bc svg{width:100%;height:100%;display:block;}
+.ff-labels .fl-cd{font:600 8pt/1 ui-monospace,Menlo,monospace;letter-spacing:.5px;}
+.ff-scan video{width:100%;max-height:46vh;border-radius:14px;background:#000;display:block;margin:4px 0 8px;object-fit:cover;}
+.ff-scan video[hidden]{display:none;}
+.ff-scan form{margin-top:8px;}
+@media print{
+  #ffLblBar{display:none !important;}
+  .ff-labels{display:block;padding:0;background:#fff;gap:0;}
+  .ff-labels .fl{border:0;border-radius:0;}
+  .ff-labels.fmt-thermo .fl{page-break-after:always;break-after:page;}
+  .ff-labels.fmt-a4{display:flex;flex-wrap:wrap;justify-content:flex-start;}
+  .ff-labels.fmt-a4 .fl{border:0.2mm dashed #ccc;break-inside:avoid;}
+}
+/* 22.11.2026: при печати наклеек — только они (общие правила печати фото и листа сборки их прятали) */
+@media print{
+  body.labels-open > *:not(#labelSheetOverlay){display:none !important;}
+  body.labels-open #labelSheetOverlay{display:block !important;position:static !important;overflow:visible !important;background:#fff !important;}
+  body.labels-open #labelSheetOverlay,body.labels-open #labelSheetOverlay *{visibility:visible !important;}
+  body.labels-open #ffLblBar{display:none !important;}
+  html,body{margin:0 !important;padding:0 !important;}
+}

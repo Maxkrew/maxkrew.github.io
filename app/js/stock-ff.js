@@ -244,6 +244,7 @@ async function openModelModal(id){
   setv('mmCategory', (m && m.category) || ffCategories()[0]); setv('mmCapacity', (m && m.capacity) || 7);
   setv('mmLen', m && m.lenCm); setv('mmWid', m && m.widCm); setv('mmHei', m && m.heiCm);
   { const pb = document.getElementById('mmPackBox'); if(pb) pb.open = !!(m && (m.lenCm || m.widCm || m.heiCm)); }
+  { const lb = document.getElementById('mmLabelsBtn'); if(lb) lb.hidden = !m || typeof ffPrintModelLabels !== 'function'; }
   setv('mmSku', m && m.sku); setv('mmPrice', m && m.price); setv('mmCalcPrice', m && m.calcPrice);
   setv('mmBuyFrom', priv && priv.buyFrom); setv('mmCost', priv && priv.cost); setv('mmCommission', priv && priv.commissionPercent);
   setv('mmTax', priv && priv.taxPercent); setv('mmPackaging', priv && priv.packaging); setv('mmDelivery', priv && priv.deliveryDiscount);

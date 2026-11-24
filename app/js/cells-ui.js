@@ -39,6 +39,7 @@ async function renderCells(){
     <div class="cells-more" id="cellsMore" role="menu"${cellsMoreOpen ? '' : ' hidden'}>
       ${goneWithStock.length ? `<button type="button" class="cm-item" id="cellsShowGone" onclick="cellsToggleGone()">${cellsShowGone ? 'Скрыть удалённые ячейки' : 'Показать удалённые ячейки (' + goneWithStock.length + ')'}</button>` : ''}
       <button type="button" class="cm-item danger" id="cellsWriteOffGone" onclick="clearGoneCellsUI()"${goneInfo.pieces > 0 ? '' : ' hidden'}>Списать из удалённых: ${goneInfo.pieces} шт.</button>
+      <button type="button" class="cm-item" id="cellsLabels" onclick="cellsMoreToggle();ffPrintCellLabels()"${live.length ? '' : ' hidden'}>Наклейки на ячейки</button>
       <button type="button" class="cm-item danger" id="cellsDelAll" onclick="cellsDeleteAll()"${live.length ? '' : ' hidden'}>Удалить все ячейки</button>
     </div></div>`;
   if(!cells.length){

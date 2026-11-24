@@ -61,7 +61,7 @@ async function renderShipmentsOwner(box, list, open, done, q){
   parts.push(`<div class="sh-dock" id="shDock">${shView === 'history' ? '<span class="sh-dock-sp"></span>' : `<label class="sh-sbox glass"><svg class="icon"><use href="#i-search"/></svg><input type="search" id="shSearch" class="sh-search" placeholder="Трек, товар, комментарий" value="${escapeAttr(q)}" oninput="arRefresh()" aria-label="Поиск отправок"></label>
     <button type="button" class="sh-dbtn glass" id="shFilterBtn" onclick="shOpenFilters()" aria-label="Фильтр"><svg class="icon"><use href="#i-filter"/></svg>${nf ? '<sup>' + nf + '</sup>' : ''}</button>`}
     <button type="button" class="sh-dbtn sh-plus" id="shNewBtn" onclick="shOpenNew()" aria-label="Новая отправка"><svg class="icon"><use href="#i-plus"/></svg></button></div>`);
-  box.innerHTML = parts.join('');
+  ffSetHtmlKeepFocus(box, parts.join(''));   // поле поиска не пересоздаём
   wireFFScanInputs();
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(box);
   shInitSwipes(box);

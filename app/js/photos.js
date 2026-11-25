@@ -60,10 +60,28 @@ async function photoUrl(id){
   if(!p || p.deletedAt) return null;
   const c = photoUrlCache.get(id);
   if(c && c.until > Date.now()) return c.url;
-  const url = await Sync.photoSignedUrl(p.path);
-  if(url) photoUrlCache.set(id, {url, until: Date.now() + 50 * 60 * 1000});
-  return url;
+  /* 25.11.2026: сервер заблокировали за перерасход трафика — фото качались заново при каждом
+     открытии приложения. Теперь файл скачивается один раз и хранится на телефоне (photoBlobs). */
+  if(!photoLoading.has(id)) photoLoading.set(id, (async ()=>{
+    const url = await Sync.photoSignedUrl(p.path);
+    if(!url) return null;
+    try{
+      const res = await fetch(url);
+      if(res.ok){
+        const blob = await res.blob();
+        if(blob && blob.size){
+          await putRaw('photoBlobs', {id, blob, path: p.path, pending: false, cached: true});
+          photoUrlCache.set('b:' + id, URL.createObjectURL(blob));
+          return photoUrlCache.get('b:' + id);
+        }
+      }
+    }catch(e){}
+    photoUrlCache.set(id, {url, until: Date.now() + 50 * 60 * 1000});   // не вышло сохранить — хотя бы показать
+    return url;
+  })().finally(()=> photoLoading.delete(id)));
+  return photoLoading.get(id);
 }
+const photoLoading = new Map();   // одно фото качается один раз, даже если его просят сразу несколько мест
 async function modelPhoto(modelId){
   const list = (await getAll('photos')).filter(p=> !p.deletedAt && p.kind === 'товар' && p.modelId === modelId);
   list.sort((a, b)=> (b.createdTs || 0) - (a.createdTs || 0));

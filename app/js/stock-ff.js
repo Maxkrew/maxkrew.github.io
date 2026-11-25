@@ -31,9 +31,12 @@ async function ffSuppliersMap(){
   return Object.fromEntries((await getAll('suppliers')).map(s=> [s.id, s]));
 }
 
+/* 25.11.2026: перерисовки идут одновременно (обмен, нажатие) — старая, закончившись позже, не затирает новую */
+let ffStockTok = 0;
 async function renderStockFF(){
   const list = document.getElementById('ffStockList');
   if(!list) return;
+  const tok = ++ffStockTok, stale = ()=> tok !== ffStockTok;
   const owner = isOwnerRole();
   // у поставщика — «Мои товары» с кнопками «Приход» и «Продал» (этап 2б)
   document.getElementById('ffStockTitle').textContent = owner ? 'Склад' : 'Мои товары';
@@ -77,6 +80,7 @@ async function renderStockFF(){
   if(!models.length){
     const supF = owner && (document.getElementById('ffSupplierFilter') || {}).value;
     const supName = supF ? ((await ffSuppliersMap())[supF] || {}).name || '' : '';
+    if(stale()) return;
     if(supF && !q && !ffAbcLetter){ list.innerHTML = emptyState('i-box', 'У поставщика «' + supName + '» пока нет товаров', 'Товары появятся, когда он добавит их или склад примет его поставку.'); if(typeof renderExpected === 'function') await renderExpected(); return; }
     list.innerHTML = emptyState('i-box', q || ffAbcLetter ? 'Ничего не найдено' : 'Товаров пока нет', owner ? 'Добавьте товар кнопкой «Товар» или через приёмку.' : 'Добавьте товар кнопкой «+ Товар».');
     if(typeof renderExpected === 'function') await renderExpected();
@@ -136,6 +140,7 @@ async function renderStockFF(){
     </div>`);
   }
   if(models.length > shown.length) parts.push(`<button class="btn ghost" id="ffStockMore" onclick="ffStockLimit += 200; renderStockFF()">Показать ещё (${models.length - shown.length})</button>`);
+  if(stale()) return;
   list.innerHTML = parts.join('');
   if(!owner && typeof swInit === 'function') swInit(list);   // свайп: вправо «Приход», влево «Продал»
   if(typeof fillPhotoThumbs === 'function') fillPhotoThumbs(list);

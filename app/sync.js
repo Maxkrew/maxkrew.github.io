@@ -481,10 +481,26 @@
      и поставщики пишут разом). Поэтому каждый раз берём и последние OVERLAP номеров до курсора —
      уже известные строки пропускаются без записи. */
   const OVERLAP = 1000;
+  /* 25.11.2026: сервер заблокировали за перерасход трафика — каждый обмен (раз в 2 минуты на каждом
+     телефоне) качал заново последние 1000 правок. Строка с меньшим номером становится видна на
+     сервере за секунды, а не минуты. Поэтому запас берём не на 1000 номеров, а до курсора обмена,
+     который закончился хотя бы за SAFE_LAG до начала прошлого обмена: всё, что было до него,
+     прошлый обмен уже точно видел. Пустой обмен теперь почти ничего не качает.
+     История: [[начало, конец, курсор], …] по каждой таблице. */
+  const SAFE_LAG = 60 * 1000;
+  function seqHistFrom(hist){
+    if(!hist.length) return null;
+    const prevStart = hist[hist.length - 1][0];
+    let from = null;
+    for(const e of hist) if(e[1] <= prevStart - SAFE_LAG) from = e[2];
+    return from;
+  }
   async function pullStore(store, ws, rl, sinceSeq, opts){
     opts = opts || {};
     const spec = MAP[store];
-    const from0 = Math.max(0, sinceSeq - (opts.noOverlap ? 0 : OVERLAP));
+    /* opts.from — запас, посчитанный по прошлым обменам (seqHistFrom): не дальше, чем OVERLAP */
+    const from0 = opts.noOverlap ? Math.max(0, sinceSeq) : opts.from !== undefined && opts.from !== null
+      ? Math.max(0, sinceSeq - OVERLAP, Math.min(sinceSeq, opts.from)) : Math.max(0, sinceSeq - OVERLAP);
     const table = (spec.pullTable && spec.pullTable[rl]) || spec.table;
     const PAGE = 1000, data = [];
     for(let from = 0; ; from += PAGE){
@@ -604,7 +620,7 @@
   /* Самопроверка: сумма своих операций должна совпасть с сервером. Разовая разница бывает
      (чужая правка пришла между приёмом и сверкой), поэтому лечим, только если та же разница
      держится два обмена подряд: перекачать операции и убрать «отправленные», которых нет. */
-  let lastDiffSig = '';
+  let lastDiffSig = '', lastSelfCheck = 0;
   async function selfCheck(ws, rl){
     if((await window.getDirty('ops')).some(r=> !r.rejected)) return;      // ещё не всё отправлено — сравнивать рано
     const server = await serverSizeStock(ws);
@@ -688,7 +704,7 @@
     for(const s of ORDER) await window.clearStore(s);
     await window.clearStore('photoBlobs');
     for(const r of await window.getAll('settings')){
-      if(/^(ffSeq:|ffCursor:|ffEpoch:|ffScope$)/.test(r.key)) await window.del('settings', r.key);
+      if(/^(ffSeq:|ffSeqH:|ffCursor:|ffEpoch:|ffScope$)/.test(r.key)) await window.del('settings', r.key);
     }
   }
   /* Фото, снятые без сети: файл — в хранилище ff-photos; строка photos уйдёт следом (ready). */
@@ -794,14 +810,24 @@
         const key = 'ffSeq:' + ws + ':' + s;
         const cur = await window.get('settings', key);
         const since = cur ? num(cur.value) : (legacy ? num(legacy.value) : 0);
-        const r = await pullStore(s, ws, rl, since);
+        const hk = 'ffSeqH:' + ws + ':' + s, hr = await window.get('settings', hk);
+        let hist = hr && Array.isArray(hr.value) ? hr.value.filter(e=> Array.isArray(e) && e.length === 3) : [];
+        if(hist.length && num(hist[hist.length - 1][2]) > since) hist = [];   // курсор сбросили — история не годится
+        const t0 = Date.now();
+        const r = await pullStore(s, ws, rl, since, {from: seqHistFrom(hist)});
         received += r.applied;
-        await window.put('settings', {key, value: Math.max(since, r.maxSeq)});
+        const next = Math.max(since, r.maxSeq);
+        await window.put('settings', {key, value: next});
+        hist.push([t0, Date.now(), next]); while(hist.length > 12) hist.shift();
+        await window.put('settings', {key: hk, value: hist});
       }
       received += await pullSettings(ws);
       received += await countCheck(ws, rl);
 
-      if(!pushErr) await selfCheck(ws, rl);
+      /* сверка остатков качает весь список размеров: при обмене по расписанию и по чужой правке — только если
+         этот телефон что-то отправил, есть неподтверждённая разница или прошло 15 минут (трафик, 25.11.2026) */
+      const autoRun = reason === 'по расписанию' || /^чужая правка/.test(String(reason || ''));
+      if(!pushErr && (!autoRun || sent || lastDiffSig || Date.now() - lastSelfCheck > 15 * 60 * 1000)){ lastSelfCheck = Date.now(); await selfCheck(ws, rl); }
       const pending = await pendingCount();
       if(received && typeof window.refreshAfterSync === 'function'){ try{ await window.refreshAfterSync(); }catch(e){} }
       if(pushErr){ emit('error', {message: pushErr.message}); return {ok:false, error: pushErr.message, received}; }
